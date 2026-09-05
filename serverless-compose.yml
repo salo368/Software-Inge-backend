@@ -13,5 +13,10 @@ services:
     dependsOn:
       - layer
 
+  cdts:
+    path: services/cdts
+    dependsOn:
+      - layer
+
   frontend:
     path: frontend

@@ -1,0 +1,7 @@
+create:
+  handler: src/create/handler.create
+  description: Crea un CDT en etapa formularios
+  events:
+    - httpApi:
+        method: post
+        path: /cdts

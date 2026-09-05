@@ -1,0 +1,7 @@
+list:
+  handler: src/list/handler.list_cdts
+  description: Lista los CDTs del usuario autenticado
+  events:
+    - httpApi:
+        method: get
+        path: /cdts

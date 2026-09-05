@@ -1,0 +1,7 @@
+get:
+  handler: src/get/handler.get_cdt
+  description: Devuelve un CDT del usuario
+  events:
+    - httpApi:
+        method: get
+        path: /cdts/{id}

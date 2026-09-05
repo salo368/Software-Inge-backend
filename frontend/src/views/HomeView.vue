@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { BANKS, TERMS, TIER_COLORS, type Bank, type TermKey, type Tier } from '../data/banks'
 import { calcCdtDays, formatCOP } from '../utils/format'
+import { createCdt } from '../api/cdts'
+import { useAuth } from '../stores/auth'
 import AnimatedMoney from '../components/AnimatedMoney.vue'
+
+const router = useRouter()
+const auth = useAuth()
 
 // --- Estado del simulador ---
 const amount = ref<number>(5_000_000)
@@ -52,6 +58,24 @@ watch(term, () => {
   showResults.value = false
   requestAnimationFrame(() => { showResults.value = true })
 })
+
+// --- Apertura de CDT desde una card ---
+const openingId = ref('')
+
+async function openCdt(row: Row) {
+  if (!auth.token.value) {
+    router.push('/login')
+    return
+  }
+  openingId.value = row.id
+  try {
+    const days = TERMS.find((t) => t.key === term.value)!.days
+    const cdt = await createCdt({ amount: amount.value, term: days, rate: row.rate })
+    router.push(`/cdt/${cdt.id}`)
+  } catch {
+    openingId.value = ''
+  }
+}
 </script>
 
 <template>
@@ -253,6 +277,16 @@ watch(term, () => {
                   <span class="fw-semibold">{{ formatCOP(row.minAmount) }}</span>
                 </div>
               </div>
+
+              <!-- Abrir CDT -->
+              <button
+                class="btn btn-primary w-100 mt-3"
+                :disabled="openingId === row.id"
+                @click="openCdt(row)"
+              >
+                <span v-if="openingId === row.id" class="spinner-border spinner-border-sm me-2"></span>
+                Abrir este CDT
+              </button>
             </div>
           </div>
         </div>

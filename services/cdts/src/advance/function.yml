@@ -1,0 +1,7 @@
+advance:
+  handler: src/advance/handler.advance
+  description: Avanza el CDT a la siguiente etapa
+  events:
+    - httpApi:
+        method: post
+        path: /cdts/{id}/advance

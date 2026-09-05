@@ -20,14 +20,14 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, opts: RequestInit = {}, base: string = API_URL): Promise<T> {
   const headers = new Headers(opts.headers)
   headers.set('Content-Type', 'application/json')
 
   const token = getStoredToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(`${API_URL}${path}`, { ...opts, headers })
+  const res = await fetch(`${base}${path}`, { ...opts, headers })
   const isJson = res.headers.get('content-type')?.includes('json')
   const data = isJson ? await res.json() : null
 

@@ -1,0 +1,56 @@
+service: cdts-cdts
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 15
+  architecture: arm64
+  logRetentionInDays: 14
+  environment:
+    STAGE: ${self:provider.stage}
+    SERVICE: ${self:service}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+      maxAge: 300
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: "*"
+  layers:
+    - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
+
+package:
+  individually: true
+  patterns:
+    - '!**'
+    - 'src/**/handler.py'
+
+functions:
+  - ${file(./src/create/function.yml)}
+  - ${file(./src/list/function.yml)}
+  - ${file(./src/get/function.yml)}
+  - ${file(./src/advance/function.yml)}

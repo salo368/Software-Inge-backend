@@ -385,6 +385,81 @@ h1, h2, h3, h4, h5, h6,
   color: var(--brand-dark);
 }
 
+/* ---------- Stepper del wizard de CDT ---------- */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 72px;
+}
+.step-dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  background: #f1effa;
+  color: #8b8aa3;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+.step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b8aa3;
+}
+.step.current .step-dot {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  color: #fff;
+  box-shadow: var(--shadow-glow);
+}
+.step.current .step-label { color: var(--brand-dark); }
+.step.done .step-dot {
+  background: #dcfce7;
+  color: #059669;
+}
+.step.done .step-label { color: #059669; }
+.step-line {
+  flex: 1;
+  max-width: 70px;
+  height: 2px;
+  background: #eceaf6;
+  margin-top: 21px;
+}
+.step-line.done { background: #a7f3d0; }
+
+/* Cajas de carga de documentos / metodo de pago */
+.upload-box {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1rem 1.15rem;
+  border: 1.5px dashed #ddd6fe;
+  border-radius: var(--radius-md);
+  background: #faf9fe;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.upload-box:hover { border-color: var(--brand); }
+.upload-box i { font-size: 1.4rem; color: var(--brand); }
+.upload-box.uploaded {
+  border-style: solid;
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+.upload-box.uploaded i { color: #059669; }
+
 /* ---------- Auth ---------- */
 .auth-bg {
   position: relative;
