@@ -201,12 +201,8 @@ watch(term, () => {
             <div class="card-body p-4 d-flex flex-column">
               <!-- Header (min-height fija para que las cards vecinas queden parejas) -->
               <div class="d-flex align-items-center gap-3 mb-3 bank-card-header">
-                <div
-                  class="avatar"
-                  style="width: 48px; height: 48px; font-size: 1.15rem; border-radius: 0.9rem;"
-                  :style="{ background: row.color }"
-                >
-                  {{ row.name[0] }}
+                <div class="bank-logo">
+                  <img :src="row.logo" :alt="row.name" loading="lazy" />
                 </div>
                 <div class="flex-grow-1">
                   <div class="fw-bold lh-sm">{{ row.name }}</div>
