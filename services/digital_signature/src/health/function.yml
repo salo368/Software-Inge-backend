@@ -1,5 +1,5 @@
 health:
-  handler: src/health/handler.handler
+  handler: src/health/handler.health
   description: Health check del servicio digital_signature
   events:
     - httpApi:

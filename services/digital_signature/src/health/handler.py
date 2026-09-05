@@ -2,7 +2,7 @@ import json
 import os
 
 
-def handler(event, context):
+def health(event, context):
     return {
         "statusCode": 200,
         "headers": {"Content-Type": "application/json"},
