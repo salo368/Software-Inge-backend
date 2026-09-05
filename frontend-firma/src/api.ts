@@ -55,7 +55,7 @@ export async function putFile(url: string, blob: Blob, contentType: string): Pro
 }
 
 export function validatePhoto(token: string, type: UploadType) {
-  return req<{ valid: boolean; reason?: string }>(
+  return req<{ valid: boolean }>(
     `/signatures/${token}/validate`,
     { method: 'POST', body: JSON.stringify({ type }) },
   )

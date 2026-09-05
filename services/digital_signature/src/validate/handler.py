@@ -67,15 +67,12 @@ def validate(event, context):
 
     if vtype == "face":
         valid = _has_face(key)
-        reason = "no_face"
     else:
         lines = _detect_lines(key)
         if vtype == "cedula_front":
             valid = _score(lines, FRONT_KEYWORDS) >= FRONT_MIN
-            reason = "front_text_not_found"
         else:
             valid = _score(lines, BACK_KEYWORDS) >= BACK_MIN
-            reason = "back_text_not_found"
 
     if valid:
         return ok(200, {"valid": True})
@@ -90,4 +87,4 @@ def validate(event, context):
     else:
         stage = "documentos"
     DigitalSignatures.update_by_id(row.id, {f"{vtype}_key": None, "stage": stage})
-    return ok(200, {"valid": False, "reason": reason})
+    return ok(200, {"valid": False})
