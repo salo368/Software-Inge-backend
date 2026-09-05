@@ -75,7 +75,6 @@ watch(term, () => {
           <div class="d-flex flex-wrap gap-2">
             <span class="trust-chip"><i class="bi bi-shield-check"></i> Entidades vigiladas por la SFC</span>
             <span class="trust-chip"><i class="bi bi-bank"></i> Depósitos protegidos por Fogafín</span>
-            <span class="trust-chip"><i class="bi bi-stars"></i> Comparación gratuita</span>
           </div>
         </div>
 
