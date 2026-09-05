@@ -1,0 +1,7 @@
+contract:
+  handler: src/contract/handler.contract
+  description: URLs presignadas para ver o descargar el contrato firmado del CDT
+  events:
+    - httpApi:
+        method: get
+        path: /cdts/{id}/contract

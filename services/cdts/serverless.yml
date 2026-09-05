@@ -40,6 +40,10 @@ provider:
           Action:
             - kms:Decrypt
           Resource: "*"
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+          Resource: arn:aws:s3:::cdts-signature-files-${self:provider.stage}-${aws:accountId}/*
   layers:
     - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
 
@@ -54,3 +58,4 @@ functions:
   - ${file(./src/list/function.yml)}
   - ${file(./src/get/function.yml)}
   - ${file(./src/advance/function.yml)}
+  - ${file(./src/contract/function.yml)}

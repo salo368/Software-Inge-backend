@@ -31,3 +31,7 @@ export function getCdt(id: number | string) {
 export function advanceCdt(id: number | string) {
   return request<Cdt>(`/cdts/${id}/advance`, { method: 'POST' }, CDTS_API)
 }
+
+export function getContract(id: number | string) {
+  return request<{ view_url: string; download_url: string }>(`/cdts/${id}/contract`, {}, CDTS_API)
+}

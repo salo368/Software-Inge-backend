@@ -105,3 +105,4 @@ DROP TRIGGER IF EXISTS trg_digital_signatures_updated_at ON public.digital_signa
 CREATE TRIGGER trg_digital_signatures_updated_at BEFORE UPDATE ON public.digital_signatures
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE INDEX IF NOT EXISTS idx_digital_signatures_cdt_id ON public.digital_signatures(cdt_id);
+ALTER TABLE public.digital_signatures ADD COLUMN IF NOT EXISTS doc_hash CHAR(64) NULL;

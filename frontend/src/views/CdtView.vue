@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { advanceCdt, getCdt, type Cdt } from '../api/cdts'
+import { advanceCdt, getCdt, getContract, type Cdt } from '../api/cdts'
 import { createSignature } from '../api/signatures'
 import { STAGES, stageIndex } from '../data/stages'
 import { calcCdtDays, formatCOP } from '../utils/format'
@@ -48,6 +48,19 @@ const ctaLabel = computed(() => {
     default: return ''
   }
 })
+
+const contractBusy = ref(false)
+
+async function openContract(mode: 'view' | 'download') {
+  if (!cdt.value || contractBusy.value) return
+  contractBusy.value = true
+  try {
+    const r = await getContract(cdt.value.id)
+    window.open(mode === 'view' ? r.view_url : r.download_url, '_blank')
+  } finally {
+    contractBusy.value = false
+  }
+}
 
 async function sendSignLink() {
   if (!cdt.value || sending.value) return
@@ -262,6 +275,18 @@ onMounted(load)
                 <span class="fw-bold">{{ formatCOP(gains.final) }}</span>
               </div>
             </div>
+
+            <!-- Contrato firmado (con certificado de firma y hash) -->
+            <div v-if="cdt.signature_url" class="d-flex justify-content-center gap-2 flex-wrap mb-4">
+              <button class="btn btn-outline-primary" :disabled="contractBusy" @click="openContract('view')">
+                <span v-if="contractBusy" class="spinner-border spinner-border-sm me-2"></span>
+                <i v-else class="bi bi-file-earmark-pdf me-2"></i>Ver contrato firmado
+              </button>
+              <button class="btn btn-outline-primary" :disabled="contractBusy" @click="openContract('download')">
+                <i class="bi bi-download me-2"></i>Descargar
+              </button>
+            </div>
+
             <RouterLink to="/dashboard" class="btn btn-primary px-4">
               Ir a mi dashboard
             </RouterLink>
