@@ -103,59 +103,56 @@ watch(term, () => {
       </div>
     </section>
 
-    <!-- ============ CONTROLES (superpuestos al hero) ============ -->
+    <!-- ============ CONTROLES (superpuestos al hero, todo centrado) ============ -->
     <div class="card shadow-sm mx-2 mx-lg-5 position-relative" style="margin-top: -2.5rem; z-index: 2;">
-      <div class="card-body p-4 p-lg-5">
-        <div class="row g-4 align-items-start">
-          <div class="col-lg-5">
-            <label class="form-label small text-uppercase text-body-secondary fw-bold">
-              <i class="bi bi-cash-stack me-1"></i>Monto a invertir
-            </label>
-            <div class="input-group input-group-lg">
-              <span class="input-group-text">$</span>
-              <input
-                v-model.number="amount"
-                type="number"
-                class="form-control"
-                min="0"
-                step="100000"
-                placeholder="5.000.000"
-              />
-              <span class="input-group-text">COP</span>
-            </div>
-            <div class="form-text fw-semibold">= {{ formatCOP(amount || 0) }}</div>
-          </div>
+      <div class="card-body p-4 p-lg-5 text-center">
+        <!-- Monto -->
+        <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mb-3">
+          <i class="bi bi-cash-stack me-1"></i>¿Cuánto quieres invertir?
+        </label>
+        <div class="input-group input-group-lg amount-input mx-auto">
+          <span class="input-group-text">$</span>
+          <input
+            v-model.number="amount"
+            type="number"
+            class="form-control text-center"
+            min="0"
+            step="100000"
+            placeholder="5.000.000"
+          />
+          <span class="input-group-text">COP</span>
+        </div>
+        <div class="form-text fw-semibold mt-2">= {{ formatCOP(amount || 0) }}</div>
 
-          <div class="col-lg-7">
-            <label class="form-label small text-uppercase text-body-secondary fw-bold">
-              <i class="bi bi-calendar3 me-1"></i>Plazo
-            </label>
-            <div class="segmented">
-              <button
-                v-for="t in TERMS"
-                :key="t.key"
-                type="button"
-                class="seg-item"
-                :class="{ active: term === t.key }"
-                @click="term = t.key"
-              >
-                {{ t.label }}
-              </button>
-            </div>
-            <div class="form-text">Cada entidad ofrece tasas distintas según el plazo — pruébalos todos.</div>
+        <!-- Plazo -->
+        <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mt-4 mb-3">
+          <i class="bi bi-calendar3 me-1"></i>¿A qué plazo?
+        </label>
+        <div class="d-flex justify-content-center">
+          <div class="segmented">
+            <button
+              v-for="t in TERMS"
+              :key="t.key"
+              type="button"
+              class="seg-item"
+              :class="{ active: term === t.key }"
+              @click="term = t.key"
+            >
+              {{ t.label }}
+            </button>
           </div>
         </div>
+        <div class="form-text mt-2">Cada entidad ofrece tasas distintas según el plazo — pruébalos todos.</div>
 
-        <div class="d-flex justify-content-center mt-4">
-          <button
-            class="btn btn-primary btn-lg px-5 py-3"
-            :disabled="!isValid"
-            @click="onSimulate"
-          >
-            {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones' }}
-            <i class="bi bi-arrow-right ms-2"></i>
-          </button>
-        </div>
+        <!-- CTA -->
+        <button
+          class="btn btn-primary btn-lg px-5 py-3 mt-4"
+          :disabled="!isValid"
+          @click="onSimulate"
+        >
+          {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones' }}
+          <i class="bi bi-arrow-right ms-2"></i>
+        </button>
       </div>
     </div>
 
