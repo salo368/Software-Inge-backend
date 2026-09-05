@@ -57,7 +57,7 @@ watch(term, () => {
 <template>
   <div>
     <!-- ============ HERO (compacto, entra en 1080p junto a los controles) ============ -->
-    <section class="hero-dark p-4 px-lg-5 mb-0">
+    <section class="hero-dark mb-0">
       <div class="row g-4 align-items-center position-relative" style="z-index: 1;">
         <div class="col-lg-7">
           <span class="hero-eyebrow">
