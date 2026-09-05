@@ -12,3 +12,6 @@ services:
     path: services/access
     dependsOn:
       - layer
+
+  frontend:
+    path: frontend

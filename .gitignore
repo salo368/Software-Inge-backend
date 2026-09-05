@@ -38,6 +38,11 @@ config/local.*
 # Contenido generado de layers (deps de pip + copia de utils/)
 layers/*/python/
 
+# Frontend Vue/Vite
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
 # =============================================================================
 # NODE / JS / TS
 # =============================================================================

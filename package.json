@@ -13,7 +13,10 @@
     "logs:moc": "cd services/moc && serverless logs -f health -t",
     "logs:signature": "cd services/digital_signature && serverless logs -f health -t",
     "logs:access:register": "cd services/access && serverless logs -f register -t",
-    "logs:access:login": "cd services/access && serverless logs -f login -t"
+    "logs:access:login": "cd services/access && serverless logs -f login -t",
+    "deploy:frontend:infra": "cd frontend && serverless deploy",
+    "deploy:frontend": "cd frontend && bash deploy.sh",
+    "dev:frontend": "cd frontend && npm run dev"
   },
   "devDependencies": {
     "@serverless/compose": "^1.3.0"
