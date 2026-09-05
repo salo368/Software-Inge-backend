@@ -1,0 +1,135 @@
+# =============================================================================
+# CREDENCIALES Y SECRETOS - NUNCA COMMITEAR
+# =============================================================================
+# AWS
+access.csv
+*access*.csv
+*credentials*.csv
+*.pem
+*.key
+*.ppk
+.aws/
+aws-credentials/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+!.env.template
+*.env.local
+
+# Configuracion sensible
+secrets/
+config/secrets.*
+config/local.*
+
+# =============================================================================
+# TERRAFORM
+# =============================================================================
+# State files (contienen secretos y IPs)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Directorios locales de Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Archivos de variables con datos reales
+*.tfvars
+*.tfvars.json
+!example.tfvars
+!terraform.tfvars.example
+
+# Plans y overrides locales
+*.tfplan
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Crash logs de Terraform
+crash.log
+crash.*.log
+
+# =============================================================================
+# NODE / JS / TS
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+dist/
+build/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+coverage/
+*.tsbuildinfo
+
+# =============================================================================
+# PYTHON
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+*.egg-info/
+dist/
+build/
+
+# =============================================================================
+# JAVA / MAVEN / GRADLE (por si acaso el proyecto de Javeriana lo usa)
+# =============================================================================
+target/
+*.class
+*.jar
+*.war
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+
+# =============================================================================
+# EDITORES / IDEs
+# =============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Cursor
+.cursor/
+
+# =============================================================================
+# LOGS Y TEMPORALES
+# =============================================================================
+*.log
+logs/
+tmp/
+temp/
+.tmp/
+
+# =============================================================================
+# DOCKER
+# =============================================================================
+docker-compose.override.yml
