@@ -49,7 +49,7 @@ async function onLogout() {
     </div>
   </nav>
 
-  <main class="container-xxl px-3 px-lg-4 py-4" style="min-height: calc(100vh - 180px);">
+  <main class="container-xxl px-3 px-lg-4 py-4 flex-grow-1 w-100">
     <RouterView />
   </main>
 
