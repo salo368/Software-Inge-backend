@@ -21,4 +21,4 @@ package:
     - 'src/**/handler.py'
 
 functions:
-  health: ${file(src/health/function.yml)}
+  - ${file(./src/health/function.yml)}

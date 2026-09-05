@@ -1,7 +1,7 @@
-name: ${self:service}-health
-handler: src/health/handler.handler
-description: Health check del servicio moc
-events:
-  - httpApi:
-      path: /moc/health
-      method: get
+health:
+  handler: src/health/handler.handler
+  description: Health check del servicio moc
+  events:
+    - httpApi:
+        method: get
+        path: /health

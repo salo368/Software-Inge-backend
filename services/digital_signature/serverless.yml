@@ -21,4 +21,4 @@ package:
     - 'src/**/handler.py'
 
 functions:
-  sign: ${file(src/sign/function.yml)}
+  - ${file(./src/sign/function.yml)}
