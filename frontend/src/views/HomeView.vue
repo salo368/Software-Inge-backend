@@ -56,22 +56,21 @@ watch(term, () => {
 
 <template>
   <div>
-    <!-- ============ HERO ============ -->
-    <section class="hero-dark p-4 p-lg-5 mb-0">
+    <!-- ============ HERO (compacto, entra en 1080p junto a los controles) ============ -->
+    <section class="hero-dark p-4 px-lg-5 mb-0">
       <div class="row g-4 align-items-center position-relative" style="z-index: 1;">
         <div class="col-lg-7">
           <span class="hero-eyebrow">
             <i class="bi bi-lightning-charge-fill"></i>
             Simulador de CDT · Colombia
           </span>
-          <h1 class="display-4 mt-4 mb-3">
-            Tu dinero merece<br />
+          <h1 class="display-5 mt-3 mb-2">
+            Tu dinero merece
             <span class="hero-highlight">crecer mejor.</span>
           </h1>
-          <p class="lead mb-4" style="color: rgba(255,255,255,0.72); max-width: 34rem;">
-            Compara {{ BANKS.length }} entidades financieras en segundos.
-            Distintos plazos favorecen a distintas entidades — y la solidez
-            también cuenta. Invierte con información, no con suposiciones.
+          <p class="mb-3" style="color: rgba(255,255,255,0.72); max-width: 36rem; font-size: 1.05rem;">
+            Compara {{ BANKS.length }} entidades en segundos: tasas, plazos y solidez.
+            Invierte con información, no con suposiciones.
           </p>
           <div class="d-flex flex-wrap gap-2">
             <span class="trust-chip"><i class="bi bi-shield-check"></i> Entidades vigiladas por la SFC</span>
@@ -81,8 +80,8 @@ watch(term, () => {
         </div>
 
         <div class="col-lg-5">
-          <div class="glass-card p-4">
-            <div class="glass-label mb-3">Tasas E.A. del mercado · {{ selectedTermLabel }}</div>
+          <div class="glass-card p-3 p-lg-4">
+            <div class="glass-label mb-2">Tasas E.A. del mercado · {{ selectedTermLabel }}</div>
             <div class="row g-4 text-nowrap">
               <div class="col-6">
                 <div class="glass-label mb-1">Desde</div>
@@ -93,7 +92,7 @@ watch(term, () => {
                 <div class="fs-2 fw-bold lh-1" style="color:#a7f3d0;">{{ marketMax.toFixed(2) }}%</div>
               </div>
             </div>
-            <hr style="border-color: rgba(255,255,255,0.14); opacity: 1;" />
+            <hr class="my-3" style="border-color: rgba(255,255,255,0.14); opacity: 1;" />
             <div class="d-flex align-items-center gap-2 small" style="color: rgba(255,255,255,0.65);">
               <i class="bi bi-info-circle"></i>
               La diferencia entre elegir bien y elegir rápido puede ser millonaria.
@@ -103,62 +102,68 @@ watch(term, () => {
       </div>
     </section>
 
-    <!-- ============ CONTROLES (superpuestos al hero, todo centrado) ============ -->
+    <!-- ============ CONTROLES (una sola fila: monto | plazo | CTA) ============ -->
     <div class="card shadow-sm mx-2 mx-lg-5 position-relative" style="margin-top: -2.5rem; z-index: 2;">
-      <div class="card-body p-4 p-lg-5 text-center">
-        <!-- Monto -->
-        <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mb-3">
-          <i class="bi bi-cash-stack me-1"></i>¿Cuánto quieres invertir?
-        </label>
-        <div class="input-group input-group-lg amount-input mx-auto">
-          <span class="input-group-text">$</span>
-          <input
-            v-model.number="amount"
-            type="number"
-            class="form-control text-center"
-            min="0"
-            step="100000"
-            placeholder="5.000.000"
-          />
-          <span class="input-group-text">COP</span>
-        </div>
-        <div class="form-text fw-semibold mt-2">= {{ formatCOP(amount || 0) }}</div>
+      <div class="card-body p-4">
+        <div class="row g-3 justify-content-center align-items-end controls-row">
+          <div class="col-12 col-lg-auto">
+            <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mb-2">
+              <i class="bi bi-cash-stack me-1"></i>Monto a invertir
+            </label>
+            <div class="input-group amount-input">
+              <span class="input-group-text">$</span>
+              <input
+                v-model.number="amount"
+                type="number"
+                class="form-control text-center"
+                min="0"
+                step="100000"
+                placeholder="5.000.000"
+              />
+              <span class="input-group-text">COP</span>
+            </div>
+          </div>
 
-        <!-- Plazo -->
-        <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mt-4 mb-3">
-          <i class="bi bi-calendar3 me-1"></i>¿A qué plazo?
-        </label>
-        <div class="d-flex justify-content-center">
-          <div class="segmented">
+          <div class="col-12 col-lg-auto">
+            <label class="form-label small text-uppercase text-body-secondary fw-bold d-block mb-2">
+              <i class="bi bi-calendar3 me-1"></i>Plazo
+            </label>
+            <div class="segmented">
+              <button
+                v-for="t in TERMS"
+                :key="t.key"
+                type="button"
+                class="seg-item"
+                :class="{ active: term === t.key }"
+                @click="term = t.key"
+              >
+                {{ t.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-auto">
             <button
-              v-for="t in TERMS"
-              :key="t.key"
-              type="button"
-              class="seg-item"
-              :class="{ active: term === t.key }"
-              @click="term = t.key"
+              class="btn btn-primary px-4 cta-btn"
+              :disabled="!isValid"
+              @click="onSimulate"
             >
-              {{ t.label }}
+              {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones' }}
+              <i class="bi bi-arrow-right ms-2"></i>
             </button>
           </div>
         </div>
-        <div class="form-text mt-2">Cada entidad ofrece tasas distintas según el plazo — pruébalos todos.</div>
 
-        <!-- CTA -->
-        <button
-          class="btn btn-primary btn-lg px-5 py-3 mt-4"
-          :disabled="!isValid"
-          @click="onSimulate"
-        >
-          {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones' }}
-          <i class="bi bi-arrow-right ms-2"></i>
-        </button>
+        <div class="text-center form-text mt-3 mb-0">
+          = <span class="fw-semibold">{{ formatCOP(amount || 0) }}</span>
+          · cada entidad ofrece tasas distintas según el plazo, pruébalos todos
+        </div>
       </div>
     </div>
 
     <!-- ============ EMPTY STATE ============ -->
-    <div v-if="!showResults" class="text-center py-5 my-4">
-      <div class="empty-state-icon mb-4">
+    <div v-if="!showResults" class="text-center py-4 my-2">
+      <div class="empty-state-icon mb-3">
         <i class="bi bi-graph-up-arrow"></i>
       </div>
       <h5 class="fw-bold mb-2">Listo cuando tú lo estés</h5>
@@ -171,7 +176,7 @@ watch(term, () => {
 
     <!-- ============ RESULTADOS ============ -->
     <template v-else>
-      <div class="d-flex flex-wrap justify-content-between align-items-center mt-5 mb-3 gap-2">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 mb-3 gap-2">
         <div>
           <h5 class="mb-1 fw-bold">{{ BANKS.length }} entidades aliadas</h5>
           <div class="text-body-secondary small">

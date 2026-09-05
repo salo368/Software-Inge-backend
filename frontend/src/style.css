@@ -237,9 +237,33 @@ h1, h2, h3, h4, h5, h6,
   font-weight: 600;
 }
 
-/* Input de monto centrado con ancho controlado */
+/* ---------- Fila de controles: input, segmented y CTA con la misma altura ---------- */
 .amount-input {
-  max-width: 380px;
+  width: 290px;
+  max-width: 100%;
+}
+.controls-row .form-control,
+.controls-row .input-group-text {
+  height: 56px;
+  font-size: 1.15rem;
+}
+.controls-row .form-control { font-weight: 700; }
+.controls-row .segmented {
+  height: 56px;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+.controls-row .seg-item { padding: 0.55rem 1rem; }
+.controls-row .cta-btn {
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 1.05rem;
+}
+@media (max-width: 991.98px) {
+  .controls-row .segmented { height: auto; flex-wrap: wrap; }
+  .controls-row .cta-btn { width: 100%; justify-content: center; }
+  .amount-input { width: 100%; }
 }
 
 /* ---------- Segmented control (plazos) ---------- */
