@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { advanceCdt, getCdt, type Cdt } from '../api/cdts'
+import { createSignature } from '../api/signatures'
 import { STAGES, stageIndex } from '../data/stages'
 import { calcCdtDays, formatCOP } from '../utils/format'
 
@@ -15,8 +16,13 @@ const advancing = ref(false)
 // Estado mock de cada etapa (solo visual, no se persiste)
 const form = ref({ fullName: '', docNumber: '', city: '' })
 const docs = ref({ cedula: false, fondos: false })
-const signed = ref(false)
 const payMethod = ref<'pse' | 'transferencia'>('pse')
+
+// Firma digital (proceso real en el servicio digital_signature)
+const signEmail = ref('')
+const signLink = ref('')
+const sending = ref(false)
+const signError = ref('')
 
 const idx = computed(() => (cdt.value ? stageIndex(cdt.value.stage) : 0))
 const gains = computed(() => {
@@ -29,7 +35,6 @@ const canContinue = computed(() => {
   switch (cdt.value.stage) {
     case 'formularios': return !!(form.value.fullName && form.value.docNumber && form.value.city)
     case 'documentos': return docs.value.cedula && docs.value.fondos
-    case 'firma': return signed.value
     case 'pago': return true
     default: return false
   }
@@ -39,11 +44,24 @@ const ctaLabel = computed(() => {
   switch (cdt.value?.stage) {
     case 'formularios': return 'Guardar y continuar'
     case 'documentos': return 'Continuar a la firma'
-    case 'firma': return 'Continuar al pago'
     case 'pago': return `Pagar ${formatCOP(Number(cdt.value.amount))}`
     default: return ''
   }
 })
+
+async function sendSignLink() {
+  if (!cdt.value || sending.value) return
+  sending.value = true
+  signError.value = ''
+  try {
+    const r = await createSignature({ cdt_id: cdt.value.id, email: signEmail.value.trim() })
+    signLink.value = r.sign_url
+  } catch (e: any) {
+    signError.value = e.message || 'No pudimos enviar el enlace, intenta de nuevo'
+  } finally {
+    sending.value = false
+  }
+}
 
 async function load() {
   try {
@@ -150,10 +168,12 @@ onMounted(load)
           </button>
         </template>
 
-        <!-- ETAPA: firma -->
+        <!-- ETAPA: firma (proceso real por correo) -->
         <template v-else-if="cdt.stage === 'firma'">
           <h5 class="fw-bold mb-1">Firma tu contrato</h5>
-          <p class="text-body-secondary small mb-4">Revisa el contrato de apertura y fírmalo digitalmente.</p>
+          <p class="text-body-secondary small mb-4">
+            Te enviaremos un enlace seguro a tu correo para validar tu identidad y firmar digitalmente.
+          </p>
           <div class="border rounded-3 p-3 mb-3 d-flex align-items-center gap-3" style="background: #faf9fe;">
             <i class="bi bi-file-earmark-text fs-3" style="color: var(--brand);"></i>
             <div class="flex-grow-1">
@@ -161,16 +181,36 @@ onMounted(load)
               <div class="small text-body-secondary">{{ formatCOP(Number(cdt.amount)) }} · {{ cdt.term }} días · {{ Number(cdt.rate).toFixed(2) }}% E.A.</div>
             </div>
           </div>
-          <button
-            v-if="!signed"
-            class="btn btn-outline-primary w-100"
-            @click="signed = true"
-          >
-            <i class="bi bi-pen me-2"></i>Firmar documento
-          </button>
-          <div v-else class="alert alert-success d-flex align-items-center gap-2 mb-0">
-            <i class="bi bi-patch-check-fill"></i>
-            Documento firmado digitalmente.
+
+          <template v-if="!signLink">
+            <label class="form-label small fw-semibold">Correo electrónico</label>
+            <input
+              v-model="signEmail"
+              type="email"
+              class="form-control"
+              placeholder="tu@correo.com"
+              @keyup.enter="sendSignLink"
+            />
+            <button
+              class="btn btn-primary w-100 mt-3"
+              :disabled="!signEmail.includes('@') || sending"
+              @click="sendSignLink"
+            >
+              <span v-if="sending" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="bi bi-envelope-paper me-2"></i>Enviar enlace de firma
+            </button>
+            <div v-if="signError" class="alert alert-danger mt-3 mb-0">{{ signError }}</div>
+          </template>
+
+          <div v-else class="alert alert-success mb-0">
+            <div class="d-flex align-items-center gap-2 mb-2">
+              <i class="bi bi-envelope-check-fill"></i>
+              <span>Enviamos el enlace de firma a <b>{{ signEmail }}</b>.</span>
+            </div>
+            <div class="small mb-2">Al completar la firma volverás aquí y tu CDT pasará a pago.</div>
+            <a :href="signLink" class="btn btn-outline-primary btn-sm">
+              Abrir firma ahora<i class="bi bi-box-arrow-up-right ms-2"></i>
+            </a>
           </div>
         </template>
 
@@ -228,9 +268,9 @@ onMounted(load)
           </div>
         </template>
 
-        <!-- CTA avanzar (etapas de usuario) -->
+        <!-- CTA avanzar (la etapa firma avanza sola al confirmar el OTP) -->
         <button
-          v-if="cdt.stage !== 'terminado'"
+          v-if="cdt.stage !== 'terminado' && cdt.stage !== 'firma'"
           class="btn btn-primary w-100 mt-4 py-2"
           :disabled="!canContinue || advancing"
           @click="advance"

@@ -1,0 +1,7 @@
+upload-url:
+  handler: src/upload_url/handler.upload_url
+  description: URL presignada para subir fotos y firma, avanza la etapa del proceso
+  events:
+    - httpApi:
+        method: post
+        path: /signatures/{token}/uploads

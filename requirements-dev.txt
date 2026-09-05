@@ -3,6 +3,9 @@
 sqlalchemy>=2.0,<3.0
 pg8000>=1.30
 bcrypt>=4.0
+pypdf>=4.0
+reportlab>=4.0
+pillow>=10.0
 
 # Solo dev / scripts locales (boto3 esta preinstalado en Lambda, no va en la layer)
 boto3>=1.34

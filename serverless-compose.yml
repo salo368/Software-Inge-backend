@@ -7,6 +7,8 @@ services:
 
   digital_signature:
     path: services/digital_signature
+    dependsOn:
+      - layer
 
   access:
     path: services/access
@@ -20,3 +22,6 @@ services:
 
   frontend:
     path: frontend
+
+  firma:
+    path: frontend-firma

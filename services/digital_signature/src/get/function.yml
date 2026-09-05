@@ -1,0 +1,7 @@
+get:
+  handler: src/get/handler.get_process
+  description: Estado del proceso de firma (auth por token del link)
+  events:
+    - httpApi:
+        method: get
+        path: /signatures/{token}

@@ -76,3 +76,32 @@ CREATE TRIGGER trg_bearer_tokens_updated_at BEFORE UPDATE ON public.bearer_token
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE INDEX IF NOT EXISTS idx_bearer_tokens_user_id     ON public.bearer_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_bearer_tokens_expires_at  ON public.bearer_tokens(expires_at);
+
+-- ==============================================================
+-- digital_signatures
+-- ==============================================================
+CREATE TABLE IF NOT EXISTS public.digital_signatures (
+    id               BIGSERIAL     PRIMARY KEY,
+    cdt_id           BIGINT        NOT NULL REFERENCES public.cdts(id) ON DELETE CASCADE,
+    token            VARCHAR(64)   UNIQUE NOT NULL,
+    email            VARCHAR(255)  NOT NULL,
+    stage            VARCHAR(30)   NOT NULL,
+    pdf_key          TEXT          NOT NULL,
+    page             INTEGER       NOT NULL DEFAULT 1,
+    pos_x            NUMERIC(5,2)  NOT NULL,
+    pos_y            NUMERIC(5,2)  NOT NULL,
+    cedula_front_key TEXT          NULL,
+    cedula_back_key  TEXT          NULL,
+    face_key         TEXT          NULL,
+    signature_key    TEXT          NULL,
+    signed_pdf_key   TEXT          NULL,
+    otp_hash         CHAR(64)      NULL,
+    otp_expires_at   TIMESTAMPTZ   NULL,
+    otp_attempts     INTEGER       NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
+    updated_at       TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
+DROP TRIGGER IF EXISTS trg_digital_signatures_updated_at ON public.digital_signatures;
+CREATE TRIGGER trg_digital_signatures_updated_at BEFORE UPDATE ON public.digital_signatures
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE INDEX IF NOT EXISTS idx_digital_signatures_cdt_id ON public.digital_signatures(cdt_id);

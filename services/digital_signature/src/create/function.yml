@@ -1,0 +1,7 @@
+create:
+  handler: src/create/handler.create
+  description: Crea un proceso de firma, genera el contrato PDF y envia el link por correo
+  events:
+    - httpApi:
+        method: post
+        path: /signatures

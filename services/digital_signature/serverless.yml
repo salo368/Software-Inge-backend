@@ -1,18 +1,60 @@
 service: cdts-digital-signature
 frameworkVersion: '3'
 
+custom:
+  filesBucket: cdts-signature-files-${self:provider.stage}-${aws:accountId}
+
 provider:
   name: aws
   runtime: python3.11
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
-  memorySize: 256
+  memorySize: 512
   timeout: 30
   architecture: arm64
   logRetentionInDays: 14
   environment:
     STAGE: ${self:provider.stage}
     SERVICE: ${self:service}
+    FILES_BUCKET: ${self:custom.filesBucket}
+    SIGN_FRONT_URL: http://cdts-firma-${self:provider.stage}-${aws:accountId}.s3-website-${self:provider.region}.amazonaws.com
+    COMMERCE_URL: http://cdts-frontend-${self:provider.stage}-${aws:accountId}.s3-website-${self:provider.region}.amazonaws.com
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+      maxAge: 300
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db/*
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/smtp
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/smtp/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::${self:custom.filesBucket}/*
+  layers:
+    - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
 
 package:
   individually: true
@@ -20,5 +62,28 @@ package:
     - '!**'
     - 'src/**/handler.py'
 
+resources:
+  Resources:
+    SignatureFilesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.filesBucket}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedOrigins: ["*"]
+              AllowedMethods: [GET, PUT]
+              AllowedHeaders: ["*"]
+              MaxAge: 300
+
 functions:
   - ${file(./src/health/function.yml)}
+  - ${file(./src/create/function.yml)}
+  - ${file(./src/get/function.yml)}
+  - ${file(./src/upload_url/function.yml)}
+  - ${file(./src/request_otp/function.yml)}
+  - ${file(./src/confirm/function.yml)}

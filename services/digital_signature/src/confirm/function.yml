@@ -1,0 +1,7 @@
+confirm:
+  handler: src/confirm/handler.confirm
+  description: Valida el OTP, estampa la firma en el PDF y avanza el CDT a pago
+  events:
+    - httpApi:
+        method: post
+        path: /signatures/{token}/confirm

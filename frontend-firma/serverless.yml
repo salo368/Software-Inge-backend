@@ -1,0 +1,51 @@
+service: cdts-firma
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+
+custom:
+  bucketName: cdts-firma-${self:provider.stage}-${aws:accountId}
+
+resources:
+  Resources:
+    FirmaBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.bucketName}
+        WebsiteConfiguration:
+          IndexDocument: index.html
+          ErrorDocument: index.html
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerPreferred
+
+    FirmaBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket:
+          Ref: FirmaBucket
+        PolicyDocument:
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: s3:GetObject
+              Resource:
+                Fn::Sub: "${FirmaBucket.Arn}/*"
+
+  Outputs:
+    WebsiteURL:
+      Description: "URL publica del front de firma"
+      Value:
+        Fn::GetAtt: [FirmaBucket, WebsiteURL]
+    BucketName:
+      Description: "Nombre del bucket S3"
+      Value:
+        Ref: FirmaBucket

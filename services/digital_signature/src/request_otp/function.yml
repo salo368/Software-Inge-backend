@@ -1,0 +1,7 @@
+request-otp:
+  handler: src/request_otp/handler.request_otp
+  description: Genera un OTP de 6 digitos y lo envia al correo del proceso
+  events:
+    - httpApi:
+        method: post
+        path: /signatures/{token}/otp
