@@ -22,6 +22,7 @@ provider:
             - ssm:GetParameters
             - ssm:GetParametersByPath
           Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db
             - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db/*
         - Effect: Allow
           Action:

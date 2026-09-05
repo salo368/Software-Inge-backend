@@ -23,6 +23,6 @@ layers:
 resources:
   Outputs:
     SharedLayerArn:
-      Description: ARN de la layer compartida (importable via cf: en otros services)
+      Description: "ARN de la layer compartida"
       Value:
         Ref: SharedLambdaLayer
