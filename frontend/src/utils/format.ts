@@ -11,11 +11,12 @@ export function formatCOP(n: number): string {
 }
 
 /**
- * Interes compuesto con tasa efectiva anual.
+ * Interes compuesto con tasa efectiva anual, plazo en dias.
  * rate viene como porcentaje (12.5 = 12.5%).
  */
-export function calcCdt(principal: number, ratePct: number, years: number): { interest: number; final: number } {
+export function calcCdtDays(principal: number, ratePct: number, days: number): { interest: number; final: number } {
   const r = ratePct / 100
+  const years = days / 365
   const final = principal * Math.pow(1 + r, years)
   return { final, interest: final - principal }
 }
