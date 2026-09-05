@@ -60,11 +60,11 @@ watch(term, () => {
     <section class="hero-dark p-4 p-lg-5 mb-0">
       <div class="row g-4 align-items-center position-relative" style="z-index: 1;">
         <div class="col-lg-7">
-          <span class="hero-eyebrow mb-4">
+          <span class="hero-eyebrow">
             <i class="bi bi-lightning-charge-fill"></i>
             Simulador de CDT · Colombia
           </span>
-          <h1 class="display-4 mt-3 mb-3">
+          <h1 class="display-4 mt-4 mb-3">
             Tu dinero merece<br />
             <span class="hero-highlight">crecer mejor.</span>
           </h1>
@@ -82,15 +82,15 @@ watch(term, () => {
 
         <div class="col-lg-5">
           <div class="glass-card p-4">
-            <div class="glass-label mb-3">El mercado hoy · {{ selectedTermLabel }}</div>
-            <div class="row g-4">
+            <div class="glass-label mb-3">Tasas E.A. del mercado · {{ selectedTermLabel }}</div>
+            <div class="row g-4 text-nowrap">
               <div class="col-6">
-                <div class="glass-label mb-1">Tasas E.A. desde</div>
-                <div class="fs-2 fw-bold">{{ marketMin.toFixed(2) }}%</div>
+                <div class="glass-label mb-1">Desde</div>
+                <div class="fs-2 fw-bold lh-1">{{ marketMin.toFixed(2) }}%</div>
               </div>
               <div class="col-6">
                 <div class="glass-label mb-1">Hasta</div>
-                <div class="fs-2 fw-bold" style="color:#a7f3d0;">{{ marketMax.toFixed(2) }}%</div>
+                <div class="fs-2 fw-bold lh-1" style="color:#a7f3d0;">{{ marketMax.toFixed(2) }}%</div>
               </div>
             </div>
             <hr style="border-color: rgba(255,255,255,0.14); opacity: 1;" />
@@ -199,8 +199,8 @@ watch(term, () => {
         >
           <div class="card h-100 shadow-sm bank-card" :style="{ animationDelay: `${idx * 55}ms` }">
             <div class="card-body p-4 d-flex flex-column">
-              <!-- Header -->
-              <div class="d-flex align-items-start gap-3 mb-3">
+              <!-- Header (min-height fija para que las cards vecinas queden parejas) -->
+              <div class="d-flex align-items-center gap-3 mb-3 bank-card-header">
                 <div
                   class="avatar"
                   style="width: 48px; height: 48px; font-size: 1.15rem; border-radius: 0.9rem;"
@@ -209,7 +209,7 @@ watch(term, () => {
                   {{ row.name[0] }}
                 </div>
                 <div class="flex-grow-1">
-                  <div class="fw-bold">{{ row.name }}</div>
+                  <div class="fw-bold lh-sm">{{ row.name }}</div>
                   <div
                     class="tier-badge mt-1"
                     :style="{ background: TIER_COLORS[row.tier].bg, color: TIER_COLORS[row.tier].fg }"
@@ -229,17 +229,17 @@ watch(term, () => {
                 </li>
               </ul>
 
-              <!-- Tasa + ganancia -->
-              <div class="d-flex align-items-end justify-content-between border-top pt-3">
-                <div>
+              <!-- Tasa + ganancia (labels arriba alineados, cifras abajo alineadas) -->
+              <div class="d-flex align-items-stretch justify-content-between border-top pt-3">
+                <div class="d-flex flex-column justify-content-between">
                   <div class="text-body-secondary small fw-semibold">Tasa E.A.</div>
-                  <div class="fs-3 fw-bolder rate-gradient">
+                  <div class="fs-3 fw-bolder rate-gradient lh-1 mt-2">
                     {{ row.rate.toFixed(2) }}<span class="fs-6">%</span>
                   </div>
                 </div>
-                <div class="text-end">
+                <div class="d-flex flex-column justify-content-between text-end">
                   <div class="text-body-secondary small fw-semibold">Ganarías</div>
-                  <div class="fs-5 fw-bold money-positive">
+                  <div class="fs-5 fw-bold money-positive lh-1 mt-2">
                     <AnimatedMoney :value="row.interest" prefix="+" />
                   </div>
                 </div>
