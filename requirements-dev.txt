@@ -1,2 +1,8 @@
+# Runtime deps (mismas que layers/shared/requirements.txt).
+# Se instalan localmente para que el IDE reconozca los imports.
+sqlalchemy>=2.0,<3.0
 pg8000>=1.30
+bcrypt>=4.0
+
+# Solo dev / scripts locales (boto3 esta preinstalado en Lambda, no va en la layer)
 boto3>=1.34

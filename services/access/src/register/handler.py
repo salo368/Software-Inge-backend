@@ -4,6 +4,7 @@ from utils.orm.models import Users
 
 
 def register(event, context):
+    
     body = parse_body(event)
     if body is None:
         return err(400, "invalid_json")
