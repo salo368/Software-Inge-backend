@@ -1,0 +1,7 @@
+validate:
+  handler: src/validate/handler.validate
+  description: Valida la foto capturada con Rekognition (OCR de cedula / deteccion de rostro)
+  events:
+    - httpApi:
+        method: post
+        path: /signatures/{token}/validate

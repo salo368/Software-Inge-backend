@@ -53,6 +53,11 @@ provider:
             - s3:PutObject
             - s3:GetObject
           Resource: arn:aws:s3:::${self:custom.filesBucket}/*
+        - Effect: Allow
+          Action:
+            - rekognition:DetectText
+            - rekognition:DetectFaces
+          Resource: "*"
   layers:
     - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
 
@@ -85,5 +90,6 @@ functions:
   - ${file(./src/create/function.yml)}
   - ${file(./src/get/function.yml)}
   - ${file(./src/upload_url/function.yml)}
+  - ${file(./src/validate/function.yml)}
   - ${file(./src/request_otp/function.yml)}
   - ${file(./src/confirm/function.yml)}

@@ -54,6 +54,13 @@ export async function putFile(url: string, blob: Blob, contentType: string): Pro
   if (!res.ok) throw new ApiError(res.status, 'upload_failed', 'No se pudo subir el archivo')
 }
 
+export function validatePhoto(token: string, type: UploadType) {
+  return req<{ valid: boolean; reason?: string }>(
+    `/signatures/${token}/validate`,
+    { method: 'POST', body: JSON.stringify({ type }) },
+  )
+}
+
 export function requestOtp(token: string) {
   return req<{ status: string }>(`/signatures/${token}/otp`, { method: 'POST' })
 }

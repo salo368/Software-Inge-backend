@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  confirmOtp, getProcess, getUploadUrl, putFile, requestOtp,
+  confirmOtp, getProcess, getUploadUrl, putFile, requestOtp, validatePhoto,
   type SignProcess, type UploadType,
 } from '../api'
 import CameraCapture from '../components/CameraCapture.vue'
@@ -75,6 +75,15 @@ onMounted(async () => {
   }
 })
 
+const VALIDATION_MSGS: Record<string, string> = {
+  front_text_not_found:
+    'No pudimos verificar el frente de la cédula: debe leerse "República de Colombia — Identificación personal". Acércala, evita reflejos y toma la foto de nuevo.',
+  back_text_not_found:
+    'No pudimos verificar el reverso de la cédula: deben verse la fecha y lugar de nacimiento, estatura y datos de expedición. Toma la foto de nuevo.',
+  no_face:
+    'No detectamos un rostro en la foto. Centra tu cara en el óvalo, con buena luz, y vuelve a intentarlo.',
+}
+
 async function onCaptured(blob: Blob) {
   const type = currentDoc.value
   if (!type || uploadBusy.value) return
@@ -83,6 +92,13 @@ async function onCaptured(blob: Blob) {
   try {
     const { upload_url } = await getUploadUrl(token, type, 'image/jpeg')
     await putFile(upload_url, blob, 'image/jpeg')
+    const v = await validatePhoto(token, type)
+    if (!v.valid) {
+      docDone.value[type] = false
+      error.value = VALIDATION_MSGS[v.reason ?? ''] || 'La foto no pasó la validación. Inténtalo de nuevo.'
+      camRef.value?.reset()
+      return
+    }
     docDone.value[type] = true
     currentDoc.value = nextPendingDoc()
     camRef.value?.reset()
