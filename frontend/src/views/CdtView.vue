@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { advanceCdt, getCdt, getContract, type Cdt } from '../api/cdts'
 import { createSignature } from '../api/signatures'
+import { bankById } from '../data/banks'
 import { STAGES, stageIndex } from '../data/stages'
 import { calcCdtDays, formatCOP } from '../utils/format'
 
@@ -24,6 +25,7 @@ const signLink = ref('')
 const sending = ref(false)
 const signError = ref('')
 
+const bank = computed(() => bankById(cdt.value?.bank))
 const idx = computed(() => (cdt.value ? stageIndex(cdt.value.stage) : 0))
 const gains = computed(() => {
   if (!cdt.value) return { interest: 0, final: 0 }
@@ -111,7 +113,12 @@ onMounted(load)
         <RouterLink to="/dashboard" class="text-decoration-none small fw-semibold">
           <i class="bi bi-arrow-left me-1"></i>Mis CDTs
         </RouterLink>
-        <h3 class="fw-bolder mb-0 mt-1">Apertura de CDT #{{ cdt.id }}</h3>
+        <div class="d-flex align-items-center gap-2 mt-1">
+          <div v-if="bank" class="bank-logo bank-logo-sm">
+            <img :src="bank.logo" :alt="bank.name" />
+          </div>
+          <h3 class="fw-bolder mb-0">Apertura de CDT{{ bank ? ` · ${bank.name}` : '' }}</h3>
+        </div>
       </div>
       <div class="d-flex gap-2 flex-wrap">
         <span class="badge text-bg-light border">{{ formatCOP(Number(cdt.amount)) }}</span>
@@ -190,7 +197,7 @@ onMounted(load)
           <div class="border rounded-3 p-3 mb-3 d-flex align-items-center gap-3" style="background: #faf9fe;">
             <i class="bi bi-file-earmark-text fs-3" style="color: var(--brand);"></i>
             <div class="flex-grow-1">
-              <div class="fw-semibold">Contrato de apertura CDT #{{ cdt.id }}</div>
+              <div class="fw-semibold">Contrato de apertura{{ bank ? ` · ${bank.name}` : '' }}</div>
               <div class="small text-body-secondary">{{ formatCOP(Number(cdt.amount)) }} · {{ cdt.term }} días · {{ Number(cdt.rate).toFixed(2) }}% E.A.</div>
             </div>
           </div>

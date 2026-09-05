@@ -20,6 +20,7 @@ def create(event, context):
     cdt = Cdts.create(
         user_id=event["auth"].user.id,
         stage="formularios",
+        bank=body.get("bank"),
         amount=amount,
         term=term,
         rate=rate,

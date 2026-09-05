@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS public.cdts (
     id            BIGSERIAL      PRIMARY KEY,
     user_id       BIGINT         NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     stage         VARCHAR(30)    NOT NULL,
+    bank          VARCHAR(50)    NULL,
     rate          NUMERIC(5,2)   NOT NULL,
     amount        NUMERIC(15,2)  NOT NULL,
     term          INTEGER        NOT NULL,
@@ -42,6 +43,7 @@ DROP TRIGGER IF EXISTS trg_cdts_updated_at ON public.cdts;
 CREATE TRIGGER trg_cdts_updated_at BEFORE UPDATE ON public.cdts
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE INDEX IF NOT EXISTS idx_cdts_user_id ON public.cdts(user_id);
+ALTER TABLE public.cdts ADD COLUMN IF NOT EXISTS bank VARCHAR(50) NULL;
 
 -- ==============================================================
 -- files

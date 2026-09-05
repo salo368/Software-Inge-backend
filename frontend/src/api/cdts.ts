@@ -7,6 +7,7 @@ export interface Cdt {
   id: number
   user_id: number
   stage: StageKey
+  bank: string | null
   rate: string
   amount: string
   term: number
@@ -16,7 +17,7 @@ export interface Cdt {
   updated_at: string
 }
 
-export function createCdt(body: { amount: number; term: number; rate: number }) {
+export function createCdt(body: { amount: number; term: number; rate: number; bank: string }) {
   return request<Cdt>('/cdts', { method: 'POST', body: JSON.stringify(body) }, CDTS_API)
 }
 

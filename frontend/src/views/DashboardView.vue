@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { listCdts, type Cdt } from '../api/cdts'
+import { bankById } from '../data/banks'
 import { STAGES, stageIndex } from '../data/stages'
 import { formatCOP } from '../utils/format'
 
@@ -118,8 +119,15 @@ onMounted(async () => {
         <div class="card-body p-4">
           <div class="row g-3 align-items-center">
             <div class="col-md-3">
-              <div class="fw-bold">CDT #{{ c.id }}</div>
-              <div class="small text-body-secondary">Abierto el {{ c.opened_at?.slice(0, 10) }}</div>
+              <div class="d-flex align-items-center gap-2">
+                <div v-if="bankById(c.bank)" class="bank-logo bank-logo-sm">
+                  <img :src="bankById(c.bank)!.logo" :alt="bankById(c.bank)!.name" loading="lazy" />
+                </div>
+                <div>
+                  <div class="fw-bold lh-sm">{{ bankById(c.bank)?.name ?? 'CDT' }}</div>
+                  <div class="small text-body-secondary">Abierto el {{ c.opened_at?.slice(0, 10) }}</div>
+                </div>
+              </div>
             </div>
             <div class="col-md-3">
               <div class="fw-bold">{{ formatCOP(Number(c.amount)) }}</div>

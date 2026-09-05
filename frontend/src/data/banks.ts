@@ -155,6 +155,10 @@ export const BANKS: Bank[] = [
   },
 ]
 
+export function bankById(id: string | null | undefined): Bank | undefined {
+  return BANKS.find((b) => b.id === id)
+}
+
 /**
  * Color asociado a cada tier para el badge.
  */

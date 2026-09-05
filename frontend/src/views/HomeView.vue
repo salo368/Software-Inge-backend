@@ -70,7 +70,7 @@ async function openCdt(row: Row) {
   openingId.value = row.id
   try {
     const days = TERMS.find((t) => t.key === term.value)!.days
-    const cdt = await createCdt({ amount: amount.value, term: days, rate: row.rate })
+    const cdt = await createCdt({ amount: amount.value, term: days, rate: row.rate, bank: row.id })
     router.push(`/cdt/${cdt.id}`)
   } catch {
     openingId.value = ''

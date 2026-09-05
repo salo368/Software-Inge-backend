@@ -15,6 +15,7 @@ class Cdts(Model):
         BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     stage: Mapped[str] = mapped_column(String(30), nullable=False)
+    bank: Mapped[str | None] = mapped_column(String(50), nullable=True)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
     term: Mapped[int] = mapped_column(Integer, nullable=False)
