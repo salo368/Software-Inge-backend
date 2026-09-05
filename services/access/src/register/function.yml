@@ -1,0 +1,7 @@
+register:
+  handler: src/register/handler.register
+  description: Registrar un nuevo usuario
+  events:
+    - httpApi:
+        method: post
+        path: /register

@@ -1,0 +1,28 @@
+service: cdts-layer-shared
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+
+layers:
+  shared:
+    path: .
+    name: cdts-shared-${self:provider.stage}
+    description: Utils compartidas CDTS (orm, auth, http) + deps (sqlalchemy, pg8000, bcrypt)
+    compatibleRuntimes:
+      - python3.11
+    compatibleArchitectures:
+      - arm64
+    package:
+      patterns:
+        - '!**'
+        - 'python/**'
+
+resources:
+  Outputs:
+    SharedLayerArn:
+      Description: ARN de la layer compartida (importable via cf: en otros services)
+      Value:
+        Ref: SharedLambdaLayer

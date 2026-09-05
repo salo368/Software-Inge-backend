@@ -1,0 +1,43 @@
+service: cdts-access
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 15
+  architecture: arm64
+  logRetentionInDays: 14
+  environment:
+    STAGE: ${self:provider.stage}
+    SERVICE: ${self:service}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: "*"
+  layers:
+    - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
+
+package:
+  individually: true
+  patterns:
+    - '!**'
+    - 'src/**/handler.py'
+
+functions:
+  - ${file(./src/register/function.yml)}
+  - ${file(./src/login/function.yml)}
+  - ${file(./src/logout/function.yml)}
+  - ${file(./src/me/function.yml)}

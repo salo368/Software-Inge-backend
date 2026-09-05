@@ -1,0 +1,7 @@
+login:
+  handler: src/login/handler.login
+  description: Autentica usuario y emite bearer token
+  events:
+    - httpApi:
+        method: post
+        path: /login

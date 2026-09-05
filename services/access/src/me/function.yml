@@ -1,0 +1,7 @@
+me:
+  handler: src/me/handler.me
+  description: Devuelve el usuario del token
+  events:
+    - httpApi:
+        method: get
+        path: /me

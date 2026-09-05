@@ -1,5 +1,14 @@
 services:
+  layer:
+    path: layers/shared
+
   moc:
     path: services/moc
+
   digital_signature:
     path: services/digital_signature
+
+  access:
+    path: services/access
+    dependsOn:
+      - layer

@@ -35,6 +35,9 @@ config/local.*
 .requirements.zip
 .serverless-offline/
 
+# Contenido generado de layers (deps de pip + copia de utils/)
+layers/*/python/
+
 # =============================================================================
 # NODE / JS / TS
 # =============================================================================

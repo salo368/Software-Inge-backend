@@ -1,0 +1,7 @@
+logout:
+  handler: src/logout/handler.logout
+  description: Revoca el bearer token actual
+  events:
+    - httpApi:
+        method: post
+        path: /logout
