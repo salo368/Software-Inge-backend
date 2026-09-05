@@ -5,6 +5,7 @@ import {
   confirmOtp, getProcess, getUploadUrl, putFile, requestOtp,
   type SignProcess, type UploadType,
 } from '../api'
+import CameraCapture from '../components/CameraCapture.vue'
 import PdfPreview from '../components/PdfPreview.vue'
 import SignaturePad from '../components/SignaturePad.vue'
 
@@ -28,17 +29,25 @@ const busy = ref(false)
 
 const stepIdx = computed(() => STEPS.findIndex((s) => s.key === step.value))
 
-// --- Identidad (3 fotos) ---
-const DOCS: { type: UploadType; label: string; hint: string; icon: string }[] = [
-  { type: 'cedula_front', label: 'Cédula — cara frontal', hint: 'Foto nítida, sin reflejos', icon: 'bi-person-vcard' },
-  { type: 'cedula_back', label: 'Cédula — cara posterior', hint: 'Que se lea el código', icon: 'bi-person-vcard-fill' },
-  { type: 'face', label: 'Foto de tu rostro', hint: 'De frente, buena luz', icon: 'bi-emoji-smile' },
+// --- Identidad (3 capturas con camara, sin subida de archivos) ---
+type CamMode = 'document' | 'face'
+const DOCS: { type: UploadType; label: string; short: string; hint: string; icon: string; mode: CamMode }[] = [
+  { type: 'cedula_front', label: 'Cédula — cara frontal', short: 'Cédula frontal', hint: 'Centra el frente de tu cédula dentro del recuadro', icon: 'bi-person-vcard', mode: 'document' },
+  { type: 'cedula_back', label: 'Cédula — cara posterior', short: 'Cédula posterior', hint: 'Ahora la cara posterior, que se lea el código', icon: 'bi-person-vcard-fill', mode: 'document' },
+  { type: 'face', label: 'Foto de tu rostro', short: 'Tu rostro', hint: 'Ubica tu rostro dentro del óvalo, con buena luz', icon: 'bi-emoji-smile', mode: 'face' },
 ]
 const docDone = ref<Record<UploadType, boolean>>({
   cedula_front: false, cedula_back: false, face: false, signature: false,
 })
-const docBusy = ref<UploadType | ''>('')
+const currentDoc = ref<UploadType | ''>('')
+const uploadBusy = ref(false)
+const camRef = ref<InstanceType<typeof CameraCapture>>()
 const allDocsDone = computed(() => docDone.value.cedula_front && docDone.value.cedula_back && docDone.value.face)
+const activeDoc = computed(() => DOCS.find((d) => d.type === currentDoc.value))
+
+function nextPendingDoc(): UploadType | '' {
+  return DOCS.find((d) => !docDone.value[d.type])?.type ?? ''
+}
 
 // --- Firma dibujada ---
 const sigBlob = ref<Blob | null>(null)
@@ -55,6 +64,7 @@ onMounted(async () => {
     process.value = p
     returnUrl.value = p.return_url
     docDone.value = { ...p.uploads }
+    currentDoc.value = nextPendingDoc()
     if (p.stage === 'firmado') step.value = 'done'
     else if (p.stage === 'otp') { step.value = 'otp'; otpSent.value = false }
     else if (p.stage === 'dibujo') step.value = 'dibujo'
@@ -65,22 +75,21 @@ onMounted(async () => {
   }
 })
 
-async function uploadDoc(type: UploadType, ev: Event) {
-  const input = ev.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  const ctype = file.type === 'image/png' ? 'image/png' : 'image/jpeg'
-  docBusy.value = type
+async function onCaptured(blob: Blob) {
+  const type = currentDoc.value
+  if (!type || uploadBusy.value) return
+  uploadBusy.value = true
   error.value = ''
   try {
-    const { upload_url } = await getUploadUrl(token, type, ctype)
-    await putFile(upload_url, file, ctype)
+    const { upload_url } = await getUploadUrl(token, type, 'image/jpeg')
+    await putFile(upload_url, blob, 'image/jpeg')
     docDone.value[type] = true
+    currentDoc.value = nextPendingDoc()
+    camRef.value?.reset()
   } catch (e: any) {
-    error.value = e.message || 'Error subiendo el archivo'
+    error.value = e.message || 'Error subiendo la foto'
   } finally {
-    docBusy.value = ''
+    uploadBusy.value = false
   }
 }
 
@@ -177,23 +186,49 @@ async function confirm() {
       </div>
     </div>
 
-    <!-- PASO: identidad -->
+    <!-- PASO: identidad (captura guiada con camara, sin subir archivos) -->
     <div v-else-if="step === 'documentos'" class="card shadow-sm">
       <div class="card-body p-4">
         <h5 class="fw-bold mb-1">Valida tu identidad</h5>
-        <p class="text-body-secondary small mb-3">Necesitamos 3 fotos para verificar que eres tú.</p>
+        <p class="text-body-secondary small mb-3">
+          Tomaremos 3 fotos con la cámara de tu dispositivo. No se permiten archivos.
+        </p>
 
-        <label v-for="d in DOCS" :key="d.type" class="upload-box mb-3" :class="{ uploaded: docDone[d.type] }">
-          <input type="file" accept="image/*" class="d-none" :disabled="docBusy === d.type" @change="uploadDoc(d.type, $event)" />
-          <span v-if="docBusy === d.type" class="spinner-border spinner-border-sm" style="color: var(--brand);"></span>
-          <i v-else class="bi" :class="docDone[d.type] ? 'bi-check-circle-fill' : d.icon"></i>
-          <div>
-            <div class="fw-semibold">{{ d.label }}</div>
-            <div class="small text-body-secondary">{{ docDone[d.type] ? 'Cargada — toca para reemplazar' : d.hint }}</div>
-          </div>
-        </label>
+        <div class="d-flex gap-2 mb-3">
+          <button
+            v-for="d in DOCS"
+            :key="d.type"
+            type="button"
+            class="doc-chip"
+            :class="{ done: docDone[d.type], active: currentDoc === d.type }"
+            :disabled="uploadBusy"
+            @click="currentDoc = d.type"
+          >
+            <i class="bi" :class="docDone[d.type] ? 'bi-check-circle-fill' : d.icon"></i>
+            <span>{{ d.short }}</span>
+          </button>
+        </div>
 
-        <button class="btn btn-primary w-100 mt-2 py-2" :disabled="!allDocsDone" @click="step = 'dibujo'">
+        <template v-if="activeDoc">
+          <div class="fw-semibold mb-1">{{ activeDoc.label }}</div>
+          <p class="text-body-secondary small mb-3">{{ activeDoc.hint }}</p>
+          <CameraCapture
+            ref="camRef"
+            :key="activeDoc.type"
+            :mode="activeDoc.mode"
+            :busy="uploadBusy"
+            @captured="onCaptured"
+          />
+        </template>
+
+        <div v-else class="cam-error text-center p-4">
+          <i class="bi bi-check-circle-fill fs-2 d-block mb-2" style="color: #059669;"></i>
+          <p class="small mb-0">
+            Las 3 fotos quedaron listas. Toca cualquiera arriba si quieres repetirla.
+          </p>
+        </div>
+
+        <button class="btn btn-primary w-100 mt-3 py-2" :disabled="!allDocsDone || uploadBusy" @click="step = 'dibujo'">
           Continuar a la firma<i class="bi bi-arrow-right ms-2"></i>
         </button>
       </div>

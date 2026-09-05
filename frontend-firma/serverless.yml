@@ -40,6 +40,33 @@ resources:
               Resource:
                 Fn::Sub: "${FirmaBucket.Arn}/*"
 
+    # HTTPS obligatorio: getUserMedia (camara) solo funciona en origenes seguros
+    FirmaCdn:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: Front de firma CDTs (HTTPS para camara)
+          PriceClass: PriceClass_100
+          HttpVersion: http2
+          Origins:
+            - Id: s3-website
+              DomainName: ${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
+              CustomOriginConfig:
+                OriginProtocolPolicy: http-only
+          DefaultCacheBehavior:
+            TargetOriginId: s3-website
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+            Compress: true
+          CustomErrorResponses:
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+
   Outputs:
     WebsiteURL:
       Description: "URL publica del front de firma"
@@ -49,3 +76,11 @@ resources:
       Description: "Nombre del bucket S3"
       Value:
         Ref: FirmaBucket
+    CloudFrontDomain:
+      Description: "Dominio HTTPS del front de firma"
+      Value:
+        Fn::GetAtt: [FirmaCdn, DomainName]
+    CloudFrontId:
+      Description: "Id de la distribucion (para invalidaciones)"
+      Value:
+        Ref: FirmaCdn

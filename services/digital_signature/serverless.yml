@@ -17,7 +17,7 @@ provider:
     STAGE: ${self:provider.stage}
     SERVICE: ${self:service}
     FILES_BUCKET: ${self:custom.filesBucket}
-    SIGN_FRONT_URL: http://cdts-firma-${self:provider.stage}-${aws:accountId}.s3-website-${self:provider.region}.amazonaws.com
+    SIGN_FRONT_URL: https://${cf:cdts-firma-${self:provider.stage}.CloudFrontDomain}
     COMMERCE_URL: http://cdts-frontend-${self:provider.stage}-${aws:accountId}.s3-website-${self:provider.region}.amazonaws.com
   httpApi:
     cors:

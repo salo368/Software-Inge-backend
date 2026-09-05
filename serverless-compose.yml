@@ -9,6 +9,7 @@ services:
     path: services/digital_signature
     dependsOn:
       - layer
+      - firma
 
   access:
     path: services/access
