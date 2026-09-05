@@ -1,0 +1,24 @@
+service: cdts-moc
+frameworkVersion: '4'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 128
+  timeout: 10
+  architecture: arm64
+  logRetentionInDays: 14
+  environment:
+    STAGE: ${self:provider.stage}
+    SERVICE: ${self:service}
+
+package:
+  individually: true
+  patterns:
+    - '!**'
+    - 'src/**/handler.py'
+
+functions:
+  health: ${file(src/health/function.yml)}

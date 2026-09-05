@@ -1,0 +1,7 @@
+name: ${self:service}-sign
+handler: src/sign/handler.handler
+description: Firma digital de un documento
+events:
+  - httpApi:
+      path: /digital-signature/sign
+      method: post

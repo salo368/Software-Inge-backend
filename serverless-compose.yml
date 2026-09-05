@@ -1,0 +1,5 @@
+services:
+  moc:
+    path: services/moc
+  digital_signature:
+    path: services/digital_signature

@@ -24,34 +24,16 @@ config/secrets.*
 config/local.*
 
 # =============================================================================
-# TERRAFORM
+# SERVERLESS FRAMEWORK
 # =============================================================================
-# State files (contienen secretos y IPs)
-*.tfstate
-*.tfstate.*
-*.tfstate.backup
-
-# Directorios locales de Terraform
-.terraform/
-.terraform.lock.hcl
-
-# Archivos de variables con datos reales
-*.tfvars
-*.tfvars.json
-!example.tfvars
-!terraform.tfvars.example
-
-# Plans y overrides locales
-*.tfplan
-tfplan
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
-
-# Crash logs de Terraform
-crash.log
-crash.*.log
+.serverless/
+.serverless_nextjs/
+.esbuild/
+.webpack/
+.dynamodb/
+.requirements/
+.requirements.zip
+.serverless-offline/
 
 # =============================================================================
 # NODE / JS / TS

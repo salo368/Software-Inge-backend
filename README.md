@@ -1,51 +1,75 @@
-# Proyecto Ingeniería de Software — Javeriana
+# CDTS
 
-Web App + API desplegada en AWS con Terraform.
+Serverless multi-servicio en AWS (Lambda + API Gateway HTTP API) con Serverless Framework v4.
 
-## Requisitos previos
+## Servicios
 
-- [AWS CLI v2](https://awscli.amazonaws.com/AWSCLIV2.msi)
-- [Terraform](https://developer.hashicorp.com/terraform/install)
-- Git
-- Cuenta AWS con un usuario IAM (`dev-salomon`) con access keys
+| Servicio | Path | Prefijo Lambda |
+|---|---|---|
+| `moc` | `services/moc` | `cdts-moc-*` |
+| `digital_signature` | `services/digital_signature` | `cdts-digital-signature-*` |
 
-## Setup local
-
-Las credenciales de AWS **no están enlazadas al CLI global**. Viven en `access.csv` dentro del proyecto (excluido de git por `.gitignore`).
-
-### Cargar credenciales en la sesión actual
-
-**Git Bash:**
-
-```bash
-source ./scripts/load-aws-env.sh
-aws sts get-caller-identity   # verifica que quedo cargado
-```
-
-**PowerShell:**
-
-```powershell
-. .\scripts\load-aws-env.ps1
-aws sts get-caller-identity
-```
-
-> Las credenciales solo viven en la sesión actual. Al cerrar la terminal se van.
+Convención de nombres: `cdts-{service}-{function}`.
 
 ## Estructura
 
 ```
-.
-├── access.csv              # Credenciales AWS (NO SE COMMITEA)
-├── scripts/
-│   ├── load-aws-env.sh     # Loader para git bash
-│   └── load-aws-env.ps1    # Loader para PowerShell
-├── infra/                  # (proximamente) Módulos Terraform
-├── backend/                # (proximamente) API
-└── frontend/               # (proximamente) Web
+serverless-compose.yml
+services/
+  <service>/
+    serverless.yml
+    src/
+      <function>/
+        handler.py
+        function.yml
 ```
 
-## Seguridad
+## Requisitos
 
-- `access.csv` está en `.gitignore`. **Nunca lo commitees.**
-- Si sospechas fuga, ve a IAM → `dev-salomon` → Security credentials → Delete access key y crea una nueva.
-- Rota las keys cada 90 días como buena práctica.
+- Node.js 20+ y npm
+- Serverless Framework v4:  `npm i -g serverless`
+- Python 3.12
+- AWS CLI v2
+
+## Cargar credenciales AWS
+
+Git Bash:
+```bash
+source ./scripts/load-aws-env.sh
+```
+
+PowerShell:
+```powershell
+. .\scripts\load-aws-env.ps1
+```
+
+## Deploy
+
+Todo (compose):
+```bash
+serverless deploy
+```
+
+Un solo servicio:
+```bash
+cd services/digital_signature
+serverless deploy
+```
+
+Solo una función:
+```bash
+cd services/digital_signature
+serverless deploy function -f sign
+```
+
+## Remove
+
+```bash
+serverless remove              # todo
+cd services/moc && sls remove  # uno solo
+```
+
+## Agregar una función nueva
+
+1. Crear carpeta `services/<svc>/src/<nombre>/` con `handler.py` y `function.yml`.
+2. Registrarla en `services/<svc>/serverless.yml` bajo `functions:`.
