@@ -8,7 +8,7 @@
     "deploy:dev": "serverless-compose deploy --stage dev",
     "remove": "serverless-compose remove",
     "logs:moc": "cd services/moc && serverless logs -f health -t",
-    "logs:sign": "cd services/digital_signature && serverless logs -f sign -t"
+    "logs:signature": "cd services/digital_signature && serverless logs -f health -t"
   },
   "devDependencies": {
     "@serverless/compose": "^1.3.0"

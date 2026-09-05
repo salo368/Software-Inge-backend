@@ -1,0 +1,7 @@
+health:
+  handler: src/health/handler.handler
+  description: Health check del servicio digital_signature
+  events:
+    - httpApi:
+        method: get
+        path: /health

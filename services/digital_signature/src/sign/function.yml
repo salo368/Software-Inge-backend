@@ -1,7 +1,0 @@
-sign:
-  handler: src/sign/handler.handler
-  description: Firma digital de un documento
-  events:
-    - httpApi:
-        method: post
-        path: /sign
