@@ -1,0 +1,7 @@
+loadRun:
+  handler: src/load_run/handler.load_run
+  description: Lanza una prueba de carga en segundo plano
+  events:
+    - httpApi:
+        method: post
+        path: /load-runs

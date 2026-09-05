@@ -405,10 +405,78 @@ h1, h2, h3, h4, h5, h6,
 .btn-qa:hover:not(:disabled) { background: #34d399; color: #062017; }
 .btn-qa:disabled { background: #1d4a3a; color: #6ee7b7; opacity: 1; }
 
+.qa-tabs {
+  display: flex;
+  gap: 0.35rem;
+  background: #161a2e;
+  border: 1px solid #232842;
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+.qa-tabs button {
+  border: none;
+  background: transparent;
+  color: #8b93b0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.qa-tabs button:hover { color: #e2e8f0; }
+.qa-tabs button.active {
+  background: #10b981;
+  color: #062017;
+}
+
 .qa-card {
   background: #161a2e;
   border: 1px solid #232842;
   border-radius: 0.9rem;
+}
+
+.qa-select,
+.qa-select:focus {
+  background-color: #101427;
+  border-color: #232842;
+  color: #e2e8f0;
+  box-shadow: none;
+}
+.qa-select option { background: #101427; }
+
+.qa-stat {
+  background: #161a2e;
+  border: 1px solid #232842;
+  border-radius: 0.9rem;
+  padding: 0.8rem 0.6rem;
+  text-align: center;
+}
+.qa-stat-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #34d399;
+}
+.qa-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8b93b0;
+}
+
+.qa-chart {
+  width: 100%;
+  height: 150px;
+  display: block;
+  background: #101427;
+  border: 1px solid #232842;
+  border-radius: 0.6rem;
+}
+.qa-legend {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 0.35rem;
 }
 .qa-badge {
   display: inline-flex;

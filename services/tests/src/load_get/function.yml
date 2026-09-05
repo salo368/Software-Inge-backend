@@ -1,0 +1,7 @@
+loadGet:
+  handler: src/load_get/handler.load_get
+  description: Detalle de una prueba de carga
+  events:
+    - httpApi:
+        method: get
+        path: /load-runs/{id}

@@ -14,6 +14,7 @@ provider:
     STAGE: ${self:provider.stage}
     SERVICE: ${self:service}
     RUNNER_FUNCTION: ${self:service}-${self:provider.stage}-runner
+    LOAD_RUNNER_FUNCTION: ${self:service}-${self:provider.stage}-loadRunner
     ACCESS_API: ${cf:cdts-access-${self:provider.stage}.HttpApiUrl}
     CDTS_API: ${cf:cdts-cdts-${self:provider.stage}.HttpApiUrl}
     SIGN_API: ${cf:cdts-digital-signature-${self:provider.stage}.HttpApiUrl}
@@ -47,7 +48,9 @@ provider:
         - Effect: Allow
           Action:
             - lambda:InvokeFunction
-          Resource: arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-runner
+          Resource:
+            - arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-runner
+            - arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-loadRunner
   layers:
     - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
 
@@ -62,3 +65,7 @@ functions:
   - ${file(./src/list/function.yml)}
   - ${file(./src/get/function.yml)}
   - ${file(./src/runner/function.yml)}
+  - ${file(./src/load_run/function.yml)}
+  - ${file(./src/load_list/function.yml)}
+  - ${file(./src/load_get/function.yml)}
+  - ${file(./src/load_runner/function.yml)}

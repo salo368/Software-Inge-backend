@@ -120,3 +120,16 @@ CREATE TABLE IF NOT EXISTS public.test_runs (
 DROP TRIGGER IF EXISTS trg_test_runs_updated_at ON public.test_runs;
 CREATE TRIGGER trg_test_runs_updated_at BEFORE UPDATE ON public.test_runs
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE IF NOT EXISTS public.load_runs (
+    id          BIGSERIAL    PRIMARY KEY,
+    status      VARCHAR(20)  NOT NULL,
+    config      TEXT         NOT NULL DEFAULT '{}',
+    results     TEXT         NOT NULL DEFAULT '{}',
+    finished_at TIMESTAMPTZ  NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+DROP TRIGGER IF EXISTS trg_load_runs_updated_at ON public.load_runs;
+CREATE TRIGGER trg_load_runs_updated_at BEFORE UPDATE ON public.load_runs
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

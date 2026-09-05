@@ -4,5 +4,6 @@ from utils.orm.models.files import Files
 from utils.orm.models.bearer_tokens import BearerTokens
 from utils.orm.models.digital_signatures import DigitalSignatures
 from utils.orm.models.test_runs import TestRuns
+from utils.orm.models.load_runs import LoadRuns
 
-__all__ = ["Users", "Cdts", "Files", "BearerTokens", "DigitalSignatures", "TestRuns"]
+__all__ = ["Users", "Cdts", "Files", "BearerTokens", "DigitalSignatures", "TestRuns", "LoadRuns"]

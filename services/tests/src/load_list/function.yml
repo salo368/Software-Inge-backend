@@ -1,0 +1,7 @@
+loadList:
+  handler: src/load_list/handler.load_list
+  description: Lista las pruebas de carga recientes
+  events:
+    - httpApi:
+        method: get
+        path: /load-runs

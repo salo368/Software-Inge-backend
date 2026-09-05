@@ -1,0 +1,5 @@
+loadRunner:
+  handler: src/load_runner/handler.load_runner
+  description: Genera la carga con hilos concurrentes y persiste metricas en vivo
+  timeout: 600
+  memorySize: 1024
