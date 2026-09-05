@@ -21,7 +21,9 @@
     "logs:access:login": "cd services/access && serverless logs -f login -t",
     "deploy:frontend:infra": "cd frontend && serverless deploy",
     "deploy:frontend": "cd frontend && bash deploy.sh",
-    "dev:frontend": "cd frontend && npm run dev"
+    "dev:frontend": "cd frontend && npm run dev",
+    "test": ".venv\\Scripts\\python -m pytest tests --html=tests/report.html --self-contained-html",
+    "test:unit": ".venv\\Scripts\\python -m pytest tests/test_01_unitarias_validacion.py --html=tests/report.html --self-contained-html"
   },
   "devDependencies": {
     "@serverless/compose": "^1.3.0"

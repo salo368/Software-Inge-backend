@@ -9,3 +9,5 @@ pillow>=10.0
 
 # Solo dev / scripts locales (boto3 esta preinstalado en Lambda, no va en la layer)
 boto3>=1.34
+pytest>=8.0
+pytest-html>=4.0
