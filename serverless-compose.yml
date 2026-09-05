@@ -10,6 +10,7 @@ services:
     dependsOn:
       - layer
       - firma
+      - frontend
 
   access:
     path: services/access

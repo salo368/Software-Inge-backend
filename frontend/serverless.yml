@@ -40,6 +40,33 @@ resources:
               Resource:
                 Fn::Sub: "${FrontendBucket.Arn}/*"
 
+    # HTTPS: el endpoint website de S3 es solo HTTP y los navegadores modernos lo bloquean
+    FrontendCdn:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: Front comercio CDTs (HTTPS)
+          PriceClass: PriceClass_100
+          HttpVersion: http2
+          Origins:
+            - Id: s3-website
+              DomainName: ${self:custom.bucketName}.s3-website-${self:provider.region}.amazonaws.com
+              CustomOriginConfig:
+                OriginProtocolPolicy: http-only
+          DefaultCacheBehavior:
+            TargetOriginId: s3-website
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+            Compress: true
+          CustomErrorResponses:
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+          ViewerCertificate:
+            CloudFrontDefaultCertificate: true
+
   Outputs:
     WebsiteURL:
       Description: "URL publica del SPA"
@@ -49,3 +76,11 @@ resources:
       Description: "Nombre del bucket S3"
       Value:
         Ref: FrontendBucket
+    CloudFrontDomain:
+      Description: "Dominio HTTPS del front del comercio"
+      Value:
+        Fn::GetAtt: [FrontendCdn, DomainName]
+    CloudFrontId:
+      Description: "Id de la distribucion (para invalidaciones)"
+      Value:
+        Ref: FrontendCdn
