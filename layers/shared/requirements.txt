@@ -4,3 +4,5 @@ bcrypt>=4.0
 pypdf>=4.0
 reportlab>=4.0
 pillow>=10.0
+pytest>=8.0
+pytest-html>=4.0

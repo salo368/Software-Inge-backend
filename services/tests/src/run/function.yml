@@ -1,0 +1,7 @@
+run:
+  handler: src/run/handler.run
+  description: Lanza una corrida de la suite de pruebas en segundo plano
+  events:
+    - httpApi:
+        method: post
+        path: /tests/run

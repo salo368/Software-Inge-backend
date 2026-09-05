@@ -1,0 +1,7 @@
+list:
+  handler: src/list/handler.list_runs
+  description: Lista las corridas recientes de la suite de pruebas
+  events:
+    - httpApi:
+        method: get
+        path: /tests/runs

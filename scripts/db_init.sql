@@ -108,3 +108,15 @@ CREATE TRIGGER trg_digital_signatures_updated_at BEFORE UPDATE ON public.digital
     FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 CREATE INDEX IF NOT EXISTS idx_digital_signatures_cdt_id ON public.digital_signatures(cdt_id);
 ALTER TABLE public.digital_signatures ADD COLUMN IF NOT EXISTS doc_hash CHAR(64) NULL;
+
+CREATE TABLE IF NOT EXISTS public.test_runs (
+    id          BIGSERIAL    PRIMARY KEY,
+    status      VARCHAR(20)  NOT NULL,
+    results     TEXT         NOT NULL DEFAULT '[]',
+    finished_at TIMESTAMPTZ  NULL,
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+DROP TRIGGER IF EXISTS trg_test_runs_updated_at ON public.test_runs;
+CREATE TRIGGER trg_test_runs_updated_at BEFORE UPDATE ON public.test_runs
+    FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();

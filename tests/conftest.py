@@ -64,11 +64,20 @@ def fetch(url: str) -> bytes:
 
 # ---------- helpers de imagenes ----------
 
+def _fuente(size: int = 64):
+    from PIL import ImageFont
+    try:
+        return ImageFont.truetype("C:/Windows/Fonts/arial.ttf", size)
+    except OSError:
+        import reportlab  # en Lambda: usa la fuente Vera incluida en reportlab
+        return ImageFont.truetype(str(Path(reportlab.__file__).parent / "fonts" / "Vera.ttf"), size)
+
+
 def imagen_con_texto(lineas: list[str]) -> bytes:
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw
     img = Image.new("RGB", (1280, 800), "white")
     d = ImageDraw.Draw(img)
-    font = ImageFont.truetype("C:/Windows/Fonts/arial.ttf", 64)
+    font = _fuente(64)
     y = 120
     for ln in lineas:
         d.text((80, y), ln, fill="black", font=font)

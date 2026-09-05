@@ -41,6 +41,7 @@ layers/*/python/
 # Frontend Vue/Vite
 tests/report.html
 .pytest_cache/
+services/tests/bundle/
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/

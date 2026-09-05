@@ -11,6 +11,7 @@
     "deploy:access": "cd services/access && serverless deploy",
     "deploy:cdts": "cd services/cdts && serverless deploy",
     "deploy:signature": "cd services/digital_signature && serverless deploy",
+    "deploy:tests": "bash services/tests/build.sh && cd services/tests && serverless deploy",
     "deploy:firma:infra": "cd frontend-firma && serverless deploy",
     "deploy:firma": "cd frontend-firma && bash deploy.sh",
     "dev:firma": "cd frontend-firma && npm run dev",

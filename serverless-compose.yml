@@ -26,3 +26,11 @@ services:
 
   firma:
     path: frontend-firma
+
+  tests:
+    path: services/tests
+    dependsOn:
+      - layer
+      - access
+      - cdts
+      - digital_signature

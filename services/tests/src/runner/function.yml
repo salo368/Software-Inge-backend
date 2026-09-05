@@ -1,0 +1,5 @@
+runner:
+  handler: src/runner/handler.runner
+  description: Ejecuta la suite pytest y persiste cada resultado en vivo
+  timeout: 600
+  memorySize: 1024

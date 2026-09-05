@@ -1,0 +1,64 @@
+service: cdts-tests
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 29
+  architecture: arm64
+  logRetentionInDays: 14
+  environment:
+    STAGE: ${self:provider.stage}
+    SERVICE: ${self:service}
+    RUNNER_FUNCTION: ${self:service}-${self:provider.stage}-runner
+    ACCESS_API: ${cf:cdts-access-${self:provider.stage}.HttpApiUrl}
+    CDTS_API: ${cf:cdts-cdts-${self:provider.stage}.HttpApiUrl}
+    SIGN_API: ${cf:cdts-digital-signature-${self:provider.stage}.HttpApiUrl}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - "*"
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+      maxAge: 300
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/cdts/${self:provider.stage}/db/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: "*"
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource: arn:aws:lambda:${aws:region}:${aws:accountId}:function:${self:service}-${self:provider.stage}-runner
+  layers:
+    - ${cf:cdts-layer-shared-${sls:stage}.SharedLayerArn}
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**/handler.py'
+    - 'bundle/**'
+
+functions:
+  - ${file(./src/run/function.yml)}
+  - ${file(./src/list/function.yml)}
+  - ${file(./src/get/function.yml)}
+  - ${file(./src/runner/function.yml)}

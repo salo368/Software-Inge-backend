@@ -1,0 +1,7 @@
+get:
+  handler: src/get/handler.get_run
+  description: Detalle y resultados en vivo de una corrida de pruebas
+  events:
+    - httpApi:
+        method: get
+        path: /tests/runs/{id}
