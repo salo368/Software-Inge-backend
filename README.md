@@ -1,6 +1,6 @@
 # CDTS
 
-Serverless multi-servicio en AWS (Lambda + API Gateway HTTP API) con Serverless Framework v4.
+Serverless multi-servicio en AWS (Lambda + API Gateway HTTP API) con Serverless Framework v3.
 
 ## Servicios
 
@@ -26,10 +26,16 @@ services/
 
 ## Requisitos
 
-- Node.js 20+ y npm
-- Serverless Framework v4:  `npm i -g serverless`
-- Python 3.12
+- Node.js 18+ y npm
+- Serverless Framework v3:  `npm i -g serverless@3`
+- Python 3.11 (runtime en Lambda)
 - AWS CLI v2
+
+## Instalación inicial
+
+```bash
+npm install
+```
 
 ## Cargar credenciales AWS
 
@@ -47,7 +53,7 @@ PowerShell:
 
 Todo (compose):
 ```bash
-serverless deploy
+npm run deploy
 ```
 
 Un solo servicio:
@@ -65,8 +71,15 @@ serverless deploy function -f sign
 ## Remove
 
 ```bash
-serverless remove              # todo
+npm run remove                 # todo
 cd services/moc && sls remove  # uno solo
+```
+
+## Logs en vivo
+
+```bash
+npm run logs:moc
+npm run logs:sign
 ```
 
 ## Agregar una función nueva
