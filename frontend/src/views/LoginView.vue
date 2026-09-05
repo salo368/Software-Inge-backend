@@ -29,30 +29,44 @@ async function submit() {
 </script>
 
 <template>
-  <div class="row justify-content-center">
-    <div class="col-md-5">
+  <div class="auth-bg">
+    <div class="auth-card">
+      <div class="text-center mb-4">
+        <div class="fs-3 fw-bolder">
+          <span class="brand-gradient">CDT</span>s
+        </div>
+        <p class="text-body-secondary mb-0">Bienvenido de vuelta</p>
+      </div>
+
       <div class="card shadow-sm">
-        <div class="card-body">
-          <h4 class="card-title mb-4">Iniciar sesión</h4>
+        <div class="card-body p-4 p-lg-5">
+          <h5 class="fw-bold mb-4">Iniciar sesión</h5>
           <form @submit.prevent="submit">
             <div class="mb-3">
-              <label class="form-label">Usuario</label>
-              <input v-model="username" class="form-control" required autocomplete="username" />
+              <label class="form-label small fw-semibold text-body-secondary">USUARIO</label>
+              <input v-model="username" class="form-control form-control-lg" required autocomplete="username" />
             </div>
-            <div class="mb-3">
-              <label class="form-label">Contraseña</label>
-              <input v-model="password" type="password" class="form-control" required autocomplete="current-password" />
+            <div class="mb-4">
+              <label class="form-label small fw-semibold text-body-secondary">CONTRASEÑA</label>
+              <input v-model="password" type="password" class="form-control form-control-lg" required autocomplete="current-password" />
             </div>
-            <div v-if="error" class="alert alert-danger py-2">{{ error }}</div>
-            <button class="btn btn-primary w-100" :disabled="loading">
+            <div v-if="error" class="alert alert-danger py-2 small">
+              <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
+            </div>
+            <button class="btn btn-primary btn-lg w-100" :disabled="loading">
+              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
               {{ loading ? 'Entrando…' : 'Entrar' }}
             </button>
           </form>
-          <p class="mt-3 text-center mb-0">
-            ¿No tienes cuenta? <RouterLink to="/register">Regístrate</RouterLink>
-          </p>
         </div>
       </div>
+
+      <p class="mt-4 text-center text-body-secondary">
+        ¿No tienes cuenta?
+        <RouterLink to="/register" class="fw-semibold text-decoration-none" style="color: var(--brand-dark);">
+          Regístrate gratis
+        </RouterLink>
+      </p>
     </div>
   </div>
 </template>

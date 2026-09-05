@@ -2,14 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { BANKS, TERMS, TIER_COLORS, type Bank, type TermKey, type Tier } from '../data/banks'
 import { calcCdtDays, formatCOP } from '../utils/format'
+import AnimatedMoney from '../components/AnimatedMoney.vue'
 
 // --- Estado del simulador ---
 const amount = ref<number>(5_000_000)
 const term = ref<TermKey>('360')
 const sortBy = ref<'yield' | 'safety'>('yield')
-
-// Anticipacion: los resultados aparecen tras clic explicito.
-// Una vez visibles, siguen actualizando en vivo si el usuario cambia inputs.
 const showResults = ref(false)
 
 const TIER_RANK: Record<Tier, number> = { 'AAA': 5, 'AA+': 4, 'AA': 3, 'A+': 2, 'A': 1 }
@@ -39,14 +37,16 @@ const results = computed<Row[]>(() => {
 const isValid = computed(() => (amount.value || 0) > 0 && !!term.value)
 const selectedTermLabel = computed(() => TERMS.find((t) => t.key === term.value)?.label ?? '')
 
+// Rango de tasas del mercado (para el glass card del hero, sin decir "ganador")
+const marketMax = computed(() => Math.max(...BANKS.map((b) => b.rates[term.value])))
+const marketMin = computed(() => Math.min(...BANKS.map((b) => b.rates[term.value])))
+
 function onSimulate() {
   if (!isValid.value) return
-  // Fuerza un pequeno "reset" de la reveal para re-disparar la animacion
   showResults.value = false
   requestAnimationFrame(() => { showResults.value = true })
 }
 
-// Si el usuario cambia el plazo despues del primer clic, re-anima suavemente
 watch(term, () => {
   if (!showResults.value) return
   showResults.value = false
@@ -55,34 +55,61 @@ watch(term, () => {
 </script>
 
 <template>
-  <div class="container-xxl px-0">
-
-    <!-- Hero -->
-    <section class="hero rounded-4 p-4 p-lg-5 mb-4">
-      <div class="row g-4 align-items-center">
-        <div class="col-lg-8">
-          <span class="badge bg-white text-primary border border-primary-subtle mb-3">
-            Simulador de CDT
+  <div>
+    <!-- ============ HERO ============ -->
+    <section class="hero-dark p-4 p-lg-5 mb-0">
+      <div class="row g-4 align-items-center position-relative" style="z-index: 1;">
+        <div class="col-lg-7">
+          <span class="hero-eyebrow mb-4">
+            <i class="bi bi-lightning-charge-fill"></i>
+            Simulador de CDT · Colombia
           </span>
-          <h1 class="display-5 mb-3">
-            Descubre <span class="text-primary">dónde crece más</span> tu dinero
+          <h1 class="display-4 mt-3 mb-3">
+            Tu dinero merece<br />
+            <span class="hero-highlight">crecer mejor.</span>
           </h1>
-          <p class="lead text-body-secondary mb-0">
-            Ingresa tu monto, elige el plazo y compara — no todas las entidades ganan
-            lo mismo en todos los plazos, y no todo se trata de la tasa: la solidez
-            del banco también cuenta.
+          <p class="lead mb-4" style="color: rgba(255,255,255,0.72); max-width: 34rem;">
+            Compara {{ BANKS.length }} entidades financieras en segundos.
+            Distintos plazos favorecen a distintas entidades — y la solidez
+            también cuenta. Invierte con información, no con suposiciones.
           </p>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="trust-chip"><i class="bi bi-shield-check"></i> Entidades vigiladas por la SFC</span>
+            <span class="trust-chip"><i class="bi bi-bank"></i> Depósitos protegidos por Fogafín</span>
+            <span class="trust-chip"><i class="bi bi-stars"></i> Comparación gratuita</span>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="glass-card p-4">
+            <div class="glass-label mb-3">El mercado hoy · {{ selectedTermLabel }}</div>
+            <div class="row g-4">
+              <div class="col-6">
+                <div class="glass-label mb-1">Tasas E.A. desde</div>
+                <div class="fs-2 fw-bold">{{ marketMin.toFixed(2) }}%</div>
+              </div>
+              <div class="col-6">
+                <div class="glass-label mb-1">Hasta</div>
+                <div class="fs-2 fw-bold" style="color:#a7f3d0;">{{ marketMax.toFixed(2) }}%</div>
+              </div>
+            </div>
+            <hr style="border-color: rgba(255,255,255,0.14); opacity: 1;" />
+            <div class="d-flex align-items-center gap-2 small" style="color: rgba(255,255,255,0.65);">
+              <i class="bi bi-info-circle"></i>
+              La diferencia entre elegir bien y elegir rápido puede ser millonaria.
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Controles -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-body p-4">
-        <div class="row g-4">
+    <!-- ============ CONTROLES (superpuestos al hero) ============ -->
+    <div class="card shadow-sm mx-2 mx-lg-5 position-relative" style="margin-top: -2.5rem; z-index: 2;">
+      <div class="card-body p-4 p-lg-5">
+        <div class="row g-4 align-items-start">
           <div class="col-lg-5">
-            <label class="form-label small text-uppercase text-body-secondary fw-semibold">
-              Monto a invertir
+            <label class="form-label small text-uppercase text-body-secondary fw-bold">
+              <i class="bi bi-cash-stack me-1"></i>Monto a invertir
             </label>
             <div class="input-group input-group-lg">
               <span class="input-group-text">$</span>
@@ -96,97 +123,99 @@ watch(term, () => {
               />
               <span class="input-group-text">COP</span>
             </div>
-            <div class="form-text">= {{ formatCOP(amount || 0) }}</div>
+            <div class="form-text fw-semibold">= {{ formatCOP(amount || 0) }}</div>
           </div>
 
           <div class="col-lg-7">
-            <label class="form-label small text-uppercase text-body-secondary fw-semibold">
-              Plazo
+            <label class="form-label small text-uppercase text-body-secondary fw-bold">
+              <i class="bi bi-calendar3 me-1"></i>Plazo
             </label>
-            <div class="d-flex flex-wrap gap-2">
+            <div class="segmented">
               <button
                 v-for="t in TERMS"
                 :key="t.key"
                 type="button"
-                class="btn"
-                :class="term === t.key ? 'btn-primary' : 'btn-outline-secondary'"
+                class="seg-item"
+                :class="{ active: term === t.key }"
                 @click="term = t.key"
               >
                 {{ t.label }}
               </button>
             </div>
-            <div class="form-text">Cada entidad ofrece tasas distintas según el plazo.</div>
+            <div class="form-text">Cada entidad ofrece tasas distintas según el plazo — pruébalos todos.</div>
           </div>
         </div>
 
         <div class="d-flex justify-content-center mt-4">
           <button
-            class="btn btn-primary btn-lg px-5 py-3 shadow-sm"
+            class="btn btn-primary btn-lg px-5 py-3"
             :disabled="!isValid"
             @click="onSimulate"
           >
-            {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones →' }}
+            {{ showResults ? 'Simular de nuevo' : 'Ver mis opciones' }}
+            <i class="bi bi-arrow-right ms-2"></i>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div
-      v-if="!showResults"
-      class="text-center py-5 text-body-secondary"
-    >
-      <div class="fs-1 mb-2">📊</div>
-      <h5 class="fw-semibold text-body">Listo cuando quieras</h5>
-      <p class="mb-0">Haz click en <em>Ver mis opciones</em> y te mostramos todas las entidades disponibles.</p>
+    <!-- ============ EMPTY STATE ============ -->
+    <div v-if="!showResults" class="text-center py-5 my-4">
+      <div class="empty-state-icon mb-4">
+        <i class="bi bi-graph-up-arrow"></i>
+      </div>
+      <h5 class="fw-bold mb-2">Listo cuando tú lo estés</h5>
+      <p class="text-body-secondary mb-0" style="max-width: 26rem; margin-inline: auto;">
+        Ajusta el monto y el plazo, y presiona
+        <span class="fw-semibold text-body">Ver mis opciones</span> para descubrir
+        cuánto puede crecer tu inversión en cada entidad.
+      </p>
     </div>
 
-    <!-- Resultados -->
+    <!-- ============ RESULTADOS ============ -->
     <template v-else>
-      <!-- Header de resultados -->
-      <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+      <div class="d-flex flex-wrap justify-content-between align-items-center mt-5 mb-3 gap-2">
         <div>
-          <h5 class="mb-0">{{ BANKS.length }} entidades disponibles</h5>
+          <h5 class="mb-1 fw-bold">{{ BANKS.length }} entidades aliadas</h5>
           <div class="text-body-secondary small">
-            Simulando {{ formatCOP(amount || 0) }} a {{ selectedTermLabel }}
+            Simulando <span class="fw-semibold">{{ formatCOP(amount || 0) }}</span>
+            a <span class="fw-semibold">{{ selectedTermLabel }}</span>
           </div>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <label class="text-body-secondary small mb-0">Ordenar por:</label>
-          <select v-model="sortBy" class="form-select form-select-sm" style="width: auto;">
+          <label class="text-body-secondary small mb-0 fw-semibold">Ordenar por</label>
+          <select v-model="sortBy" class="form-select form-select-sm fw-semibold" style="width: auto;">
             <option value="yield">Mayor rentabilidad</option>
             <option value="safety">Mayor solidez</option>
           </select>
         </div>
       </div>
 
-      <!-- Grid de cards -->
       <div class="row g-3">
         <div
           v-for="(row, idx) in results"
           :key="row.id"
           class="col-12 col-md-6 col-xl-4"
         >
-          <div
-            class="card h-100 shadow-sm bank-card"
-            :style="{ animationDelay: `${idx * 60}ms` }"
-          >
+          <div class="card h-100 shadow-sm bank-card" :style="{ animationDelay: `${idx * 55}ms` }">
             <div class="card-body p-4 d-flex flex-column">
-              <!-- Header: avatar + nombre + tier -->
+              <!-- Header -->
               <div class="d-flex align-items-start gap-3 mb-3">
-                <div class="avatar avatar-lg" :style="{ backgroundColor: row.color }">
+                <div
+                  class="avatar"
+                  style="width: 48px; height: 48px; font-size: 1.15rem; border-radius: 0.9rem;"
+                  :style="{ background: row.color }"
+                >
                   {{ row.name[0] }}
                 </div>
                 <div class="flex-grow-1">
-                  <div class="fw-bold fs-6">{{ row.name }}</div>
+                  <div class="fw-bold">{{ row.name }}</div>
                   <div
                     class="tier-badge mt-1"
-                    :style="{
-                      background: TIER_COLORS[row.tier].bg,
-                      color: TIER_COLORS[row.tier].fg,
-                    }"
+                    :style="{ background: TIER_COLORS[row.tier].bg, color: TIER_COLORS[row.tier].fg }"
                     :title="`${TIER_COLORS[row.tier].label} — según ${row.ratingBy}`"
                   >
+                    <i class="bi bi-shield-fill-check"></i>
                     {{ row.tier }} · {{ TIER_COLORS[row.tier].label }}
                   </div>
                 </div>
@@ -194,32 +223,37 @@ watch(term, () => {
 
               <!-- Highlights -->
               <ul class="list-unstyled small text-body-secondary mb-3 flex-grow-1">
-                <li v-for="h in row.highlights" :key="h" class="mb-1">
-                  <span class="text-primary me-1">•</span>{{ h }}
+                <li v-for="h in row.highlights" :key="h" class="mb-1 d-flex align-items-start gap-2">
+                  <i class="bi bi-check-circle-fill mt-1" style="color:#a78bfa; font-size: 0.75rem;"></i>
+                  <span>{{ h }}</span>
                 </li>
               </ul>
 
-              <!-- Tasa -->
-              <div class="d-flex align-items-baseline justify-content-between border-top pt-3">
+              <!-- Tasa + ganancia -->
+              <div class="d-flex align-items-end justify-content-between border-top pt-3">
                 <div>
-                  <div class="text-body-secondary small">Tasa E.A.</div>
-                  <div class="fs-3 fw-bold">{{ row.rate.toFixed(2) }}<span class="fs-6">%</span></div>
+                  <div class="text-body-secondary small fw-semibold">Tasa E.A.</div>
+                  <div class="fs-3 fw-bolder rate-gradient">
+                    {{ row.rate.toFixed(2) }}<span class="fs-6">%</span>
+                  </div>
                 </div>
                 <div class="text-end">
-                  <div class="text-body-secondary small">Ganarías</div>
-                  <div class="fs-5 fw-bold text-success">+{{ formatCOP(row.interest) }}</div>
+                  <div class="text-body-secondary small fw-semibold">Ganarías</div>
+                  <div class="fs-5 fw-bold money-positive">
+                    <AnimatedMoney :value="row.interest" prefix="+" />
+                  </div>
                 </div>
               </div>
 
-              <!-- Monto final + condiciones -->
+              <!-- Detalles -->
               <div class="mt-3 pt-3 border-top small">
                 <div class="d-flex justify-content-between mb-1">
-                  <span class="text-body-secondary">Monto final</span>
-                  <span class="fw-semibold">{{ formatCOP(row.final) }}</span>
+                  <span class="text-body-secondary">Recibirías al final</span>
+                  <span class="fw-bold"><AnimatedMoney :value="row.final" /></span>
                 </div>
                 <div class="d-flex justify-content-between">
-                  <span class="text-body-secondary">Monto mínimo</span>
-                  <span>{{ formatCOP(row.minAmount) }}</span>
+                  <span class="text-body-secondary">Inversión mínima</span>
+                  <span class="fw-semibold">{{ formatCOP(row.minAmount) }}</span>
                 </div>
               </div>
             </div>
@@ -228,48 +262,11 @@ watch(term, () => {
       </div>
 
       <p class="text-body-secondary small mt-4 mb-5">
-        * Simulación referencial. Las tasas y calificaciones mostradas son ejemplos.
-        Consulta con cada entidad las condiciones vigentes y ten en cuenta la retención
-        en la fuente (4% sobre intereses) al recibir el pago.
+        <i class="bi bi-info-circle me-1"></i>
+        Simulación referencial. Las tasas y calificaciones mostradas son ejemplos y no
+        representan ofertas vigentes. Verifica las condiciones con cada entidad y ten en
+        cuenta la retención en la fuente (4% sobre intereses).
       </p>
     </template>
   </div>
 </template>
-
-<style scoped>
-.avatar-lg {
-  width: 48px;
-  height: 48px;
-  font-size: 1.15rem;
-}
-
-.tier-badge {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 0.25rem 0.6rem;
-  border-radius: 0.4rem;
-  letter-spacing: 0.02em;
-}
-
-/* Reveal escalonado */
-.bank-card {
-  animation: revealUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-.bank-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08) !important;
-}
-
-@keyframes revealUp {
-  from {
-    opacity: 0;
-    transform: translateY(24px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-</style>
