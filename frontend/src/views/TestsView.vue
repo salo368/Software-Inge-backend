@@ -20,10 +20,10 @@ const FILE_LABELS: Record<string, string> = {
 }
 
 const STATUS_META: Record<string, { label: string; cls: string; icon: string }> = {
-  running: { label: 'Ejecutando', cls: 'text-bg-warning', icon: 'bi-arrow-repeat' },
-  passed: { label: 'Exitosa', cls: 'text-bg-success', icon: 'bi-check-circle-fill' },
-  failed: { label: 'Con fallos', cls: 'text-bg-danger', icon: 'bi-x-circle-fill' },
-  error: { label: 'Error', cls: 'text-bg-danger', icon: 'bi-exclamation-triangle-fill' },
+  running: { label: 'Ejecutando', cls: 'qa-badge-running', icon: 'bi-arrow-repeat' },
+  passed: { label: 'Exitosa', cls: 'qa-badge-passed', icon: 'bi-check-circle-fill' },
+  failed: { label: 'Con fallos', cls: 'qa-badge-failed', icon: 'bi-x-circle-fill' },
+  error: { label: 'Error', cls: 'qa-badge-failed', icon: 'bi-exclamation-triangle-fill' },
 }
 
 const grouped = computed(() => {
@@ -97,108 +97,113 @@ onUnmounted(() => window.clearInterval(poll))
 </script>
 
 <template>
-  <div>
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
-      <div>
-        <h3 class="fw-bolder mb-1">Panel de pruebas · Firma digital</h3>
-        <p class="text-body-secondary mb-0">
-          Suite TDD ejecutada en la nube contra los servicios reales. Cada corrida envía correos y usa OCR real.
-        </p>
+  <div class="qa-shell">
+    <!-- Barra propia: esta herramienta se presenta como un producto aparte -->
+    <header class="qa-topbar">
+      <div class="qa-container d-flex align-items-center gap-3 py-3">
+        <span class="qa-brand"><span class="qa-dot"></span>QA&nbsp;Console</span>
+        <span class="qa-mono qa-muted d-none d-sm-inline">suite: firma-digital</span>
+        <span class="qa-env ms-auto">ambiente&nbsp;·&nbsp;dev</span>
+        <button class="btn btn-qa" :disabled="launching || selected?.status === 'running'" @click="launch">
+          <span v-if="launching || selected?.status === 'running'" class="spinner-border spinner-border-sm me-2"></span>
+          <i v-else class="bi bi-play-fill me-1"></i>
+          {{ selected?.status === 'running' ? 'Ejecutando…' : 'Ejecutar suite' }}
+        </button>
       </div>
-      <button class="btn btn-primary px-4" :disabled="launching || selected?.status === 'running'" @click="launch">
-        <span v-if="launching || selected?.status === 'running'" class="spinner-border spinner-border-sm me-2"></span>
-        <i v-else class="bi bi-play-fill me-1"></i>
-        {{ selected?.status === 'running' ? 'Ejecutando…' : 'Ejecutar pruebas' }}
-      </button>
-    </div>
+    </header>
 
-    <div class="row g-4">
-      <!-- Historial -->
-      <div class="col-lg-4">
-        <div class="card shadow-sm">
-          <div class="card-body p-3">
-            <h6 class="fw-bold px-2 pt-1 mb-2">Corridas</h6>
-            <p v-if="!runs.length" class="text-body-secondary small px-2 mb-2">
+    <div class="qa-container py-4">
+      <p class="qa-muted small mb-4">
+        Ejecuta la suite pytest en AWS Lambda contra los servicios reales de firma digital
+        y muestra cada escenario en vivo a medida que corre.
+      </p>
+
+      <div class="row g-4">
+        <!-- Historial -->
+        <div class="col-lg-4">
+          <div class="qa-card p-3">
+            <h6 class="qa-title px-2 pt-1 mb-2">Corridas</h6>
+            <p v-if="!runs.length" class="qa-muted small px-2 mb-2">
               Aún no hay corridas. Lanza la primera.
             </p>
             <button
               v-for="r in runs"
               :key="r.id"
-              class="run-item"
+              class="qa-run-item"
               :class="{ active: selected?.id === r.id }"
               @click="select(r.id)"
             >
-              <span class="badge" :class="STATUS_META[r.status].cls">
+              <span class="qa-badge" :class="STATUS_META[r.status].cls">
                 <i class="bi me-1" :class="STATUS_META[r.status].icon"></i>{{ STATUS_META[r.status].label }}
               </span>
-              <span class="small fw-semibold">Corrida #{{ r.id }}</span>
-              <span class="small text-body-secondary ms-auto">
-                {{ r.status === 'running' ? `${r.total} de ${TOTAL_ESPERADO}` : `${r.passed}/${r.total}` }}
+              <span class="small fw-semibold qa-mono">#{{ r.id }}</span>
+              <span class="small qa-muted ms-auto">
+                {{ r.status === 'running' ? `${r.total}/${TOTAL_ESPERADO}` : `${r.passed}/${r.total}` }}
                 · {{ hora(r.started_at) }}
               </span>
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Detalle -->
-      <div class="col-lg-8">
-        <div v-if="!selected" class="card shadow-sm">
-          <div class="card-body p-5 text-center text-body-secondary">
+        <!-- Detalle -->
+        <div class="col-lg-8">
+          <div v-if="!selected" class="qa-card p-5 text-center qa-muted">
             Selecciona una corrida o lanza una nueva.
           </div>
-        </div>
 
-        <template v-else>
-          <div class="card shadow-sm mb-3">
-            <div class="card-body p-4">
-              <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
-                <span class="badge fs-6" :class="STATUS_META[selected.status].cls">
+          <template v-else>
+            <div class="qa-card p-4 mb-3">
+              <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                <span class="qa-badge fs-6" :class="STATUS_META[selected.status].cls">
                   <i class="bi me-1" :class="STATUS_META[selected.status].icon"></i>
                   {{ STATUS_META[selected.status].label }}
                 </span>
-                <span class="fw-bold">Corrida #{{ selected.id }}</span>
-                <span class="text-body-secondary small ms-auto">
+                <span class="fw-bold qa-mono">corrida #{{ selected.id }}</span>
+                <span class="qa-muted small ms-auto">
                   {{ hora(selected.started_at) }}{{ selected.finished_at ? ` — ${hora(selected.finished_at)}` : '' }}
                 </span>
               </div>
-              <div class="progress mb-2" style="height: 10px;">
+              <div class="qa-progress mb-2">
                 <div
-                  class="progress-bar"
-                  :class="selected.status === 'running' ? 'progress-bar-striped progress-bar-animated' : failedCount ? 'bg-danger' : 'bg-success'"
+                  class="qa-progress-bar"
+                  :class="{ running: selected.status === 'running', failed: failedCount > 0 }"
                   :style="{ width: `${progress}%` }"
                 ></div>
               </div>
-              <div class="small text-body-secondary">
-                <span class="money-positive fw-semibold">{{ passedCount }} exitosas</span>
-                <span v-if="failedCount" class="text-danger fw-semibold"> · {{ failedCount }} fallidas</span>
+              <div class="small qa-muted">
+                <span class="qa-pass fw-semibold">{{ passedCount }} exitosas</span>
+                <span v-if="failedCount" class="qa-fail fw-semibold"> · {{ failedCount }} fallidas</span>
                 · {{ selected.results.length }} ejecutadas
               </div>
             </div>
-          </div>
 
-          <div v-for="g in grouped" :key="g.file" class="card shadow-sm mb-3">
-            <div class="card-body p-4">
-              <h6 class="fw-bold mb-3">{{ g.label }}</h6>
-              <div v-for="r in g.results" :key="r.name" class="test-row" @click="expanded = expanded === r.name ? '' : r.name">
+            <div v-for="g in grouped" :key="g.file" class="qa-card p-4 mb-3">
+              <h6 class="qa-title mb-3">{{ g.label }}</h6>
+              <div
+                v-for="r in g.results"
+                :key="r.name"
+                class="qa-test-row"
+                @click="expanded = expanded === r.name ? '' : r.name"
+              >
                 <i
                   class="bi"
-                  :class="r.outcome === 'passed' ? 'bi-check-circle-fill text-success' : 'bi-x-circle-fill text-danger'"
+                  :class="r.outcome === 'passed' ? 'bi-check-circle-fill qa-pass' : 'bi-x-circle-fill qa-fail'"
                 ></i>
                 <div class="flex-grow-1">
                   <div class="small fw-semibold">{{ r.escenario || r.name }}</div>
-                  <div class="text-body-secondary" style="font-size: 0.75rem;">{{ r.name }}</div>
-                  <pre v-if="expanded === r.name && r.error" class="test-error">{{ r.error }}</pre>
+                  <div class="qa-mono qa-muted" style="font-size: 0.72rem;">{{ r.name }}</div>
+                  <pre v-if="expanded === r.name && r.error" class="qa-error">{{ r.error }}</pre>
                 </div>
-                <span class="small text-body-secondary text-nowrap">{{ r.duration.toFixed(2) }}s</span>
+                <span class="small qa-muted qa-mono text-nowrap">{{ r.duration.toFixed(2) }}s</span>
               </div>
             </div>
-          </div>
 
-          <div v-if="selected.status === 'running'" class="text-center text-body-secondary small py-2">
-            <span class="spinner-border spinner-border-sm me-2"></span>Ejecutando en la nube, los resultados aparecen en vivo…
-          </div>
-        </template>
+            <div v-if="selected.status === 'running'" class="text-center qa-muted small py-2">
+              <span class="spinner-border spinner-border-sm me-2"></span>
+              Ejecutando en la nube, los resultados aparecen en vivo…
+            </div>
+          </template>
+        </div>
       </div>
     </div>
   </div>

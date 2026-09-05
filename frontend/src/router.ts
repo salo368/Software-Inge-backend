@@ -15,7 +15,7 @@ const router = createRouter({
     { path: '/register', name: 'register', component: RegisterView, meta: { public: true } },
     { path: '/dashboard', name: 'dashboard', component: DashboardView },
     { path: '/cdt/:id', name: 'cdt', component: CdtView },
-    { path: '/tests', name: 'tests', component: TestsView, meta: { public: true } },
+    { path: '/tests', name: 'tests', component: TestsView, meta: { public: true, chrome: 'qa' } },
   ],
 })
 

@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { RouterView, RouterLink, useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAuth } from './stores/auth'
 
 const auth = useAuth()
+const route = useRoute()
 const router = useRouter()
+
+// El panel de QA se presenta como una herramienta independiente: sin el chrome del comercio
+const isQa = computed(() => route.meta.chrome === 'qa')
 
 async function onLogout() {
   await auth.logout()
@@ -12,6 +17,10 @@ async function onLogout() {
 </script>
 
 <template>
+  <template v-if="isQa">
+    <RouterView />
+  </template>
+  <template v-else>
   <nav class="app-navbar sticky-top">
     <div class="container-xxl px-3 px-lg-4 d-flex align-items-center py-2">
       <RouterLink to="/" class="navbar-brand mb-0 me-4 fs-4 text-decoration-none">
@@ -64,4 +73,5 @@ async function onLogout() {
       </div>
     </div>
   </footer>
+  </template>
 </template>

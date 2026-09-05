@@ -340,43 +340,148 @@ h1, h2, h3, h4, h5, h6,
   border-radius: 0.7rem;
 }
 
-/* ---------- Panel de pruebas ---------- */
-.run-item {
+/* ============================================================
+   QA Console — panel de pruebas (identidad propia, tema oscuro)
+   Se presenta como una herramienta independiente del comercio.
+   ============================================================ */
+.qa-shell {
+  min-height: 100vh;
+  width: 100%;
+  background: #0e1120;
+  color: #e2e8f0;
+}
+.qa-container {
+  max-width: 1100px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+.qa-mono { font-family: 'Consolas', 'SFMono-Regular', Menlo, monospace; }
+.qa-muted { color: #8b93b0; }
+.qa-title { color: #e2e8f0; font-weight: 700; }
+.qa-pass { color: #34d399; }
+.qa-fail { color: #f87171; }
+
+.qa-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(10, 12, 24, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid #232842;
+}
+.qa-brand {
+  font-family: 'Consolas', Menlo, monospace;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.qa-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 10px #34d399;
+}
+.qa-env {
+  font-family: 'Consolas', Menlo, monospace;
+  font-size: 0.75rem;
+  color: #fbbf24;
+  border: 1px solid #4a3f1d;
+  background: #201a09;
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+}
+.btn-qa {
+  background: #10b981;
+  border: none;
+  color: #062017;
+  font-weight: 700;
+  border-radius: 0.6rem;
+  padding: 0.45rem 1.2rem;
+}
+.btn-qa:hover:not(:disabled) { background: #34d399; color: #062017; }
+.btn-qa:disabled { background: #1d4a3a; color: #6ee7b7; opacity: 1; }
+
+.qa-card {
+  background: #161a2e;
+  border: 1px solid #232842;
+  border-radius: 0.9rem;
+}
+.qa-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+}
+.qa-badge-running { background: #2b2410; color: #fbbf24; border: 1px solid #4a3f1d; }
+.qa-badge-passed { background: #0b2b1f; color: #34d399; border: 1px solid #1d4a3a; }
+.qa-badge-failed { background: #2d1214; color: #f87171; border: 1px solid #572125; }
+
+.qa-run-item {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   width: 100%;
   padding: 0.6rem 0.7rem;
   border: 1.5px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: 0.7rem;
   background: transparent;
+  color: #e2e8f0;
   text-align: left;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.run-item:hover { background: #faf9fe; }
-.run-item.active {
-  background: #faf9fe;
-  border-color: var(--brand);
+.qa-run-item:hover { background: #1c2138; }
+.qa-run-item.active {
+  background: #1c2138;
+  border-color: #10b981;
 }
-.test-row {
+
+.qa-progress {
+  height: 10px;
+  border-radius: 999px;
+  background: #232842;
+  overflow: hidden;
+}
+.qa-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: #10b981;
+  transition: width 0.4s ease;
+}
+.qa-progress-bar.failed { background: #ef4444; }
+.qa-progress-bar.running {
+  background: repeating-linear-gradient(45deg, #10b981, #10b981 10px, #0d9c6f 10px, #0d9c6f 20px);
+  animation: qa-stripes 1s linear infinite;
+}
+@keyframes qa-stripes {
+  from { background-position: 0 0; }
+  to { background-position: 28px 0; }
+}
+
+.qa-test-row {
   display: flex;
   align-items: flex-start;
   gap: 0.7rem;
   padding: 0.55rem 0.25rem;
-  border-bottom: 1px solid var(--bs-border-color);
+  border-bottom: 1px solid #232842;
   cursor: pointer;
 }
-.test-row:last-child { border-bottom: 0; }
-.test-row > i { margin-top: 2px; }
-.test-error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
+.qa-test-row:last-child { border-bottom: 0; }
+.qa-test-row > i { margin-top: 2px; }
+.qa-error {
+  background: #2d1214;
+  border: 1px solid #572125;
   border-radius: 0.5rem;
   padding: 0.6rem;
   font-size: 0.72rem;
   white-space: pre-wrap;
   margin: 0.5rem 0 0;
-  color: #991b1b;
+  color: #fca5a5;
 }
 .bank-card:hover {
   transform: translateY(-4px);
