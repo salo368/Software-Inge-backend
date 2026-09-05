@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { advanceCdt, getCdt, getContract, type Cdt } from '../api/cdts'
 import { createSignature } from '../api/signatures'
@@ -98,7 +98,26 @@ async function advance() {
   }
 }
 
-onMounted(load)
+// Sincroniza con el estado real: si el CDT avanza desde otro dispositivo
+// (p. ej. la firma en el celular), esta vista avanza sola sin F5
+let poll: number | undefined
+
+async function refresh() {
+  if (!cdt.value || advancing.value || sending.value) return
+  if (cdt.value.stage === 'terminado') return
+  try {
+    const fresh = await getCdt(route.params.id as string)
+    if (fresh.stage !== cdt.value.stage) cdt.value = fresh
+  } catch {
+    /* reintenta en el proximo tick */
+  }
+}
+
+onMounted(() => {
+  load()
+  poll = window.setInterval(refresh, 5000)
+})
+onUnmounted(() => window.clearInterval(poll))
 </script>
 
 <template>

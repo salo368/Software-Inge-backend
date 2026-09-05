@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   confirmOtp, getProcess, getUploadUrl, putFile, requestOtp, validatePhoto,
@@ -70,10 +70,38 @@ onMounted(async () => {
     else if (p.stage === 'dibujo') step.value = 'dibujo'
     else if (p.stage === 'documentos') step.value = 'documentos'
     else step.value = 'revision'
+    poll = window.setInterval(syncProcess, 4000)
   } catch {
     notFound.value = true
   }
 })
+onUnmounted(() => window.clearInterval(poll))
+
+// Sincroniza con el proceso real: fotos o avances hechos desde otro
+// dispositivo se reflejan aqui sin recargar (solo avanza, nunca retrocede)
+const STEP_ORDER: Record<Step, number> = { revision: 0, documentos: 1, dibujo: 2, otp: 3, done: 4 }
+const STAGE_ORDER: Record<string, number> = { revision: 0, documentos: 1, dibujo: 2, otp: 3, firmado: 4 }
+let poll: number | undefined
+
+async function syncProcess() {
+  if (notFound.value || !process.value || busy.value || uploadBusy.value || step.value === 'done') return
+  try {
+    const p = await getProcess(token)
+    docDone.value = { ...p.uploads }
+    if (step.value === 'documentos' && !currentDoc.value) currentDoc.value = nextPendingDoc()
+    if ((STAGE_ORDER[p.stage] ?? 0) > STEP_ORDER[step.value]) {
+      if (p.stage === 'firmado') {
+        step.value = 'done'
+        setTimeout(() => { window.location.href = returnUrl.value }, 6000)
+      } else {
+        step.value = p.stage
+        if (p.stage === 'otp') otpSent.value = true
+      }
+    }
+  } catch {
+    /* reintenta en el proximo tick */
+  }
+}
 
 async function onCaptured(blob: Blob) {
   const type = currentDoc.value
