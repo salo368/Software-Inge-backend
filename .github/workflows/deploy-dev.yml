@@ -91,7 +91,8 @@ jobs:
             echo "::notice::serverless-compose.yml sin services registrados; nada que desplegar."
             exit 0
           fi
-          npx serverless-compose deploy --stage dev "${{ matrix.block }}" --verbose
+          # Sintaxis serverless-compose para deploy de un servicio: <name>:deploy
+          npx serverless-compose "${{ matrix.block }}:deploy" --stage dev --verbose
 
       - name: Apply migrations (if block == migrations)
         if: matrix.block == 'migrations'
