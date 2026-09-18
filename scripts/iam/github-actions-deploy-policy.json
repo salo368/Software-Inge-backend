@@ -1,0 +1,121 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CFDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStack*",
+        "cloudformation:GetTemplate*",
+        "cloudformation:ListStack*",
+        "cloudformation:ListStacks",
+        "cloudformation:CreateChangeSet",
+        "cloudformation:DescribeChangeSet",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:DeleteChangeSet",
+        "cloudformation:ValidateTemplate",
+        "cloudformation:SetStackPolicy",
+        "cloudformation:GetStackPolicy",
+        "cloudformation:TagResource",
+        "cloudformation:UntagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceDeploy",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*",
+        "apigateway:*",
+        "cloudfront:*",
+        "logs:*",
+        "events:*",
+        "dynamodb:*",
+        "sqs:*",
+        "sns:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3Deploy",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:DeleteBucket",
+        "s3:List*",
+        "s3:Get*",
+        "s3:Put*",
+        "s3:Delete*",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "SSMRead",
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameter*",
+        "ssm:DescribeParameters"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IamRolesForProject",
+      "Effect": "Allow",
+      "Action": [
+        "iam:GetRole",
+        "iam:CreateRole",
+        "iam:DeleteRole",
+        "iam:PassRole",
+        "iam:PutRolePolicy",
+        "iam:GetRolePolicy",
+        "iam:DeleteRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:List*",
+        "iam:TagRole",
+        "iam:UntagRole"
+      ],
+      "Resource": [
+        "arn:aws:iam::*:role/cdts-*",
+        "arn:aws:iam::*:role/moc-*",
+        "arn:aws:iam::*:role/access-*",
+        "arn:aws:iam::*:role/digital*signature-*",
+        "arn:aws:iam::*:role/frontend-*",
+        "arn:aws:iam::*:role/firma-*",
+        "arn:aws:iam::*:role/tests-*",
+        "arn:aws:iam::*:role/shared-*"
+      ]
+    },
+    {
+      "Sid": "DenyEscalation",
+      "Effect": "Deny",
+      "Action": [
+        "iam:*User*",
+        "iam:*Group*",
+        "iam:CreatePolicy",
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion",
+        "iam:CreateAccessKey",
+        "iam:UpdateAccessKey",
+        "iam:DeleteAccessKey",
+        "iam:CreateLoginProfile",
+        "iam:UpdateLoginProfile",
+        "iam:DeleteLoginProfile",
+        "iam:ChangePassword",
+        "iam:UpdateAccountPasswordPolicy",
+        "organizations:*",
+        "account:*",
+        "aws-portal:*",
+        "billing:*",
+        "ce:*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

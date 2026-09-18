@@ -1,0 +1,22 @@
+{
+  "name": "cdts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CDTS - Serverless multi-servicio en AWS (Lambda + API Gateway + S3/CloudFront)",
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "scripts": {
+    "deploy:dev": "serverless-compose deploy --stage dev",
+    "deploy:prod": "serverless-compose deploy --stage prod",
+    "remove:dev": "serverless-compose remove --stage dev",
+    "remove:prod": "serverless-compose remove --stage prod",
+    "print:dev": "serverless-compose print --stage dev",
+    "print:prod": "serverless-compose print --stage prod",
+    "test": "python -m pytest tests --html=tests/report.html --self-contained-html"
+  },
+  "devDependencies": {
+    "@serverless/compose": "1.3.0",
+    "serverless": "3.38.0"
+  }
+}

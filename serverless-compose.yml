@@ -1,0 +1,24 @@
+# CDTS - Serverless Compose
+# Cada servicio se declara aqui. Los servicios individuales viven en services/<name>/serverless.yml
+#
+# Convencion de nombres de recursos AWS: cdts-<service>-<stage>-<resource>
+#
+# Ejemplo (cuando migremos codigo del MVP):
+#
+# services:
+#   shared-layer:
+#     path: layers/shared
+#
+#   access:
+#     path: services/access
+#     dependsOn:
+#       - shared-layer
+#
+#   cdts:
+#     path: services/cdts
+#     dependsOn:
+#       - shared-layer
+#
+# Placeholder mientras se migra el codigo del MVP. Un compose sin services es valido para
+# validar la sintaxis, pero no despliega nada. Ir agregando servicios de a uno via PR.
+services: {}
