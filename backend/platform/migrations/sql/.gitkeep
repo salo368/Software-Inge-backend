@@ -1,0 +1,13 @@
+# Los archivos .sql de migracion viven aca.
+#
+# Convencion completa: ../README.md
+#
+# Formato:
+#   YYYYMMDDHHMMSS_snake_case_descripcion.sql
+#
+# Contenido:
+#   -- +migrate up
+#   ...statements...
+#
+#   -- +migrate down  (opcional)
+#   ...rollback...
