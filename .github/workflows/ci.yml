@@ -48,12 +48,15 @@ jobs:
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      - name: Validate serverless-compose (print)
+      - name: Validate serverless-compose (package)
         run: |
           if grep -qE "^  [A-Za-z0-9_-]+:" serverless-compose.yml; then
-            npx serverless-compose print --stage dev
+            # 'package' construye los bundles sin desplegar. Valida sintaxis
+            # de todos los serverless.yml y ejecuta plugins (incluye
+            # serverless-python-requirements). No requiere AWS creds.
+            npx serverless-compose package --stage dev
           else
-            echo "::notice::serverless-compose.yml no tiene services todavia, skip print."
+            echo "::notice::serverless-compose.yml no tiene services todavia, skip package."
           fi
 
       - name: Run pytest
