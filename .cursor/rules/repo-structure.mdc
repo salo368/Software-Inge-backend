@@ -12,10 +12,10 @@ antes de crear archivos.
 ## Layout del monorepo
 
 - **Raíz** = solo infra de proyecto: `.github/`, `.cursor/`, `docs/`, `scripts/iam/`,
-  `README.md`, `CONTRIBUTING.md`, `.gitignore`.
+  `scripts/ci/`, `README.md`, `CONTRIBUTING.md`, `.gitignore`.
 - **Todo el backend vive en [`backend/`](../../backend/)**: `serverless-compose.yml`,
   `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
-  `config/`, `utils/`, `data/`, `services/`, `layers/`, `tests/`.
+  `config/`, `utils/`, `data/`, `services/`, `platform/`, `layers/`, `tests/`.
 - Un eventual `frontend/` iría a la raíz al mismo nivel que `backend/`.
 
 ## Reglas duras
@@ -25,59 +25,69 @@ antes de crear archivos.
    idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
    con guiones (`refresh-token`, `create-signature`).
 3. **Todo Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
-4. **Un servicio = un dominio** en `backend/services/<service>/`. No importar entre
-   servicios; lo cross-domain va en `backend/layers/shared/` (fuente en `backend/utils/`).
-5. **Estructura obligatoria de cada servicio:**
+4. **Dos tipos de bloque**:
+   - **Dominio de negocio** en `backend/services/<service>/`. No importar entre
+     servicios; lo cross-domain va en `backend/layers/shared/` (fuente en
+     `backend/utils/`).
+   - **Infraestructura runtime** en `backend/platform/<name>/` (ejemplo:
+     `platform/migrations/`). No usar un `platform/infrastructure/` catch-all;
+     cada responsabilidad tiene su propia carpeta descriptiva. `services/` NO
+     puede importar codigo de `platform/`.
+5. **Estructura obligatoria de cada bloque** (aplica tanto a `services/<X>/` como
+   a `platform/<X>/`):
    ```
-   backend/services/<service>/
+   backend/{services,platform}/<name>/
    ├── serverless.yml
-   ├── utils/        # helpers PRIVADOS del dominio
+   ├── utils/        # helpers PRIVADOS del bloque
    ├── data/         # modelos, DTOs, schemas, static data
    └── src/
        ├── handlers/    # API Lambdas (API Gateway HTTP)
        ├── scheduled/   # Cron Lambdas (EventBridge)
        └── workers/     # Worker Lambdas (SQS/SNS/streams/async)
    ```
-6. **Directorios cross a nivel de backend** (compartidos por >1 servicio):
+   Los bloques de `platform/` pueden tener carpetas adicionales propias de su
+   responsabilidad (p.ej. `platform/migrations/sql/`).
+6. **Directorios cross a nivel de backend** (compartidos por >1 bloque):
    - `backend/config/` — configuración declarativa.
    - `backend/utils/` — utilidades genéricas cross-domain (fuente que alimenta
      `backend/layers/shared/`).
    - `backend/data/` — datos estáticos, semillas, catálogos.
-   - Si algo es de UN servicio, va en `backend/services/<service>/...`, NO acá.
+   - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
 7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con:
    - `handler.py` (define `def handler(event, context)`)
    - `function.yml` (config Serverless referenciada como
      `${file(./src/<tipo>/<function>/function.yml)}`)
 8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
    Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
-9. **Migraciones**: los `.sql` de `backend/migrations/sql/` **nunca califican
-   schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
+9. **Migraciones**: los `.sql` de `backend/platform/migrations/sql/` **nunca
+   califican schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
    La Lambda hace `SET LOCAL search_path TO <stage>` al inicio. Tambien
    prohibido: `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA`. Enforcement
    automatico: `scripts/ci/lint-migrations.py` en el CI. Ver
-   [`backend/migrations/README.md`](../../backend/migrations/README.md).
+   [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
 
 ## Bloques de despliegue (deploy selectivo)
 
 - El pipeline **no** re-despliega todo el backend en cada push. Agrupa por
   **bloques** y despliega solo los afectados por el diff.
-- Un bloque = una carpeta directa bajo `backend/services/<X>/`, o
-  `backend/migrations/`. Descubrimiento automatico via
+- Un bloque = una carpeta directa bajo `backend/services/<X>/` o
+  `backend/platform/<X>/`. Descubrimiento automatico via
   [`scripts/ci/plan-deploy.sh`](../../scripts/ci/plan-deploy.sh).
-- **Diff solo en `backend/services/X/`** → deploy solo del bloque `X`.
-- **Diff solo en `backend/migrations/`** → deploy solo `migrations`.
+- **Diff solo en `backend/services/X/`** o **`backend/platform/X/`** → deploy
+  solo del bloque `X`.
 - **Diff en varios bloques** → todos los afectados, `migrations` primero,
   resto alfabetico, secuencial.
-- **Diff en algo GLOBAL del backend** → deploy TOTAL. Se consideran globales:
-  `serverless-compose.yml`, `package*.json`, `requirements-*.txt`, `.nvmrc`,
-  `.python-version`, `pytest.ini`, `config/**`, `utils/**`, `data/**`,
-  `layers/**`.
+- **Diff en CUALQUIER archivo backend/ que no pertenezca a un bloque** →
+  deploy TOTAL. Incluye por regla general: `serverless-compose.yml`,
+  `package*.json`, `requirements-*.txt`, `.nvmrc`, `.python-version`,
+  `pytest.ini`, `config/**`, `utils/**`, `data/**`, `layers/**`, y cualquier
+  archivo suelto en `backend/`. Regla conservadora a proposito.
 - **Diff solo fuera de `backend/`** → NO se despliega nada.
 - `migrations` es un caso especial: NO es un `serverless.yml` clasico, es una
   carpeta `sql/` con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones
   `-- +migrate up` / `-- +migrate down`, aplicados por una Lambda
   `cdts-<stage>-migrations-apply`. Ver
-  [`backend/migrations/README.md`](../../backend/migrations/README.md).
+  [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
 
 ## Anti-patrones (rechazar)
 
@@ -86,6 +96,9 @@ antes de crear archivos.
 - Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
 - Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
 - Un `handler.py` que importa desde otro servicio hermano.
+- Un handler de `services/` que importa desde `platform/` (o al revés).
+- Servicio catch-all `platform/infrastructure/` o similar. Cada responsabilidad
+  infra tiene su propia carpeta descriptiva.
 - Más de una Lambda por carpeta.
 - Código de negocio fuera de `src/`, `utils/` o `data/`.
 - Uso del nombre `prod` en YAML, scripts o docs (el stage productivo es `pro`).
@@ -93,8 +106,8 @@ antes de crear archivos.
   `cdts-<stage>-<service>-<function>`.
 - Registrar bloques "manualmente" en `plan-deploy.sh`. El descubrimiento es
   por arbol; crear la carpeta correspondiente y ya.
-- Editar un `.sql` de `backend/migrations/sql/` ya mergeado a `main` — escribir
-  una migracion nueva con timestamp posterior que corrija.
+- Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main` —
+  escribir una migracion nueva con timestamp posterior que corrija.
 - Calificar schema en una migracion (`CREATE TABLE dev.users`,
   `SELECT ... FROM pro.orders`). El linter lo rechaza.
 - `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA` dentro de un `.sql`. El
@@ -102,13 +115,13 @@ antes de crear archivos.
 
 ## Plantilla para una Lambda nueva
 
-`backend/services/<service>/src/<tipo>/<function>/handler.py`:
+`backend/{services,platform}/<name>/src/<tipo>/<function>/handler.py`:
 ```python
 def handler(event, context):
     return {"statusCode": 200, "body": ""}
 ```
 
-`backend/services/<service>/src/<tipo>/<function>/function.yml`:
+`backend/{services,platform}/<name>/src/<tipo>/<function>/function.yml`:
 ```yaml
 handler: src/<tipo>/<function>/handler.handler
 events:
@@ -117,11 +130,11 @@ events:
   # - sqs: arn:...                            # solo si es workers/
 ```
 
-Registrar en `backend/services/<service>/serverless.yml`:
+Registrar en `backend/{services,platform}/<name>/serverless.yml`:
 ```yaml
 provider:
   naming:
-    functionName: cdts-${self:provider.stage}-<service>-${self:function.name}
+    functionName: cdts-${self:provider.stage}-<name>-${self:function.name}
 
 functions:
   <function>: ${file(./src/<tipo>/<function>/function.yml)}
