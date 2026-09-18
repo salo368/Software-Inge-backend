@@ -1,9 +1,12 @@
-# migrations — bloque de despliegue
+# platform/migrations — bloque de despliegue de infraestructura
 
-Carpeta reservada para **migraciones de esquema de PostgreSQL** de la BD compartida
-del proyecto. Se considera un **bloque de despliegue** propio, al mismo nivel que
-cualquier `backend/services/<name>/`. Ver
-[`docs/repo-structure.md`](../../docs/repo-structure.md) §14 "Bloques de despliegue".
+Bloque de **infraestructura runtime** (§5.2 de `docs/repo-structure.md`) que
+aplica las **migraciones de esquema de PostgreSQL** a la BD compartida del
+proyecto. Es un bloque de despliegue propio, hermano de los demas bloques en
+`backend/platform/` y de los servicios de negocio en `backend/services/`.
+
+Ver [`docs/repo-structure.md`](../../../docs/repo-structure.md) §14 "Bloques
+de despliegue".
 
 > **Estado**: reservado, sin runtime todavia. Este README fija la convencion para
 > cuando toque implementar. NO agregar `.sql` sueltos aca hasta que se cree el
@@ -82,7 +85,7 @@ Tambien esta prohibido y falla el CI:
 - Nombres de archivo que no matcheen `YYYYMMDDHHMMSS_snake_case.sql`.
 - Archivos sin la seccion `-- +migrate up`.
 
-El linter vive en [`scripts/ci/lint-migrations.py`](../../scripts/ci/lint-migrations.py)
+El linter vive en [`scripts/ci/lint-migrations.py`](../../../scripts/ci/lint-migrations.py)
 y corre como job `Lint migrations` en cada PR. Es sencillo pero suficiente:
 strippea strings literales y comentarios antes de matchear, asi que un
 comentario `-- este cambio afecta dev.users` o un string literal
