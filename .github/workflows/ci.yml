@@ -17,6 +17,9 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
@@ -25,15 +28,16 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version-file: backend/.nvmrc
           cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: .python-version
+          python-version-file: backend/.python-version
           cache: pip
-          cache-dependency-path: requirements-dev.txt
+          cache-dependency-path: backend/requirements-dev.txt
 
       - name: Install Node dependencies
         run: npm ci
@@ -61,9 +65,9 @@ jobs:
           fi
 
       - name: Upload pytest report (if any)
-        if: always() && hashFiles('pytest-report.xml') != ''
+        if: always() && hashFiles('backend/pytest-report.xml') != ''
         uses: actions/upload-artifact@v4
         with:
           name: pytest-report
-          path: pytest-report.xml
+          path: backend/pytest-report.xml
           retention-days: 7
