@@ -8,11 +8,11 @@
   },
   "scripts": {
     "deploy:dev": "serverless-compose deploy --stage dev",
-    "deploy:prod": "serverless-compose deploy --stage prod",
+    "deploy:pro": "serverless-compose deploy --stage pro",
     "remove:dev": "serverless-compose remove --stage dev",
-    "remove:prod": "serverless-compose remove --stage prod",
+    "remove:pro": "serverless-compose remove --stage pro",
     "print:dev": "serverless-compose print --stage dev",
-    "print:prod": "serverless-compose print --stage prod",
+    "print:pro": "serverless-compose print --stage pro",
     "test": "python -m pytest tests --html=tests/report.html --self-contained-html"
   },
   "devDependencies": {

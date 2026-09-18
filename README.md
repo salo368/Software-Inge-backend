@@ -4,46 +4,58 @@ Proyecto serverless multi-servicio en AWS (Lambda + API Gateway HTTP API + S3/Cl
 con Serverless Framework v3.
 
 > **Estado:** rebuild post-MVP. La rama `develop` es la nueva base limpia. El codigo del MVP
-> vive en la historia de `main` como referencia y se migra por PRs pequenas.
+> vive en la rama `legacy/mvp` como referencia y se migra por PRs pequenas.
+
+**Antes de crear archivos, leer [`docs/repo-structure.md`](./docs/repo-structure.md).**
 
 ## Flujo de trabajo
 
 - **Todo cambio va por Pull Request**. No se permite `git push` directo a `main` ni a `develop`.
-- Ramas de trabajo: `feat/<nombre>`, `fix/<nombre>`, `chore/<nombre>` -> PR a `develop`.
+- Ramas de trabajo: `feat/<nombre>`, `fix/<nombre>`, `chore/<nombre>`, `docs/<nombre>` -> PR a `develop`.
 - Merge a `develop` -> deploy automatico al stage `dev` en AWS via GitHub Actions.
-- PR de `develop` -> `main` -> merge -> deploy automatico al stage `prod`.
+- PR de `develop` -> `main` -> merge -> deploy automatico al stage `pro`.
 - Las PR NO requieren aprobacion de pares, pero SI requieren que los checks de CI pasen.
 
 ## Ambientes
 
+Solo dos stages: `dev` y `pro`. No usar `prod`, `staging`, `qa`, etc.
+
 | Stage | Rama disparadora | GitHub Environment | Usuario IAM |
 |---|---|---|---|
-| `dev`  | `develop` | `dev`  | `github-actions-dev-deployer`  |
-| `prod` | `main`    | `prod` | `github-actions-prod-deployer` |
+| `dev` | `develop` | `dev` | `github-actions-dev-deployer` |
+| `pro` | `main`    | `pro` | `github-actions-pro-deployer` |
 
 Region unica: `us-east-1`. Ambos stages viven en la misma cuenta AWS (`658548982073`).
+
+## Naming de recursos AWS
+
+Toda Lambda se nombra `cdts-<stage>-<service>-<function>`. Ver
+[`docs/repo-structure.md`](./docs/repo-structure.md) §3.
 
 ## Estructura esperada
 
 ```
 serverless-compose.yml
+config/          ← configuracion declarativa cross-project
+utils/           ← utilidades genericas cross-domain (fuente de layers/shared)
+data/            ← datos estaticos cross-project
 services/
   <service>/
     serverless.yml
+    utils/       ← helpers privados del dominio
+    data/        ← modelos, DTOs, schemas del dominio
     src/
-      <function>/
-        handler.py
-        function.yml
+      handlers/    ← API Lambdas
+      scheduled/   ← Cron Lambdas
+      workers/     ← Async / queue Lambdas
 layers/
   shared/
-    ...
-frontend/
-frontend-firma/
 tests/
 scripts/
   iam/
-    github-actions-deploy-policy.json
 ```
+
+Detalle completo: [`docs/repo-structure.md`](./docs/repo-structure.md).
 
 ## Requisitos locales
 
@@ -70,7 +82,7 @@ credenciales del deployer correspondiente:
 ```bash
 npm run deploy:dev
 # o
-npm run deploy:prod
+npm run deploy:pro
 ```
 
 ## Tests
@@ -85,7 +97,7 @@ Ver [`.github/workflows/`](./.github/workflows/):
 
 - [`ci.yml`](./.github/workflows/ci.yml) - corre en cada PR (lint + tests + `serverless print`)
 - [`deploy-dev.yml`](./.github/workflows/deploy-dev.yml) - deploy a `dev` en push a `develop`
-- [`deploy-prod.yml`](./.github/workflows/deploy-prod.yml) - deploy a `prod` en push a `main`
+- [`deploy-pro.yml`](./.github/workflows/deploy-pro.yml) - deploy a `pro` en push a `main`
 
 ## Infra bootstrap
 
