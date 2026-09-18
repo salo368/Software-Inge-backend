@@ -11,7 +11,7 @@
 2. `main` y `develop` estan protegidas. Ni siquiera los admins pueden hacer `git push` directo.
 3. Las PR NO requieren review de pares (proyecto pequeno), pero SI requieren que todos los
    checks de CI queden en verde antes de mergear.
-4. Merge a `develop` dispara deploy a `dev`. Merge a `main` dispara deploy a `prod`.
+4. Merge a `develop` dispara deploy a `dev`. Merge a `main` dispara deploy a `pro`.
 5. Nombres de rama sugeridos:
    - `feat/<slug>` para features
    - `fix/<slug>` para bugs
@@ -55,4 +55,4 @@ Todo cambio de logica debe traer su test. La suite corre en cada PR via GitHub A
 ## Secrets
 
 Nunca commitear credenciales AWS ni ninguna otra clave. Todo secret vive en GitHub Actions
-Environments (`dev` / `prod`).
+Environments (`dev` / `pro`).
