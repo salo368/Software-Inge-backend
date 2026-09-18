@@ -93,6 +93,27 @@ jobs:
           fi
           npx serverless-compose deploy --stage dev "${{ matrix.block }}" --verbose
 
+      - name: Apply migrations (if block == migrations)
+        if: matrix.block == 'migrations'
+        run: |
+          echo "== Invocando cdts-dev-migrations-apply ==" 
+          aws lambda invoke \
+            --function-name cdts-dev-migrations-apply \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            --query 'LogResult' --output text \
+            /tmp/response.json | base64 -d
+          echo ""
+          echo "== Response payload =="
+          cat /tmp/response.json
+          echo ""
+          # Falla si la funcion devolvio error (FunctionError se refleja en el JSON).
+          if grep -q '"errorType"' /tmp/response.json; then
+            echo "::error::La Lambda devolvio error. Ver logs arriba."
+            exit 1
+          fi
+
   summary:
     name: Deploy summary
     needs: [plan, deploy]
