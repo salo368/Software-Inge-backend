@@ -1,5 +1,3 @@
-"""Tests unitarios del parser de archivos .sql de migracion."""
-
 from __future__ import annotations
 
 import sys
@@ -16,7 +14,7 @@ from utils.parser import parse, Migration, MigrationParseError  # noqa: E402
 
 def test_parse_with_up_and_down():
     content = """
--- Comentario libre inicial
+-- header comment
 -- +migrate up
 CREATE TABLE users (id UUID PRIMARY KEY);
 CREATE INDEX users_id_idx ON users (id);
@@ -71,7 +69,7 @@ def test_parse_fails_without_up():
     content = """-- +migrate down
 DROP TABLE something;
 """
-    with pytest.raises(MigrationParseError, match="falta la seccion"):
+    with pytest.raises(MigrationParseError, match="missing"):
         parse("v", content)
 
 
@@ -81,20 +79,16 @@ def test_parse_fails_when_up_empty():
 -- +migrate down
 DROP TABLE x;
 """
-    with pytest.raises(MigrationParseError, match="esta vacia"):
+    with pytest.raises(MigrationParseError, match="empty"):
         parse("v", content)
 
 
 def test_parse_ignores_marker_not_at_start_of_line():
-    # El regex requiere ^\s* -- solo matchea marcadores que ARRANCAN la linea
-    # (opcionalmente con whitespace). Un texto en medio de una linea con esas
-    # palabras NO cuenta como marker.
+    # `-- +migrate down` inside a string literal must not be treated as marker.
     content = """-- +migrate up
-INSERT INTO logs (msg) VALUES ('hola -- +migrate down no cuenta');
+INSERT INTO logs (msg) VALUES ('hello -- +migrate down does not count');
 CREATE TABLE x (id UUID);
 """
     m = parse("v", content)
-    # Como el `-- +migrate down` esta despues del `VALUES (`, no arranca linea
-    # -> el parser lo ignora, todo queda en `up`, no hay `down`.
     assert "CREATE TABLE x" in m.up_sql
     assert m.down_sql is None

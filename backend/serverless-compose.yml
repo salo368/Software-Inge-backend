@@ -1,9 +1,3 @@
-# CDTS - Serverless Compose
-#
-# Registra cada bloque de despliegue (uno por carpeta bajo services/ o platform/).
-# El pipeline (scripts/ci/plan-deploy.sh) despliega solo los bloques afectados
-# por el diff. Ver docs/repo-structure.md §14.
-
 services:
   migrations:
     path: platform/migrations

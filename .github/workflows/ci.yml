@@ -51,12 +51,9 @@ jobs:
       - name: Validate serverless-compose (package)
         run: |
           if grep -qE "^  [A-Za-z0-9_-]+:" serverless-compose.yml; then
-            # 'package' construye los bundles sin desplegar. Valida sintaxis
-            # de todos los serverless.yml y ejecuta plugins (incluye
-            # serverless-python-requirements). No requiere AWS creds.
             npx serverless-compose package --stage dev
           else
-            echo "::notice::serverless-compose.yml no tiene services todavia, skip package."
+            echo "::notice::No services registered in serverless-compose.yml, skip."
           fi
 
       - name: Run pytest
@@ -64,7 +61,7 @@ jobs:
           if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then
             python -m pytest tests -ra --junitxml=pytest-report.xml
           else
-            echo "::notice::No hay tests todavia (tests/test_*.py), skip pytest."
+            echo "::notice::No tests found, skip pytest."
           fi
 
       - name: Upload pytest report (if any)
@@ -94,15 +91,10 @@ jobs:
       - name: Post preview to PR summary
         run: |
           {
-            echo "### Deploy plan (preview) para ${{ github.base_ref }}"
+            echo "### Deploy plan preview for ${{ github.base_ref }}"
             echo ""
-            echo "Si esta PR se mergea, se re-desplegaran los siguientes bloques"
-            echo "en el ambiente que corresponda al target branch."
-            echo ""
-            echo "> Este job es SOLO informativo. El plan real se recalcula en el"
-            echo "> workflow de deploy tras el merge, usando el diff efectivo."
-            echo ""
-            echo "Ver stdout del step anterior para el detalle del plan."
+            echo "Informational only. The real plan is recomputed on merge."
+            echo "See the previous step stdout for the actual plan."
           } >> "$GITHUB_STEP_SUMMARY"
 
   lint-migrations:
