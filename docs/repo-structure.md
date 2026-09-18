@@ -259,6 +259,15 @@ def handler(event, context):
   - `/cdts/<stage>/db/host`, `port`, `name`, `user`, `password`, `schema`.
 - Nada de credenciales en el código ni en variables de entorno de Lambda; siempre
   via SSM.
+- **Migraciones nunca califican schema**. Un `.sql` de `backend/migrations/sql/`
+  escribe `CREATE TABLE users`, no `CREATE TABLE dev.users`. La Lambda de
+  migrations hace `SET LOCAL search_path TO <stage>` al inicio de cada
+  transaccion y el mismo archivo se aplica en `dev` y `pro` sin cambios. El
+  linter [`scripts/ci/lint-migrations.py`](../scripts/ci/lint-migrations.py)
+  falla el CI si detecta un `dev.`, `pro.` o `public.` calificado, un
+  `SET search_path` explicito, o `CREATE SCHEMA`/`DROP SCHEMA`. Ver
+  [`backend/migrations/README.md`](../backend/migrations/README.md) para
+  convencion completa.
 
 ## 12. Anti-patrones (rechazar en review)
 

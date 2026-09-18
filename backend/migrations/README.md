@@ -41,6 +41,59 @@ cualquier `backend/services/<name>/`. Ver
   por la misma Lambda) con columnas `(version TEXT PRIMARY KEY, applied_at
   TIMESTAMPTZ NOT NULL DEFAULT now())`. `version` = nombre del archivo sin `.sql`.
 
+## Convencion de schema (IMPORTANTE)
+
+**Nunca calificar el schema en un `.sql`**. No escribas `dev.users`,
+`pro.users`, ni `public.users`. Escribi siempre el nombre pelado:
+
+```sql
+-- CORRECTO
+CREATE TABLE users (id UUID PRIMARY KEY);
+CREATE INDEX users_email_idx ON users (email);
+ALTER TABLE users ADD COLUMN nickname TEXT;
+
+-- INCORRECTO (el linter falla el PR)
+CREATE TABLE dev.users (id UUID PRIMARY KEY);
+CREATE TABLE pro.orders (id UUID PRIMARY KEY);
+CREATE INDEX pro.users_email_idx ON pro.users (email);
+```
+
+### Por que?
+
+El **mismo archivo `.sql`** se aplica a los dos ambientes en dos runs distintos:
+
+- Deploy DEV -> invoca `cdts-dev-migrations-apply` -> `SET LOCAL search_path
+  TO dev` -> tu `CREATE TABLE users` crea `dev.users`.
+- Deploy PRO -> invoca `cdts-pro-migrations-apply` -> `SET LOCAL search_path
+  TO pro` -> el **mismo** archivo crea `pro.users`.
+
+Si el `.sql` dice `CREATE TABLE dev.users`, entonces en el deploy PRO **se
+crearia `dev.users`** en produccion (schema equivocado), silenciosamente.
+
+### Otras cosas que el linter prohibe
+
+Tambien esta prohibido y falla el CI:
+
+- `SET search_path TO ...` dentro de un `.sql`. Es responsabilidad exclusiva
+  de la Lambda; si un `.sql` lo hace, contamina la migracion siguiente.
+- `CREATE SCHEMA` / `DROP SCHEMA`. Los schemas `dev` y `pro` se crean **fuera
+  del pipeline** (una sola vez, manualmente al bootstrap de la BD). Ninguna
+  migracion debe crearlos ni borrarlos.
+- Nombres de archivo que no matcheen `YYYYMMDDHHMMSS_snake_case.sql`.
+- Archivos sin la seccion `-- +migrate up`.
+
+El linter vive en [`scripts/ci/lint-migrations.py`](../../scripts/ci/lint-migrations.py)
+y corre como job `Lint migrations` en cada PR. Es sencillo pero suficiente:
+strippea strings literales y comentarios antes de matchear, asi que un
+comentario `-- este cambio afecta dev.users` o un string literal
+`'hola dev@ejemplo'` no dispara falso positivo.
+
+### Referenciar el otro schema (raro)
+
+Si alguna vez necesitas referenciar el schema del otro ambiente (ej. un query
+de mantenimiento que compara `pro.users` con `dev.users`), eso **no es una
+migracion**, es un query manual — sacalo del pipeline.
+
 ## Runtime (cuando se implemente)
 
 `backend/migrations/serverless.yml` va a declarar **UNA Lambda**
