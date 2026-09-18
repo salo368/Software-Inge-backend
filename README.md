@@ -38,10 +38,14 @@ Detalle completo de la estructura backend: [`docs/repo-structure.md`](./docs/rep
 ## Flujo de trabajo
 
 - **Todo cambio va por Pull Request**. No se permite `git push` directo a `main` ni a `develop`.
-- Ramas de trabajo: `feat/<nombre>`, `fix/<nombre>`, `chore/<nombre>`, `docs/<nombre>` -> PR a `develop`.
-- Merge a `develop` -> deploy automatico al stage `dev` en AWS via GitHub Actions.
-- PR de `develop` -> `main` -> merge -> deploy automatico al stage `pro`.
+- Ramas de trabajo se crean **siempre desde `main`**: `feat/<nombre>`, `fix/<nombre>`,
+  `chore/<nombre>`, `docs/<nombre>`.
+- Cada rama abre **dos PRs**: uno a `develop` (para desplegar y probar en `dev`) y
+  uno a `main` (para desplegar en `pro`). **La misma rama** alimenta ambos ambientes.
+- `develop` y `main` **nunca** se mergean entre si (evita conflictos add/add del squash).
 - Las PR NO requieren aprobacion de pares, pero SI requieren que los checks de CI pasen.
+
+Detalle completo con comandos y anti-patrones: [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Ambientes
 
