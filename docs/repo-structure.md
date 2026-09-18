@@ -290,3 +290,83 @@ backend/tests/
 
 Cada test es del tipo pytest (`test_*.py`, funciones `test_*`). El CI corre
 `pytest tests -ra` **dentro de `backend/`** en cada PR.
+
+## 14. Bloques de despliegue
+
+Para evitar re-desplegar todo el backend cada vez que se toca un archivo, el
+pipeline agrupa el codigo en **bloques** independientes y solo despliega los
+bloques afectados por el diff.
+
+### 14.1 Que es un bloque
+
+Un bloque es una unidad autonoma que se despliega junta. Los bloques que existen
+hoy o pueden existir bajo `backend/`:
+
+| Bloque | Ubicacion | Que es |
+|---|---|---|
+| `<service>` | `backend/services/<service>/` | Un servicio Serverless (uno por dominio de negocio). |
+| `migrations` | `backend/migrations/` | Migraciones SQL versionadas. Ver [`backend/migrations/README.md`](../backend/migrations/README.md). |
+
+Cada carpeta directa bajo `backend/services/` genera automaticamente un bloque
+del mismo nombre. No hay que registrarlo en ningun lado extra (el
+`scripts/ci/plan-deploy.sh` descubre los bloques leyendo el arbol).
+
+### 14.2 Reglas de deploy selectivo
+
+1. **Cambios solo dentro de `backend/services/<X>/`** -> se despliega solo el
+   bloque `X`.
+2. **Cambios solo dentro de `backend/migrations/`** -> se despliega solo
+   `migrations`.
+3. **Cambios en varios bloques a la vez** -> se despliegan todos los afectados,
+   en orden: `migrations` primero, despues el resto alfabetico.
+4. **Cambios en cualquier archivo "global" del backend** -> se re-despliegan
+   **TODOS** los bloques. Se consideran globales:
+   - `backend/serverless-compose.yml`
+   - `backend/package.json`, `backend/package-lock.json`
+   - `backend/requirements-dev.txt`, `backend/requirements.txt`
+   - `backend/.nvmrc`, `backend/.python-version`, `backend/pytest.ini`
+   - `backend/config/**`
+   - `backend/utils/**`
+   - `backend/data/**`
+   - `backend/layers/**`
+5. **Cambios solo fuera de `backend/`** (docs, workflows, `.cursor/rules/`,
+   `scripts/iam/`, etc.) -> **no se despliega nada**. Solo corre CI.
+6. **Frontend** (cuando exista, en `frontend/`) siempre despliega **completo**;
+   no habra sub-bloques dentro. Se define en su propio workflow.
+
+### 14.3 Orden de despliegue
+
+Cuando el plan incluye varios bloques, se despliegan **secuencialmente** con
+`max-parallel: 1`. `migrations` va siempre primero para garantizar que el
+esquema este al dia antes de que arranquen los servicios.
+
+### 14.4 Override manual
+
+Los workflows `deploy-dev.yml` y `deploy-pro.yml` aceptan un input
+`workflow_dispatch`:
+
+- `block` vacio -> auto-detectar del diff.
+- `block=<nombre>` -> forzar deploy solo de ese bloque.
+- `block=__all__` -> forzar deploy total.
+
+Uso: desde GitHub UI, "Actions" -> el workflow -> "Run workflow" -> completar
+el input. Util para re-desplegar un bloque tras una rollback, o para redesplegar
+todo tras rotar credenciales.
+
+### 14.5 Preview en PR
+
+El `ci.yml` incluye un job `plan-preview` que corre `scripts/ci/plan-deploy.sh`
+en modo `DRY_RUN=1`. En el summary de la PR aparece el listado de bloques que se
+desplegarian tras el merge. Es informativo; el plan real se recalcula post-merge
+usando el diff efectivo entre el commit anterior y el nuevo HEAD.
+
+### 14.6 Anti-patrones
+
+- Registrar un bloque "manualmente" en `plan-deploy.sh`. El descubrimiento es
+  automatico por el arbol; si necesitas un bloque nuevo, crea la carpeta.
+- Poner logica cross-bloque en `backend/services/<X>/` para "no tener que tocar
+  `backend/utils/`". Si es cross, va en `backend/utils/` o
+  `backend/layers/shared/` aunque eso implique redeploy total.
+- Editar un `.sql` de `backend/migrations/sql/` ya mergeado a `main`. Ver reglas
+  duras en `backend/migrations/README.md`.
+
