@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      block:
+        description: "Bloque a forzar (vacio = auto detectar; '__all__' = todo el backend)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -13,16 +18,43 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      blocks: ${{ steps.plan.outputs.blocks }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute deploy plan
+        id: plan
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          MANUAL_BLOCK: ${{ inputs.block }}
+        run: bash scripts/ci/plan-deploy.sh
+
   deploy:
-    name: Deploy to AWS (stage=pro)
+    name: Deploy ${{ matrix.block }} (pro)
+    needs: plan
+    if: needs.plan.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: backend
+    strategy:
+      fail-fast: true
+      max-parallel: 1
+      matrix:
+        block: ${{ fromJson(needs.plan.outputs.blocks) }}
     environment:
       name: pro
       url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
@@ -53,10 +85,27 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Deploy
+      - name: Deploy block "${{ matrix.block }}"
         run: |
-          if grep -qE "^  [A-Za-z0-9_-]+:" serverless-compose.yml; then
-            npx serverless-compose deploy --stage pro --verbose
-          else
-            echo "::notice::serverless-compose.yml aun no tiene services. Skip deploy."
+          if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
+            echo "::notice::serverless-compose.yml sin services registrados; nada que desplegar."
+            exit 0
           fi
+          npx serverless-compose deploy --stage pro "${{ matrix.block }}" --verbose
+
+  summary:
+    name: Deploy summary
+    needs: [plan, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print summary
+        run: |
+          echo "### Deploy PRO summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Bloques planeados: **${{ needs.plan.outputs.count }}**" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ needs.plan.outputs.blocks }}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Resultado deploy job: **${{ needs.deploy.result }}**" >> $GITHUB_STEP_SUMMARY

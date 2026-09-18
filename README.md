@@ -104,11 +104,19 @@ npm test
 
 Ver [`.github/workflows/`](./.github/workflows/):
 
-- [`ci.yml`](./.github/workflows/ci.yml) - corre en cada PR (lint + tests + `serverless print`)
+- [`ci.yml`](./.github/workflows/ci.yml) - corre en cada PR (build+test + preview del plan de deploy)
 - [`deploy-dev.yml`](./.github/workflows/deploy-dev.yml) - deploy a `dev` en push a `develop`
 - [`deploy-pro.yml`](./.github/workflows/deploy-pro.yml) - deploy a `pro` en push a `main`
 
 Los tres workflows corren con `working-directory: backend`.
+
+### Deploy selectivo por bloque
+
+El pipeline **no** re-despliega todo el backend en cada push. Agrupa el codigo
+en **bloques** independientes (`backend/services/<X>/` y `backend/migrations/`) y
+solo despliega los afectados por el diff. Si tocas algo global del backend
+(`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, deps), se
+redespliega **todo**. Detalles y reglas: [`docs/repo-structure.md`](./docs/repo-structure.md) §14.
 
 ## Infra bootstrap
 
