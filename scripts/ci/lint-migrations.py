@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lint SQL migrations before applying them.
 
-Enforces conventions defined in backend/migrations/README.md and
+Enforces conventions defined in backend/platform/migrations/README.md and
 docs/repo-structure.md sections 11 and 14:
 
 - No schema qualifiers (dev., pro., public.). El schema lo fija la Lambda al
@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 from typing import List, Tuple
 
-SQL_DIR = Path("backend/migrations/sql")
+SQL_DIR = Path("backend/platform/migrations/sql")
 
 FILENAME_RE = re.compile(r"^\d{14}_[a-z0-9_]+\.sql$")
 

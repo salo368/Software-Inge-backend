@@ -72,22 +72,57 @@ Todo el trabajo de Lambda, Serverless, dependencias Python/Node y tests unitario
 ocurre dentro de `backend/`. La raíz permanece "agnóstica" para dejar espacio a un
 futuro `frontend/` sin conflictos.
 
-## 5. Un servicio = un dominio de negocio
+## 5. Servicios de dominio vs bloques de plataforma
 
-Cada carpeta bajo `backend/services/` es un **servicio** y representa **un solo dominio**
-(bounded context). Ejemplos: `access`, `signature`, `payments`.
+El backend tiene dos tipos de bloques desplegables. Los dos se registran igual en
+`backend/serverless-compose.yml`, tienen la misma estructura interna de código
+Serverless, y son unidades de deploy independientes. Se separan **solo por
+convención** para dejar clara la intención:
+
+### 5.1 `backend/services/<name>/` — DOMINIO DE NEGOCIO
+
+Cada carpeta bajo `backend/services/` es un **servicio** que representa **un solo
+dominio** (bounded context). Ejemplos: `access`, `signature`, `payments`.
 
 - Un servicio nunca importa código de otro servicio directamente.
 - Lo compartido va en `backend/layers/shared/` (Lambda Layer publicada por su propio
   micro-serverless).
-- Cada servicio se registra en el `backend/serverless-compose.yml`.
 
-## 6. Estructura obligatoria de un servicio
+### 5.2 `backend/platform/<name>/` — INFRAESTRUCTURA RUNTIME
+
+Cada carpeta bajo `backend/platform/` es un **bloque de infra** con responsabilidad
+técnica cross-dominio. Ejemplos:
+
+- `platform/migrations/` — aplica el esquema SQL versionado a la BD.
+- (futuros) `platform/observability/`, `platform/bootstrap/`, `platform/notifications/`.
+
+Reglas:
+
+- **No usar un servicio catch-all** `platform/infrastructure/` o similar. Cada
+  responsabilidad tiene su propia carpeta descriptiva.
+- Ningún bloque de `services/` puede importar código de `platform/`. Si hay algo
+  reutilizable, va en `backend/layers/shared/`.
+- Los bloques de `platform/` sí pueden ejecutar operaciones cross-dominio (ej.
+  `migrations` toca schemas de todos), esa es su razón de existir.
+
+### 5.3 Deploy es agnóstico al origen
+
+Para el pipeline `services/` y `platform/` son iguales: cada carpeta directa es
+un bloque descubierto automáticamente por `scripts/ci/plan-deploy.sh`. La única
+regla especial: `migrations` se despliega **primero** si forma parte del plan
+(ver §14).
+
+## 6. Estructura obligatoria de un bloque
+
+Aplica a los dos tipos de bloque (`backend/services/<X>/` de negocio y
+`backend/platform/<X>/` de infra), con la única diferencia de que los bloques
+de `platform/` pueden tener carpetas adicionales propias de su responsabilidad
+(por ejemplo, `platform/migrations/sql/`).
 
 ```
-backend/services/<service>/
+backend/{services,platform}/<name>/
 ├── serverless.yml          ← definición del servicio (provider, plugins, functions)
-├── utils/                  ← helpers PRIVADOS del dominio (no exportar afuera)
+├── utils/                  ← helpers PRIVADOS del bloque (no exportar afuera)
 ├── data/                   ← modelos, DTOs, JSON schemas, seed/static data
 └── src/
     ├── handlers/           ← API Lambdas (HTTP via API Gateway)
@@ -259,15 +294,16 @@ def handler(event, context):
   - `/cdts/<stage>/db/host`, `port`, `name`, `user`, `password`, `schema`.
 - Nada de credenciales en el código ni en variables de entorno de Lambda; siempre
   via SSM.
-- **Migraciones nunca califican schema**. Un `.sql` de `backend/migrations/sql/`
-  escribe `CREATE TABLE users`, no `CREATE TABLE dev.users`. La Lambda de
-  migrations hace `SET LOCAL search_path TO <stage>` al inicio de cada
-  transaccion y el mismo archivo se aplica en `dev` y `pro` sin cambios. El
-  linter [`scripts/ci/lint-migrations.py`](../scripts/ci/lint-migrations.py)
-  falla el CI si detecta un `dev.`, `pro.` o `public.` calificado, un
-  `SET search_path` explicito, o `CREATE SCHEMA`/`DROP SCHEMA`. Ver
-  [`backend/migrations/README.md`](../backend/migrations/README.md) para
-  convencion completa.
+- **Migraciones nunca califican schema**. Un `.sql` de
+  `backend/platform/migrations/sql/` escribe `CREATE TABLE users`, no
+  `CREATE TABLE dev.users`. La Lambda de migrations hace `SET LOCAL
+  search_path TO <stage>` al inicio de cada transaccion y el mismo archivo se
+  aplica en `dev` y `pro` sin cambios. El linter
+  [`scripts/ci/lint-migrations.py`](../scripts/ci/lint-migrations.py) falla el
+  CI si detecta un `dev.`, `pro.` o `public.` calificado, un `SET search_path`
+  explicito, o `CREATE SCHEMA`/`DROP SCHEMA`. Ver
+  [`backend/platform/migrations/README.md`](../backend/platform/migrations/README.md)
+  para la convencion completa.
 
 ## 12. Anti-patrones (rechazar en review)
 
@@ -313,23 +349,27 @@ hoy o pueden existir bajo `backend/`:
 
 | Bloque | Ubicacion | Que es |
 |---|---|---|
-| `<service>` | `backend/services/<service>/` | Un servicio Serverless (uno por dominio de negocio). |
-| `migrations` | `backend/migrations/` | Migraciones SQL versionadas. Ver [`backend/migrations/README.md`](../backend/migrations/README.md). |
+| `<service>` | `backend/services/<service>/` | Servicio Serverless de dominio de negocio (§5.1). |
+| `<name>` | `backend/platform/<name>/` | Bloque de infraestructura runtime (§5.2). |
+| `migrations` | `backend/platform/migrations/` | Migraciones SQL versionadas. Ver [`backend/platform/migrations/README.md`](../backend/platform/migrations/README.md). |
 
-Cada carpeta directa bajo `backend/services/` genera automaticamente un bloque
-del mismo nombre. No hay que registrarlo en ningun lado extra (el
-`scripts/ci/plan-deploy.sh` descubre los bloques leyendo el arbol).
+Cada carpeta directa bajo `backend/services/` y `backend/platform/` genera
+automaticamente un bloque del mismo nombre. No hay que registrarlo en ningun
+lado extra: el [`scripts/ci/plan-deploy.sh`](../scripts/ci/plan-deploy.sh)
+descubre los bloques leyendo el arbol.
 
 ### 14.2 Reglas de deploy selectivo
 
 1. **Cambios solo dentro de `backend/services/<X>/`** -> se despliega solo el
    bloque `X`.
-2. **Cambios solo dentro de `backend/migrations/`** -> se despliega solo
-   `migrations`.
+2. **Cambios solo dentro de `backend/platform/<X>/`** -> se despliega solo el
+   bloque `X` (por ejemplo `migrations`).
 3. **Cambios en varios bloques a la vez** -> se despliegan todos los afectados,
    en orden: `migrations` primero, despues el resto alfabetico.
-4. **Cambios en cualquier archivo "global" del backend** -> se re-despliegan
-   **TODOS** los bloques. Se consideran globales:
+4. **Cambios en cualquier archivo backend/ que NO pertenezca a un bloque** ->
+   se re-despliegan **TODOS** los bloques. Regla conservadora: cualquier cosa
+   en `backend/` fuera de `services/<X>/` o `platform/<X>/` se considera cross
+   por defecto. Ejemplos tipicos:
    - `backend/serverless-compose.yml`
    - `backend/package.json`, `backend/package-lock.json`
    - `backend/requirements-dev.txt`, `backend/requirements.txt`
