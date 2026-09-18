@@ -24,8 +24,9 @@ repo/
 │   ├── requirements-dev.txt
 │   ├── pytest.ini
 │   ├── .nvmrc, .python-version
-│   ├── config/, utils/, data/   ← cross-servicio dentro del backend
-│   ├── services/                ← <domain>/serverless.yml + src/{handlers,scheduled,workers}
+│   ├── config/, utils/, data/   ← cross-bloque dentro del backend
+│   ├── services/                ← bloques de DOMINIO DE NEGOCIO (<name>/)
+│   ├── platform/                ← bloques de INFRAESTRUCTURA (<name>/, ej. migrations)
 │   ├── layers/shared/           ← Lambda Layer con codigo compartido
 │   └── tests/
 ├── README.md

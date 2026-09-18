@@ -6,33 +6,34 @@
 # que cambiaron. Se usa en GitHub Actions (deploy-dev.yml, deploy-pro.yml,
 # ci.yml en modo dry-run).
 #
-# Bloques posibles:
-#   - Cada servicio en backend/services/<name>/ (detecta automaticamente los
-#     directorios).
-#   - "migrations" (backend/migrations/): carpeta de SQL versionados que se
-#     ejecutan en orden.
+# Estructura de bloques:
+#   - backend/services/<name>/  -> bloque de DOMINIO DE NEGOCIO
+#   - backend/platform/<name>/  -> bloque de INFRAESTRUCTURA runtime
+#     (ej: platform/migrations aplica el esquema SQL)
 #
 # Reglas:
-#   1. Si cambia SOLO dentro de un bloque -> se despliega ese bloque.
-#   2. Si cambia algo "global" del backend (compose, config, utils, data,
-#      layers, package.json, requirements, .nvmrc, .python-version) -> se
-#      redespliegan TODOS los bloques.
-#   3. Si cambia solo doc/CI project-wide y nada dentro de backend/ -> no se
-#      despliega nada.
+#   1. Si el diff toca SOLO archivos dentro de uno o mas bloques conocidos ->
+#      se despliegan solo esos bloques.
+#   2. Si el diff toca CUALQUIER archivo dentro de backend/ que no pertenezca a
+#      un bloque (compose, config, utils, data, layers, deps, o cualquier
+#      archivo suelto) -> se re-despliegan TODOS los bloques. Esto es
+#      conservador a proposito: mejor un deploy total innecesario que un
+#      servicio quedando desincronizado silenciosamente.
+#   3. Si el diff SOLO toca archivos fuera de backend/ -> no se despliega nada.
 #
-# Orden:
-#   - "migrations" siempre primero.
+# Orden de deploy:
+#   - "migrations" siempre primero (aplica esquema antes que arranquen los
+#     servicios que dependen).
 #   - El resto en orden alfabetico.
 #
 # Modos:
 #   - Modo real (default): imprime el plan y lo escribe en $GITHUB_OUTPUT como
-#     variable "blocks" (JSON array).
+#     "blocks" (JSON array) y "count".
 #   - Modo dry-run (env DRY_RUN=1): solo imprime, no escribe output.
 #
-# Override manual:
-#   - Env MANUAL_BLOCK con un nombre de bloque valido: fuerza el deploy de ese
-#     bloque unico.
-#   - Env MANUAL_BLOCK="__all__": fuerza deploy total.
+# Override manual (env MANUAL_BLOCK):
+#   - "<nombre>": fuerza deploy de ese unico bloque (debe existir en el arbol).
+#   - "__all__":  fuerza deploy total.
 # ------------------------------------------------------------------------------
 
 set -euo pipefail
@@ -77,17 +78,18 @@ fi
 
 ALL_BLOCKS=()
 
-# Servicios
+# services/ = dominios de negocio
 if [[ -d backend/services ]]; then
-  while IFS= read -r -d '' svc_dir; do
-    svc_name="$(basename "${svc_dir}")"
-    ALL_BLOCKS+=("${svc_name}")
+  while IFS= read -r -d '' d; do
+    ALL_BLOCKS+=("$(basename "${d}")")
   done < <(find backend/services -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
 
-# migrations
-if [[ -d backend/migrations ]]; then
-  ALL_BLOCKS+=("migrations")
+# platform/ = infraestructura runtime
+if [[ -d backend/platform ]]; then
+  while IFS= read -r -d '' d; do
+    ALL_BLOCKS+=("$(basename "${d}")")
+  done < <(find backend/platform -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
 
 log "== Bloques descubiertos: ${ALL_BLOCKS[*]:-<ninguno>}"
@@ -97,8 +99,8 @@ log "== Bloques descubiertos: ${ALL_BLOCKS[*]:-<ninguno>}"
 selected=()
 
 order_blocks() {
-  # Recibe una lista de bloques por stdin y los reordena: migrations primero,
-  # despues alfabetico. Deduplica.
+  # Recibe una lista por stdin y la reordena: migrations primero, resto
+  # alfabetico. Deduplica.
   local sorted
   sorted="$(sort -u)"
   local out=()
@@ -112,12 +114,28 @@ order_blocks() {
   printf '%s\n' "${out[@]}"
 }
 
+classify_change() {
+  # Recibe un path relativo y responde por stdout una linea con:
+  #   "block:<nombre>"    si pertenece a un bloque conocido
+  #   "outside-backend"   si esta fuera de backend/
+  #   "backend-global"    si esta en backend/ pero no en un bloque
+  local f="$1"
+  if [[ "${f}" =~ ^backend/services/([^/]+)/ ]]; then
+    echo "block:${BASH_REMATCH[1]}"
+  elif [[ "${f}" =~ ^backend/platform/([^/]+)/ ]]; then
+    echo "block:${BASH_REMATCH[1]}"
+  elif [[ "${f}" =~ ^backend/ ]]; then
+    echo "backend-global"
+  else
+    echo "outside-backend"
+  fi
+}
+
 if [[ -n "${MANUAL_BLOCK:-}" ]]; then
   # Override manual
   if [[ "${MANUAL_BLOCK}" == "__all__" ]]; then
     selected=("${ALL_BLOCKS[@]}")
   else
-    # Validar que el bloque existe
     if [[ ! " ${ALL_BLOCKS[*]} " =~ " ${MANUAL_BLOCK} " ]]; then
       log "::error::MANUAL_BLOCK='${MANUAL_BLOCK}' no coincide con ningun bloque descubierto (${ALL_BLOCKS[*]:-<ninguno>})."
       exit 1
@@ -133,33 +151,39 @@ else
   log "== Archivos cambiados:"
   echo "${CHANGED_FILES}" | sed 's/^/   /' >&2
 
-  # Global backend -> deploy total
-  GLOBAL_REGEX='^backend/(serverless-compose\.yml|package\.json|package-lock\.json|requirements-dev\.txt|requirements\.txt|\.nvmrc|\.python-version|pytest\.ini|config/|utils/|data/|layers/)'
-  if echo "${CHANGED_FILES}" | grep -qE "${GLOBAL_REGEX}"; then
-    log "== Cambio global en backend/. Deploy TODOS los bloques."
+  # Clasificar cada archivo
+  has_backend_global=0
+  block_hits=()
+  while IFS= read -r f; do
+    [[ -z "${f}" ]] && continue
+    kind="$(classify_change "${f}")"
+    case "${kind}" in
+      backend-global)
+        has_backend_global=1
+        ;;
+      block:*)
+        block_hits+=("${kind#block:}")
+        ;;
+      outside-backend)
+        : # ignorar
+        ;;
+    esac
+  done <<<"${CHANGED_FILES}"
+
+  if [[ ${has_backend_global} -eq 1 ]]; then
+    log "== Cambio en archivo backend/ fuera de cualquier bloque -> deploy TOTAL."
     selected=("${ALL_BLOCKS[@]}")
+  elif [[ ${#block_hits[@]} -gt 0 ]]; then
+    for b in "${block_hits[@]}"; do
+      if [[ " ${ALL_BLOCKS[*]} " =~ " ${b} " ]]; then
+        selected+=("${b}")
+      else
+        log "::warning::Bloque '${b}' referenciado en el diff pero no existe en el arbol; ignorando."
+      fi
+    done
   else
-    # Bloques especificos
-    tmp=()
-    # Servicios afectados
-    while IFS= read -r svc; do
-      [[ -z "${svc}" ]] && continue
-      tmp+=("${svc}")
-    done < <(echo "${CHANGED_FILES}" | grep -oE '^backend/services/[^/]+' | awk -F/ '{print $3}' | sort -u)
-    # migrations
-    if echo "${CHANGED_FILES}" | grep -qE '^backend/migrations/'; then
-      tmp+=("migrations")
-    fi
-    if [[ ${#tmp[@]} -gt 0 ]]; then
-      # Filtrar solo bloques realmente existentes en ALL_BLOCKS
-      for b in "${tmp[@]}"; do
-        if [[ " ${ALL_BLOCKS[*]} " =~ " ${b} " ]]; then
-          selected+=("${b}")
-        else
-          log "::warning::Bloque '${b}' referenciado en el diff pero no existe en el arbol; ignorando."
-        fi
-      done
-    fi
+    log "== Cambios solo fuera de backend/. Nada que desplegar."
+    selected=()
   fi
 fi
 
@@ -180,7 +204,6 @@ else
   for b in "${ordered[@]}"; do
     log "   - ${b}"
   done
-  # JSON array sin depender de jq
   json="["
   for i in "${!ordered[@]}"; do
     [[ $i -gt 0 ]] && json+=","
