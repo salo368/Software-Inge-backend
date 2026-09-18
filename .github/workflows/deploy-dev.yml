@@ -17,6 +17,9 @@ jobs:
     name: Deploy to AWS (stage=dev)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
     environment:
       name: dev
       url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
@@ -28,13 +31,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version-file: backend/.nvmrc
           cache: npm
+          cache-dependency-path: backend/package-lock.json
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version-file: .python-version
+          python-version-file: backend/.python-version
 
       - name: Install Node dependencies
         run: npm ci
