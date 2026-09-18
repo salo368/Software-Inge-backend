@@ -1,9 +1,6 @@
-# Nombre explicito para respetar la convencion CDTS.
-# name = cdts-<stage>-<service>-<function> = cdts-<stage>-migrations-apply
-name: cdts-${sls:stage}-migrations-apply
 handler: src/handlers/apply/handler.handler
 description: Aplica migraciones SQL pendientes al schema del stage.
-memorySize: 512
-timeout: 300
 # Sin events: la Lambda se invoca de forma sincrona desde el pipeline
 # (aws lambda invoke ... --function-name cdts-<stage>-migrations-apply).
+memorySize: 512
+timeout: 300

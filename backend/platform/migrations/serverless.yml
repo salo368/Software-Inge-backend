@@ -5,30 +5,24 @@ frameworkVersion: '3'
 # Servicio Serverless del bloque de INFRAESTRUCTURA runtime `platform/migrations`.
 # Ver docs/repo-structure.md §5.2 y §14, y backend/platform/migrations/README.md.
 #
-# Publica UNA Lambda `cdts-<stage>-migrations-apply` que aplica los archivos
-# .sql de sql/ en orden, saltando los que ya estan registrados en la tabla
-# schema_migrations del schema del stage.
+# Este servicio publica UNA Lambda `cdts-<stage>-migrations-apply` que aplica los
+# archivos .sql de sql/ en orden, saltando los que ya estan registrados en la
+# tabla schema_migrations del schema del stage.
 
 provider:
   name: aws
   runtime: python3.11
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
-
-  # Fuerza el naming de convencion CDTS: cdts-<stage>-<service>-<function>.
-  # - stackName: nombre del CFN stack.
-  # - deploymentBucket / functions.<f>.name: fija los nombres runtime.
-  stackName: cdts-${sls:stage}-migrations
-
   memorySize: 512
   timeout: 300
   architecture: x86_64
-  logRetentionInDays: 14
-
+  # Fuerza cdts-<stage>-<service>-<function> tanto en Lambda como en Log Group.
+  naming:
+    functionName: cdts-${self:provider.stage}-${self:service}-${self:function.name}
   environment:
-    STAGE: ${sls:stage}
-    SSM_DB_PATH: /cdts/${sls:stage}/db
-
+    STAGE: ${self:provider.stage}
+    SSM_DB_PATH: /cdts/${self:provider.stage}/db
   iam:
     role:
       statements:
@@ -38,8 +32,12 @@ provider:
             - ssm:GetParameters
             - ssm:GetParametersByPath
           Resource:
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+            - arn:aws:ssm:${self:provider.region}:*:parameter/cdts/${self:provider.stage}/db
+            - arn:aws:ssm:${self:provider.region}:*:parameter/cdts/${self:provider.stage}/db/*
+  logs:
+    lambda:
+      logGroupName: /aws/lambda/cdts-${self:provider.stage}-${self:service}-apply
+  logRetentionInDays: 14
 
 package:
   individually: false
