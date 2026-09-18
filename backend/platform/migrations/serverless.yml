@@ -31,6 +31,9 @@ provider:
 
   iam:
     role:
+      # Fuerza nombre cdts-* para que caiga bajo el patron de recursos de la
+      # policy IAM de GitHub Actions (arn:aws:iam::*:role/cdts-*).
+      name: cdts-${sls:stage}-migrations-lambda
       statements:
         - Effect: Allow
           Action:
