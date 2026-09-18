@@ -1,13 +1,22 @@
 ---
-description: Estructura obligatoria del monorepo CDTS (Serverless multi-servicio en AWS)
+description: Estructura obligatoria del monorepo CDTS (backend Serverless en AWS)
 alwaysApply: true
 ---
 
 # Estructura del repo CDTS
 
-Fuente extensa: [`docs/repo-structure.md`](../../docs/repo-structure.md). Esta regla es
-un resumen accionable. **Cumplir sin excepciones**; si algo no encaja, preguntar antes
-de crear archivos.
+Fuente extensa: [`docs/repo-structure.md`](../../docs/repo-structure.md). Esta regla
+es un resumen accionable. **Cumplir sin excepciones**; si algo no encaja, preguntar
+antes de crear archivos.
+
+## Layout del monorepo
+
+- **Raíz** = solo infra de proyecto: `.github/`, `.cursor/`, `docs/`, `scripts/iam/`,
+  `README.md`, `CONTRIBUTING.md`, `.gitignore`.
+- **Todo el backend vive en [`backend/`](../../backend/)**: `serverless-compose.yml`,
+  `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
+  `config/`, `utils/`, `data/`, `services/`, `layers/`, `tests/`.
+- Un eventual `frontend/` iría a la raíz al mismo nivel que `backend/`.
 
 ## Reglas duras
 
@@ -16,11 +25,11 @@ de crear archivos.
    idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
    con guiones (`refresh-token`, `create-signature`).
 3. **Todo Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
-4. **Un servicio = un dominio** en `services/<service>/`. No importar entre servicios;
-   lo cross-domain va en `layers/shared/` (con fuente en la raíz `utils/`).
+4. **Un servicio = un dominio** en `backend/services/<service>/`. No importar entre
+   servicios; lo cross-domain va en `backend/layers/shared/` (fuente en `backend/utils/`).
 5. **Estructura obligatoria de cada servicio:**
    ```
-   services/<service>/
+   backend/services/<service>/
    ├── serverless.yml
    ├── utils/        # helpers PRIVADOS del dominio
    ├── data/         # modelos, DTOs, schemas, static data
@@ -29,11 +38,12 @@ de crear archivos.
        ├── scheduled/   # Cron Lambdas (EventBridge)
        └── workers/     # Worker Lambdas (SQS/SNS/streams/async)
    ```
-6. **Directorios a nivel raíz** (compartidos por >1 servicio o herramientas):
-   - `config/` — configuración declarativa cross-project.
-   - `utils/` — utilidades genéricas cross-domain (fuente que alimenta a `layers/shared/`).
-   - `data/` — datos estáticos, semillas, catálogos globales.
-   - Si algo es de UN servicio, va en `services/<service>/...`, NO en la raíz.
+6. **Directorios cross a nivel de backend** (compartidos por >1 servicio):
+   - `backend/config/` — configuración declarativa.
+   - `backend/utils/` — utilidades genéricas cross-domain (fuente que alimenta
+     `backend/layers/shared/`).
+   - `backend/data/` — datos estáticos, semillas, catálogos.
+   - Si algo es de UN servicio, va en `backend/services/<service>/...`, NO acá.
 7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con:
    - `handler.py` (define `def handler(event, context)`)
    - `function.yml` (config Serverless referenciada como
@@ -43,6 +53,8 @@ de crear archivos.
 
 ## Anti-patrones (rechazar)
 
+- Archivos del backend (`.py`, `serverless*.yml`, `requirements-*.txt`, etc.) fuera
+  de `backend/`.
 - Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
 - Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
 - Un `handler.py` que importa desde otro servicio hermano.
@@ -54,13 +66,13 @@ de crear archivos.
 
 ## Plantilla para una Lambda nueva
 
-`services/<service>/src/<tipo>/<function>/handler.py`:
+`backend/services/<service>/src/<tipo>/<function>/handler.py`:
 ```python
 def handler(event, context):
     return {"statusCode": 200, "body": ""}
 ```
 
-`services/<service>/src/<tipo>/<function>/function.yml`:
+`backend/services/<service>/src/<tipo>/<function>/function.yml`:
 ```yaml
 handler: src/<tipo>/<function>/handler.handler
 events:
@@ -69,15 +81,12 @@ events:
   # - sqs: arn:...                            # solo si es workers/
 ```
 
-Y registrar en `services/<service>/serverless.yml`:
-```yaml
-functions:
-  <function>: ${file(./src/<tipo>/<function>/function.yml)}
-```
-
-Aplicar el override de naming en cada `serverless.yml`:
+Registrar en `backend/services/<service>/serverless.yml`:
 ```yaml
 provider:
   naming:
     functionName: cdts-${self:provider.stage}-<service>-${self:function.name}
+
+functions:
+  <function>: ${file(./src/<tipo>/<function>/function.yml)}
 ```
