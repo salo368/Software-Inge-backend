@@ -62,7 +62,10 @@ plugins:
 custom:
   pythonRequirements:
     dockerizePip: false
-    slim: true
+    # slim: false porque pg8000 -> scramp usa importlib.metadata en runtime.
+    # slim=true elimina *.dist-info y explota con
+    # 'No package metadata was found for scramp'.
+    slim: false
     layer: false
     fileName: requirements.txt
 
