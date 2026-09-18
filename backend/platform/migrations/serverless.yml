@@ -1,0 +1,65 @@
+service: migrations
+
+frameworkVersion: '3'
+
+# Servicio Serverless del bloque de INFRAESTRUCTURA runtime `platform/migrations`.
+# Ver docs/repo-structure.md §5.2 y §14, y backend/platform/migrations/README.md.
+#
+# Este servicio publica UNA Lambda `cdts-<stage>-migrations-apply` que aplica los
+# archivos .sql de sql/ en orden, saltando los que ya estan registrados en la
+# tabla schema_migrations del schema del stage.
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 512
+  timeout: 300
+  architecture: x86_64
+  # Fuerza cdts-<stage>-<service>-<function> tanto en Lambda como en Log Group.
+  naming:
+    functionName: cdts-${self:provider.stage}-${self:service}-${self:function.name}
+  environment:
+    STAGE: ${self:provider.stage}
+    SSM_DB_PATH: /cdts/${self:provider.stage}/db
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${self:provider.region}:*:parameter/cdts/${self:provider.stage}/db
+            - arn:aws:ssm:${self:provider.region}:*:parameter/cdts/${self:provider.stage}/db/*
+  logs:
+    lambda:
+      logGroupName: /aws/lambda/cdts-${self:provider.stage}-${self:service}-apply
+  logRetentionInDays: 14
+
+package:
+  individually: false
+  patterns:
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+    - '!node_modules/**'
+    - '!.pytest_cache/**'
+    - '!tests/**'
+    - 'src/**'
+    - 'utils/**'
+    - 'sql/**'
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: true
+    layer: false
+    fileName: requirements.txt
+
+functions:
+  apply: ${file(./src/handlers/apply/function.yml)}
