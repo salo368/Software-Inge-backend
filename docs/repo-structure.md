@@ -44,6 +44,43 @@ Ejemplos válidos:
 | Crear firma en signature | `cdts-pro-signature-create-signature` |
 | Refrescar token de access | `cdts-dev-access-refresh-token` |
 
+### 3.1 Naming interno (Python / filesystem) vs naming AWS
+
+Python **no acepta guiones** en nombres de módulos ni de funciones. Por eso el
+mismo concepto se escribe de dos formas distintas según el contexto:
+
+| Cosa | Estilo | Ejemplo |
+|---|---|---|
+| Carpeta de la Lambda | `snake_case` **obligatorio** | `src/handlers/refresh_token/` |
+| Archivo del handler | siempre `handler.py` | `handler.py` |
+| Función entrypoint | siempre `def handler(event, context)` | — |
+| Referencia en `function.yml` | slashes + `.handler` | `handler: src/handlers/refresh_token/handler.handler` |
+| Nombre AWS de la Lambda | `kebab-case`, se declara **explícito** con `name:` en el `function.yml` | `name: cdts-${sls:stage}-auth-refresh-token` |
+
+Regla mnemotécnica: **en la carpeta usás `_`; en el nombre AWS ese `_` se vuelve `-`**.
+
+**No** usar `provider.naming.functionName` en el `serverless.yml` — esa
+propiedad no existe en Serverless Framework 3 y falla con
+`Cannot resolve variable at "provider.naming.functionName"`. En su lugar:
+
+- `provider.stackName: cdts-${sls:stage}-<service>` — nombre del CFN stack.
+- `functions.<key>.name: cdts-${sls:stage}-<service>-<function>` (dentro de
+  cada `function.yml`) — nombre AWS de la Lambda.
+
+### 3.2 API Gateway: `httpApi` (v2) por default
+
+Los HTTP events se declaran con `- httpApi:` (API Gateway v2), no `- http:`
+(v1). v2 es ~3.5× más barato, tiene CORS y JWT nativos, y usa payload v2 más
+simple. v1 sólo se usa si necesitás WAF nativo o endpoints privados en VPC.
+
+CORS se configura una sola vez a nivel provider, no por función:
+
+```yaml
+provider:
+  httpApi:
+    cors: true
+```
+
 ## 4. Layout del monorepo
 
 La raíz del repo agrupa **infraestructura de proyecto**; el runtime backend vive
@@ -207,8 +244,9 @@ Las rutas son **relativas a `backend/`**.
 
 ## 10. Ejemplo completo mínimo
 
-Estructura de un servicio `signature` con una Lambda HTTP `create-signature`,
-un worker `sign` y un scheduled `cleanup-expired-otps`:
+Estructura de un servicio `signature` con una Lambda HTTP `create_signature`
+(AWS: `cdts-<stage>-signature-create-signature`), un worker `sign` y un
+scheduled `cleanup_expired_otps` (AWS: `cdts-<stage>-signature-cleanup-expired-otps`):
 
 ```
 backend/services/signature/
@@ -220,11 +258,11 @@ backend/services/signature/
 │       └── signature_request.json
 └── src/
     ├── handlers/
-    │   └── create-signature/
+    │   └── create_signature/       ← snake_case en la carpeta
     │       ├── handler.py
     │       └── function.yml
     ├── scheduled/
-    │   └── cleanup-expired-otps/
+    │   └── cleanup_expired_otps/
     │       ├── handler.py
     │       └── function.yml
     └── workers/
@@ -236,7 +274,7 @@ backend/services/signature/
 `backend/services/signature/serverless.yml`:
 
 ```yaml
-service: cdts-signature
+service: signature
 
 frameworkVersion: '3'
 
@@ -245,22 +283,26 @@ provider:
   runtime: python3.11
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-signature   # CFN stack
   memorySize: 512
   timeout: 15
-  # Fuerza cdts-<stage>-<service>-<function> en vez del default de Serverless.
-  naming:
-    functionName: cdts-${self:provider.stage}-signature-${self:function.name}
+  httpApi:
+    cors: true                             # CORS global, no por funcion
 
 functions:
-  create-signature:      ${file(./src/handlers/create-signature/function.yml)}
-  sign:                  ${file(./src/workers/sign/function.yml)}
-  cleanup-expired-otps:  ${file(./src/scheduled/cleanup-expired-otps/function.yml)}
+  create_signature:     ${file(./src/handlers/create_signature/function.yml)}
+  sign:                 ${file(./src/workers/sign/function.yml)}
+  cleanup_expired_otps: ${file(./src/scheduled/cleanup_expired_otps/function.yml)}
 ```
 
-`backend/services/signature/src/handlers/create-signature/function.yml`:
+`backend/services/signature/src/handlers/create_signature/function.yml`:
 
 ```yaml
-handler: src/handlers/create-signature/handler.handler
+# name = cdts-<stage>-<servicio>-<carpeta con _ reemplazado por ->
+name: cdts-${sls:stage}-signature-create-signature
+handler: src/handlers/create_signature/handler.handler
+description: Crea una nueva solicitud de firma.
+timeout: 40
 events:
   - httpApi:
       method: POST
@@ -269,7 +311,7 @@ environment:
   SIGNATURES_TABLE: !Ref SignaturesTable
 ```
 
-`backend/services/signature/src/handlers/create-signature/handler.py`:
+`backend/services/signature/src/handlers/create_signature/handler.py`:
 
 ```python
 import json
@@ -319,6 +361,18 @@ def handler(event, context):
   El orden correcto es `cdts-<stage>-<service>-<function>`.
 - Uso de `prod` en cualquier archivo, YAML, script o doc. El nombre del stage
   productivo es `pro`.
+- Carpeta de Lambda con guiones (`refresh-token/`, `create-signature/`). Va
+  con `_` (`refresh_token/`, `create_signature/`); el guión aparece sólo en el
+  nombre AWS declarado en `function.yml`.
+- Uso de `provider.naming.functionName` en `serverless.yml`. Esa propiedad NO
+  existe en Serverless Framework 3 y falla la resolución de variables. Usar
+  `provider.stackName` para el CFN stack y `name:` explícito en cada `function.yml`.
+- Uso de dots (`src.handlers.login.handler.handler`) en el `handler:`. La
+  convención es slashes: `src/handlers/login/handler.handler`.
+- `- http:` (API Gateway v1) por default. Usar `- httpApi:` (v2); v1 sólo si
+  necesitás WAF o endpoints privados.
+- CORS repetido dentro de cada `function.yml`. Va una sola vez en
+  `provider.httpApi.cors`.
 - Archivos del backend (Python, `serverless.yml`, `requirements-*.txt`, etc.) fuera
   de `backend/`. La raíz permanece para infra de proyecto y para un eventual `frontend/`.
 
