@@ -50,6 +50,12 @@ antes de crear archivos.
      `${file(./src/<tipo>/<function>/function.yml)}`)
 8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
    Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
+9. **Migraciones**: los `.sql` de `backend/migrations/sql/` **nunca califican
+   schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
+   La Lambda hace `SET LOCAL search_path TO <stage>` al inicio. Tambien
+   prohibido: `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA`. Enforcement
+   automatico: `scripts/ci/lint-migrations.py` en el CI. Ver
+   [`backend/migrations/README.md`](../../backend/migrations/README.md).
 
 ## Bloques de despliegue (deploy selectivo)
 
@@ -89,6 +95,10 @@ antes de crear archivos.
   por arbol; crear la carpeta correspondiente y ya.
 - Editar un `.sql` de `backend/migrations/sql/` ya mergeado a `main` — escribir
   una migracion nueva con timestamp posterior que corrija.
+- Calificar schema en una migracion (`CREATE TABLE dev.users`,
+  `SELECT ... FROM pro.orders`). El linter lo rechaza.
+- `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA` dentro de un `.sql`. El
+  linter lo rechaza.
 
 ## Plantilla para una Lambda nueva
 
