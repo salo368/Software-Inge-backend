@@ -80,14 +80,7 @@
         "iam:UntagRole"
       ],
       "Resource": [
-        "arn:aws:iam::*:role/cdts-*",
-        "arn:aws:iam::*:role/moc-*",
-        "arn:aws:iam::*:role/access-*",
-        "arn:aws:iam::*:role/digital*signature-*",
-        "arn:aws:iam::*:role/frontend-*",
-        "arn:aws:iam::*:role/firma-*",
-        "arn:aws:iam::*:role/tests-*",
-        "arn:aws:iam::*:role/shared-*"
+        "arn:aws:iam::*:role/cdts-*"
       ]
     },
     {

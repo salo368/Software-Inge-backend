@@ -9,15 +9,18 @@ Fuente extensa: [`docs/repo-structure.md`](../../docs/repo-structure.md). Esta r
 un resumen accionable. **Cumplir sin excepciones**; si algo no encaja, preguntar antes
 de crear archivos.
 
-## Reglas
+## Reglas duras
 
-1. **Todo es Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
-2. **Un servicio = un dominio** en `services/<domain>/`. No importar entre servicios.
-   Lo cross-domain va en `layers/shared/`. Cada servicio se registra en
-   `serverless-compose.yml` de la raíz.
-3. **Estructura obligatoria de cada servicio:**
+1. **Stages**: solo `dev` y `pro`. Nunca `prod`, `staging`, `qa`, etc.
+2. **Naming AWS**: `cdts-<stage>-<service>-<function>`. `stage` y `service`
+   idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
+   con guiones (`refresh-token`, `create-signature`).
+3. **Todo Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
+4. **Un servicio = un dominio** en `services/<service>/`. No importar entre servicios;
+   lo cross-domain va en `layers/shared/` (con fuente en la raíz `utils/`).
+5. **Estructura obligatoria de cada servicio:**
    ```
-   services/<domain>/
+   services/<service>/
    ├── serverless.yml
    ├── utils/        # helpers PRIVADOS del dominio
    ├── data/         # modelos, DTOs, schemas, static data
@@ -26,41 +29,55 @@ de crear archivos.
        ├── scheduled/   # Cron Lambdas (EventBridge)
        └── workers/     # Worker Lambdas (SQS/SNS/streams/async)
    ```
-4. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con
-   exactamente:
+6. **Directorios a nivel raíz** (compartidos por >1 servicio o herramientas):
+   - `config/` — configuración declarativa cross-project.
+   - `utils/` — utilidades genéricas cross-domain (fuente que alimenta a `layers/shared/`).
+   - `data/` — datos estáticos, semillas, catálogos globales.
+   - Si algo es de UN servicio, va en `services/<service>/...`, NO en la raíz.
+7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con:
    - `handler.py` (define `def handler(event, context)`)
-   - `function.yml` (config Serverless referenciada desde `serverless.yml` con
-     `${file(./src/<tipo>/<lambda>/function.yml)}`)
-5. **Naming**: todo en `kebab-case` (carpetas, funciones). Recursos AWS con prefijo
-   `cdts-<service>-<stage>-<resource>`.
+   - `function.yml` (config Serverless referenciada como
+     `${file(./src/<tipo>/<function>/function.yml)}`)
+8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
+   Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
 
 ## Anti-patrones (rechazar)
 
-- Carpetas `common/` `shared/` `helpers/` dentro de `src/`.
-- Handler HTTP dentro de `workers/` o viceversa.
+- Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
+- Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
 - Un `handler.py` que importa desde otro servicio hermano.
 - Más de una Lambda por carpeta.
 - Código de negocio fuera de `src/`, `utils/` o `data/`.
+- Uso del nombre `prod` en YAML, scripts o docs (el stage productivo es `pro`).
+- Naming viejo `cdts-<service>-<stage>-<function>`; el orden correcto es
+  `cdts-<stage>-<service>-<function>`.
 
-## Al crear una Lambda nueva, plantilla
+## Plantilla para una Lambda nueva
 
-`services/<domain>/src/<tipo>/<lambda-name>/handler.py`:
+`services/<service>/src/<tipo>/<function>/handler.py`:
 ```python
 def handler(event, context):
     return {"statusCode": 200, "body": ""}
 ```
 
-`services/<domain>/src/<tipo>/<lambda-name>/function.yml`:
+`services/<service>/src/<tipo>/<function>/function.yml`:
 ```yaml
-handler: src/<tipo>/<lambda-name>/handler.handler
+handler: src/<tipo>/<function>/handler.handler
 events:
   - httpApi: { method: POST, path: /ruta }   # solo si es handlers/
   # - schedule: rate(1 day)                  # solo si es scheduled/
   # - sqs: arn:...                            # solo si es workers/
 ```
 
-Y registrar en `services/<domain>/serverless.yml`:
+Y registrar en `services/<service>/serverless.yml`:
 ```yaml
 functions:
-  <lambda-name>: ${file(./src/<tipo>/<lambda-name>/function.yml)}
+  <function>: ${file(./src/<tipo>/<function>/function.yml)}
+```
+
+Aplicar el override de naming en cada `serverless.yml`:
+```yaml
+provider:
+  naming:
+    functionName: cdts-${self:provider.stage}-<service>-${self:function.name}
 ```

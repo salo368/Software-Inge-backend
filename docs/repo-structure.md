@@ -11,34 +11,67 @@ Todo el backend corre en **AWS Lambda + API Gateway HTTP API**, orquestado con
 **Serverless Framework v3**. No hay contenedores, no hay EC2, no hay servidores
 tradicionales.
 
-## 2. Un servicio = un dominio de negocio
+## 2. Stages
+
+Solo existen dos stages en todo el proyecto:
+
+- `dev` — sandbox, deploy automático al mergear PR a `develop`.
+- `pro` — producción, deploy automático al mergear PR a `main`.
+
+**No usar** `prod`, `staging`, `qa`, `test`, ni ningún otro. Solo `dev` y `pro`.
+
+## 3. Naming de recursos AWS
+
+Toda función Lambda y todo recurso que la acompañe se nombra así:
+
+```
+cdts-<stage>-<service>-<function>
+```
+
+Reglas:
+
+- `<stage>`: `dev` o `pro`. Una sola palabra.
+- `<service>`: nombre del dominio. **Idealmente una sola palabra** (`access`, `signature`,
+  `payments`). Si no se puede, usar `kebab-case` pero justificarlo.
+- `<function>`: nombre de la Lambda. **Este es el único que puede tener múltiples
+  palabras** separadas por guión (`create-signature`, `refresh-token`).
+
+Ejemplos válidos:
+
+| Lambda | Nombre AWS |
+|---|---|
+| Login del servicio access | `cdts-dev-access-login` |
+| Crear firma en signature | `cdts-pro-signature-create-signature` |
+| Refrescar token de access | `cdts-dev-access-refresh-token` |
+
+## 4. Un servicio = un dominio de negocio
 
 Cada carpeta bajo `services/` es un **servicio** y representa **un solo dominio**
-(bounded context). Ejemplos: `access`, `signature`, `moc`, `cdts`.
+(bounded context). Ejemplos: `access`, `signature`, `payments`.
 
 - Un servicio nunca importa código de otro servicio directamente.
 - Lo compartido va en `layers/shared/` (una Lambda Layer publicada por su propio
   micro-serverless).
 - Cada servicio se registra en el `serverless-compose.yml` de la raíz.
 
-## 3. Estructura obligatoria de un servicio
+## 5. Estructura obligatoria de un servicio
 
 ```
-services/<domain>/
+services/<service>/
 ├── serverless.yml          ← definición del servicio (provider, plugins, functions)
 ├── utils/                  ← helpers PRIVADOS del dominio (no exportar afuera)
 ├── data/                   ← modelos, DTOs, JSON schemas, seed/static data
 └── src/
     ├── handlers/           ← API Lambdas (HTTP via API Gateway)
-    │   └── <lambda-name>/
+    │   └── <function>/
     │       ├── handler.py
     │       └── function.yml
     ├── scheduled/          ← Lambdas por schedule (EventBridge cron/rate)
-    │   └── <lambda-name>/
+    │   └── <function>/
     │       ├── handler.py
     │       └── function.yml
     └── workers/            ← Worker Lambdas (SQS / SNS / Streams / async invoke)
-        └── <lambda-name>/
+        └── <function>/
             ├── handler.py
             └── function.yml
 ```
@@ -47,14 +80,14 @@ services/<domain>/
 
 | Carpeta | Trigger | Ejemplo |
 |---|---|---|
-| `handlers/` | API Gateway HTTP API | `POST /signature` → `services/signature/src/handlers/create/handler.py` |
+| `handlers/` | API Gateway HTTP API | `POST /signature` → `services/signature/src/handlers/create-signature/handler.py` |
 | `scheduled/` | EventBridge `schedule` (rate/cron) | Job diario que limpia OTPs expirados |
 | `workers/` | SQS, SNS, DynamoDB Streams, invoke async | Procesa un item de cola de firmas pendientes |
 
 **Nunca** poner un handler HTTP dentro de `workers/`, ni un cron dentro de `handlers/`.
 El nombre de la subcarpeta identifica su naturaleza y su trigger.
 
-## 4. Cada Lambda vive en su propia carpeta
+## 6. Cada Lambda vive en su propia carpeta
 
 Dentro de `handlers/`, `scheduled/` o `workers/`, cada Lambda es **una carpeta con
 exactamente dos archivos**:
@@ -62,23 +95,33 @@ exactamente dos archivos**:
 - `handler.py` — código Python (define la función `handler(event, context)`).
 - `function.yml` — configuración Serverless de esa función (handler path, events,
   timeout, memory, iam, environment, etc.). Se referencia desde `serverless.yml`
-  con `${file(./src/<tipo>/<lambda-name>/function.yml)}`.
+  con `${file(./src/<tipo>/<function>/function.yml)}`.
 
 Si una Lambda necesita más de un archivo (por tamaño o separación de concerns),
 esos archivos van dentro de la misma carpeta de la Lambda, no fuera. Nada de
-`src/handlers/utils_login.py`; si es helper compartido va en `services/<domain>/utils/`.
+`src/handlers/utils_login.py`; si es helper compartido va en `services/<service>/utils/`.
 
-## 5. Convenciones de nombres
+## 7. Directorios a nivel raíz
 
-| Elemento | Convención | Ejemplo |
+Además de los servicios, la raíz del repo tiene 3 directorios de propósito general
+para código y datos **compartidos por más de un servicio o por herramientas del repo**:
+
+| Dir raíz | Propósito | Ejemplos |
 |---|---|---|
-| Servicio | `kebab-case` en la carpeta y en el `service:` del yml | `services/digital-signature/` → `service: cdts-digital-signature` |
-| Carpeta de Lambda | `kebab-case` | `src/handlers/create-signature/` |
-| Función en `function.yml` | `kebab-case` | `create-signature` |
-| Recursos AWS creados por CFN | `cdts-<service>-<stage>-<resource>` | `cdts-signature-dev-signatures-table` |
-| Roles IAM | mismo prefijo | `cdts-signature-dev-create-signature-role` |
+| `config/` | Configuración estática cross-project (perfiles, feature flags globales, mapping de stages, listas de tipos permitidos, etc.) | `config/mime-types.json`, `config/countries.yml` |
+| `utils/` | Utilidades genéricas cross-domain (sin lógica de negocio de ningún dominio específico) | `utils/formatting.py`, `utils/http/responses.py` |
+| `data/` | Datos estáticos, semillas, fixtures globales, catálogos, mocks de referencia | `data/seed/countries.csv`, `data/fixtures/sample-signature.json` |
 
-## 6. Composición: `serverless-compose.yml`
+Reglas:
+
+- Si algo es **usado por un solo servicio**, va dentro de `services/<service>/utils/`,
+  `services/<service>/data/` o `services/<service>/config/` (si aplica), NO en la raíz.
+- Si algo es **usado por >1 servicio**, entonces sí va en la raíz, pero **debe
+  publicarse via `layers/shared/`** para que las Lambdas lo puedan importar.
+  La carpeta raíz es la fuente; el layer es el vehículo de distribución.
+- Nada de lógica de negocio en `config/` o `data/`. Solo declarativos.
+
+## 8. Composición: `serverless-compose.yml`
 
 Todos los servicios se declaran en el `serverless-compose.yml` de la raíz. El orden
 de `dependsOn` importa (por ejemplo, todos dependen del `shared-layer`):
@@ -100,10 +143,10 @@ services:
       - access
 ```
 
-## 7. Ejemplo completo mínimo
+## 9. Ejemplo completo mínimo
 
-Estructura de un servicio `signature` con una Lambda HTTP `create`, un worker `sign`
-y un scheduled `cleanup-expired-otps`:
+Estructura de un servicio `signature` con una Lambda HTTP `create-signature`,
+un worker `sign` y un scheduled `cleanup-expired-otps`:
 
 ```
 services/signature/
@@ -115,7 +158,7 @@ services/signature/
 │       └── signature_request.json
 └── src/
     ├── handlers/
-    │   └── create/
+    │   └── create-signature/
     │       ├── handler.py
     │       └── function.yml
     ├── scheduled/
@@ -142,17 +185,21 @@ provider:
   stage: ${opt:stage, 'dev'}
   memorySize: 512
   timeout: 15
+  # Fuerza que las funciones se llamen cdts-<stage>-<service>-<function>
+  # en vez del default de Serverless (<service>-<stage>-<function>).
+  naming:
+    functionName: cdts-${self:provider.stage}-signature-${self:function.name}
 
 functions:
-  create:           ${file(./src/handlers/create/function.yml)}
-  sign:             ${file(./src/workers/sign/function.yml)}
-  cleanup-expired-otps: ${file(./src/scheduled/cleanup-expired-otps/function.yml)}
+  create-signature:      ${file(./src/handlers/create-signature/function.yml)}
+  sign:                  ${file(./src/workers/sign/function.yml)}
+  cleanup-expired-otps:  ${file(./src/scheduled/cleanup-expired-otps/function.yml)}
 ```
 
-`services/signature/src/handlers/create/function.yml`:
+`services/signature/src/handlers/create-signature/function.yml`:
 
 ```yaml
-handler: src/handlers/create/handler.handler
+handler: src/handlers/create-signature/handler.handler
 events:
   - httpApi:
       method: POST
@@ -161,7 +208,7 @@ environment:
   SIGNATURES_TABLE: !Ref SignaturesTable
 ```
 
-`services/signature/src/handlers/create/handler.py`:
+`services/signature/src/handlers/create-signature/handler.py`:
 
 ```python
 import json
@@ -176,24 +223,40 @@ def handler(event, context):
     }
 ```
 
-## 8. Anti-patrones (rechazar en review)
+## 10. Base de datos (PostgreSQL)
+
+- Instancia única compartida entre stages: `cdts-dev` (nombre histórico).
+- Dos schemas: `dev` y `pro`. **No usar `public`** (queda dropeado a propósito).
+- `search_path` por default de la base: `pro, dev`. En prod las Lambdas ven `pro` sin
+  calificar; en dev el código explícita `SET search_path TO dev` al abrir la conexión.
+- Credenciales viven en SSM Parameter Store bajo `/cdts/<stage>/db/`:
+  - `/cdts/<stage>/db/host`, `port`, `name`, `user`, `password`, `schema`.
+- Nada de credenciales en el código ni en variables de entorno de Lambda; siempre
+  via SSM.
+
+## 11. Anti-patrones (rechazar en review)
 
 - Carpetas `common/`, `shared/` o `helpers/` dentro de `src/`. Si es del dominio,
-  va en `services/<domain>/utils/`. Si es cross-domain, va en `layers/shared/`.
+  va en `services/<service>/utils/`. Si es cross-domain, va en `layers/shared/`
+  (fuente en la raíz `utils/`).
 - Una Lambda cuyo `handler.py` importa código de otro servicio hermano.
 - Mezclar tipos: un cron en `handlers/`, un HTTP en `workers/`, etc.
 - Un `function.yml` que defina handler fuera de su propia carpeta.
 - Múltiples Lambdas dentro de una misma carpeta (una carpeta = una Lambda).
-- Código de negocio en la raíz del servicio (por fuera de `src/`, `utils/` o `data/`).
+- Código de negocio en la raíz del servicio (por fuera de `src/`, `utils/`, `data/`).
+- Nombres de Lambda como `cdts-<service>-<stage>-<function>` (formato viejo del MVP).
+  El orden correcto es `cdts-<stage>-<service>-<function>`.
+- Uso de `prod` en cualquier archivo, YAML, script o doc. El nombre del stage
+  productivo es `pro`.
 
-## 9. Tests
+## 12. Tests
 
 Los tests viven en `tests/` en la raíz del repo, espejando la estructura:
 
 ```
 tests/
 ├── test_access_login.py
-├── test_signature_create.py
+├── test_signature_create_signature.py
 └── ...
 ```
 
