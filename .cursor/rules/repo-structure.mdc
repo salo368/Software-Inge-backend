@@ -25,6 +25,22 @@ antes de crear archivos.
    idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
    con guiones (`refresh-token`, `create-signature`).
 3. **Todo Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
+
+### Naming interno (filesystem/Python) vs naming AWS
+
+- **Carpeta de una Lambda**: `snake_case` **obligatorio** (Python no importa
+  módulos con guión). Ejemplo: `src/handlers/refresh_token/`.
+- **Handler Python**: siempre `handler.py` con `def handler(event, context)`.
+- **Handler en `function.yml`**: usar **slashes + punto** para la función:
+  `handler: src/handlers/<carpeta>/handler.handler`.
+- **Nombre AWS de la Lambda**: declararlo **explícito** en cada `function.yml`
+  como `name: cdts-${sls:stage}-<servicio>-<function-kebab>`, donde
+  `<function-kebab>` es el nombre de la carpeta con `_` reemplazados por `-`.
+  - Carpeta `apply/` → `name: cdts-${sls:stage}-migrations-apply`.
+  - Carpeta `refresh_token/` → `name: cdts-${sls:stage}-auth-refresh-token`.
+- **API Gateway**: usar `- httpApi:` (v2). No `- http:` (v1) salvo que necesites
+  WAF o endpoints privados. CORS se configura una sola vez a nivel provider
+  (`provider.httpApi.cors: true`), no por función.
 4. **Dos tipos de bloque**:
    - **Dominio de negocio** en `backend/services/<service>/`. No importar entre
      servicios; lo cross-domain va en `backend/layers/shared/` (fuente en
@@ -53,10 +69,13 @@ antes de crear archivos.
      `backend/layers/shared/`).
    - `backend/data/` — datos estáticos, semillas, catálogos.
    - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
-7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con:
-   - `handler.py` (define `def handler(event, context)`)
-   - `function.yml` (config Serverless referenciada como
-     `${file(./src/<tipo>/<function>/function.yml)}`)
+7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`.
+   Carpeta obligatoriamente `snake_case`. Contenido:
+   - `handler.py` con `def handler(event, context)`.
+   - `function.yml` referenciado desde el `serverless.yml` del bloque como
+     `${file(./src/<tipo>/<carpeta>/function.yml)}`.
+   - En `function.yml`: `name: cdts-${sls:stage}-<servicio>-<carpeta-kebab>` y
+     `handler: src/<tipo>/<carpeta>/handler.handler`.
 8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
    Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
 9. **Migraciones**: los `.sql` de `backend/platform/migrations/sql/` **nunca
@@ -104,6 +123,15 @@ antes de crear archivos.
 - Uso del nombre `prod` en YAML, scripts o docs (el stage productivo es `pro`).
 - Naming viejo `cdts-<service>-<stage>-<function>`; el orden correcto es
   `cdts-<stage>-<service>-<function>`.
+- Carpeta de una Lambda con guion (`refresh-token/`, `create-signature/`). Va
+  con `_` (`refresh_token/`); el guion aparece solo en el nombre AWS.
+- `provider.naming.functionName` en `serverless.yml`. Esa propiedad NO existe
+  en Serverless Framework 3 y falla la resolucion de variables. Usar
+  `provider.stackName` para el CFN stack y `name:` explicito por funcion.
+- Handler con dots (`src.handlers.login.handler.handler`) mezclado con
+  slashes. Uniformidad: usar SIEMPRE slashes (`src/handlers/login/handler.handler`).
+- `- http:` (API Gateway v1) por default. Usar `- httpApi:` (v2); v1 solo si
+  necesitas WAF o endpoints privados.
 - Registrar bloques "manualmente" en `plan-deploy.sh`. El descubrimiento es
   por arbol; crear la carpeta correspondiente y ya.
 - Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main` —
@@ -115,27 +143,50 @@ antes de crear archivos.
 
 ## Plantilla para una Lambda nueva
 
-`backend/{services,platform}/<name>/src/<tipo>/<function>/handler.py`:
+Ejemplo: bloque `auth` (services), Lambda `refresh_token` HTTP POST.
+
+`backend/services/auth/src/handlers/refresh_token/handler.py`:
 ```python
 def handler(event, context):
     return {"statusCode": 200, "body": ""}
 ```
 
-`backend/{services,platform}/<name>/src/<tipo>/<function>/function.yml`:
+`backend/services/auth/src/handlers/refresh_token/function.yml`:
 ```yaml
-handler: src/<tipo>/<function>/handler.handler
+# name = cdts-<stage>-<servicio>-<carpeta-con-_-a-->
+name: cdts-${sls:stage}-auth-refresh-token
+handler: src/handlers/refresh_token/handler.handler
+description: Renueva un access token a partir de un refresh token.
+timeout: 30
 events:
-  - httpApi: { method: POST, path: /ruta }   # solo si es handlers/
-  # - schedule: rate(1 day)                  # solo si es scheduled/
-  # - sqs: arn:...                            # solo si es workers/
+  - httpApi: { method: POST, path: /auth/refresh-token }
+  # - schedule: rate(1 day)      # si fuera scheduled/
+  # - sqs: arn:aws:sqs:...       # si fuera workers/
 ```
 
-Registrar en `backend/{services,platform}/<name>/serverless.yml`:
+`backend/services/auth/serverless.yml`:
 ```yaml
+service: auth
+frameworkVersion: '3'
+
 provider:
-  naming:
-    functionName: cdts-${self:provider.stage}-<name>-${self:function.name}
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-auth
+  httpApi:
+    cors: true
 
 functions:
-  <function>: ${file(./src/<tipo>/<function>/function.yml)}
+  refresh_token: ${file(./src/handlers/refresh_token/function.yml)}
 ```
+
+Observaciones:
+- `service:` es solo el nombre corto (`auth`), sin prefijo `cdts-` ni stage.
+- `stackName:` fuerza el nombre del CFN stack a la convencion.
+- El nombre AWS de la Lambda sale del `name:` del `function.yml`, NO de
+  concatenaciones magicas en `provider.naming.functionName` (esa propiedad
+  no existe).
+- El key del map `functions:` es libre (usar snake_case para consistencia con
+  la carpeta), pero lo importante es el `name:` explicito.
