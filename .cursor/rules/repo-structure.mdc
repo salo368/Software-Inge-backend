@@ -51,6 +51,28 @@ antes de crear archivos.
 8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
    Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
 
+## Bloques de despliegue (deploy selectivo)
+
+- El pipeline **no** re-despliega todo el backend en cada push. Agrupa por
+  **bloques** y despliega solo los afectados por el diff.
+- Un bloque = una carpeta directa bajo `backend/services/<X>/`, o
+  `backend/migrations/`. Descubrimiento automatico via
+  [`scripts/ci/plan-deploy.sh`](../../scripts/ci/plan-deploy.sh).
+- **Diff solo en `backend/services/X/`** → deploy solo del bloque `X`.
+- **Diff solo en `backend/migrations/`** → deploy solo `migrations`.
+- **Diff en varios bloques** → todos los afectados, `migrations` primero,
+  resto alfabetico, secuencial.
+- **Diff en algo GLOBAL del backend** → deploy TOTAL. Se consideran globales:
+  `serverless-compose.yml`, `package*.json`, `requirements-*.txt`, `.nvmrc`,
+  `.python-version`, `pytest.ini`, `config/**`, `utils/**`, `data/**`,
+  `layers/**`.
+- **Diff solo fuera de `backend/`** → NO se despliega nada.
+- `migrations` es un caso especial: NO es un `serverless.yml` clasico, es una
+  carpeta `sql/` con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones
+  `-- +migrate up` / `-- +migrate down`, aplicados por una Lambda
+  `cdts-<stage>-migrations-apply`. Ver
+  [`backend/migrations/README.md`](../../backend/migrations/README.md).
+
 ## Anti-patrones (rechazar)
 
 - Archivos del backend (`.py`, `serverless*.yml`, `requirements-*.txt`, etc.) fuera
@@ -63,6 +85,10 @@ antes de crear archivos.
 - Uso del nombre `prod` en YAML, scripts o docs (el stage productivo es `pro`).
 - Naming viejo `cdts-<service>-<stage>-<function>`; el orden correcto es
   `cdts-<stage>-<service>-<function>`.
+- Registrar bloques "manualmente" en `plan-deploy.sh`. El descubrimiento es
+  por arbol; crear la carpeta correspondiente y ya.
+- Editar un `.sql` de `backend/migrations/sql/` ya mergeado a `main` — escribir
+  una migracion nueva con timestamp posterior que corrija.
 
 ## Plantilla para una Lambda nueva
 

@@ -71,3 +71,33 @@ jobs:
           name: pytest-report
           path: backend/pytest-report.xml
           retention-days: 7
+
+  plan-preview:
+    name: Deploy plan (preview)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute deploy plan (dry-run)
+        id: plan
+        env:
+          DRY_RUN: "1"
+        run: bash scripts/ci/plan-deploy.sh
+
+      - name: Post preview to PR summary
+        run: |
+          {
+            echo "### Deploy plan (preview) para ${{ github.base_ref }}"
+            echo ""
+            echo "Si esta PR se mergea, se re-desplegaran los siguientes bloques"
+            echo "en el ambiente que corresponda al target branch."
+            echo ""
+            echo "> Este job es SOLO informativo. El plan real se recalcula en el"
+            echo "> workflow de deploy tras el merge, usando el diff efectivo."
+            echo ""
+            echo "Ver stdout del step anterior para el detalle del plan."
+          } >> "$GITHUB_STEP_SUMMARY"
