@@ -1,4 +1,4 @@
-name: Deploy PROD
+name: Deploy PRO
 
 on:
   push:
@@ -9,16 +9,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-prod
+  group: deploy-pro
   cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy to AWS (stage=prod)
+    name: Deploy to AWS (stage=pro)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment:
-      name: prod
+      name: pro
       url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
 
     steps:
@@ -52,7 +52,7 @@ jobs:
       - name: Deploy
         run: |
           if grep -qE "^  [A-Za-z0-9_-]+:" serverless-compose.yml; then
-            npx serverless-compose deploy --stage prod --verbose
+            npx serverless-compose deploy --stage pro --verbose
           else
             echo "::notice::serverless-compose.yml aun no tiene services. Skip deploy."
           fi

@@ -7,16 +7,16 @@ Este directorio documenta la configuracion IAM que usan los workflows de desplie
 | Recurso | ARN |
 |---|---|
 | Policy | `arn:aws:iam::658548982073:policy/CdtsGithubActionsDeploy` |
-| User (dev)  | `arn:aws:iam::658548982073:user/githubactions/github-actions-dev-deployer` |
-| User (prod) | `arn:aws:iam::658548982073:user/githubactions/github-actions-prod-deployer` |
+| User (dev) | `arn:aws:iam::658548982073:user/githubactions/github-actions-dev-deployer` |
+| User (pro) | `arn:aws:iam::658548982073:user/githubactions/github-actions-pro-deployer` |
 
 Ambos usuarios tienen la policy adjunta y viven bajo el path `/githubactions/` para
 tenerlos agrupados y visibles rapido en la consola IAM.
 
 Las access keys de cada usuario estan cargadas como GitHub Environment Secrets:
 
-- Environment `dev`  -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
-- Environment `prod` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- Environment `dev` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- Environment `pro` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 
 La region esta como GitHub repo variable: `AWS_REGION=us-east-1`.
 
@@ -26,9 +26,8 @@ La region esta como GitHub repo variable: `AWS_REGION=us-east-1`.
   - No puede crear ni tocar otros usuarios ni grupos IAM.
   - No puede crear ni modificar policies (solo consumir la ya adjunta).
   - No puede tocar Organizations, billing, ni Cost Explorer.
-- **Roles IAM scopeados por prefijo.** Solo puede crear/borrar roles cuyo nombre empieza con
-  `cdts-`, `moc-`, `access-`, `digital*signature-`, `frontend-`, `firma-`, `tests-` o
-  `shared-`. Si en el futuro agregamos un servicio con otro prefijo, hay que actualizar la
+- **Roles IAM scopeados por prefijo `cdts-`.** Solo puede crear/borrar roles cuyo nombre
+  empieza con `cdts-`. Si en el futuro necesitamos otro prefijo, hay que actualizar la
   policy.
 - **CloudFormation-driven.** Los deploys van via CloudFormation (Serverless), no comandos
   directos.
@@ -51,7 +50,7 @@ POLICY_ARN=$(aws iam list-policies --scope Local \
   --query "Policies[?PolicyName=='CdtsGithubActionsDeploy'].Arn | [0]" --output text)
 
 # 2) Crear usuarios y adjuntar la policy
-for stage in dev prod; do
+for stage in dev pro; do
   user="github-actions-${stage}-deployer"
   aws iam create-user --user-name "$user" --path /githubactions/ \
     --tags Key=Project,Value=cdts Key=Stage,Value=$stage Key=ManagedBy,Value=bootstrap
@@ -60,7 +59,7 @@ done
 
 # 3) Generar access keys y cargarlas como GitHub environment secrets
 REPO="salo368/ingenieria-de-software-proyecto"
-for stage in dev prod; do
+for stage in dev pro; do
   user="github-actions-${stage}-deployer"
   OUT=$(aws iam create-access-key --user-name "$user" \
     --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
@@ -84,7 +83,7 @@ export AWS_PROFILE=<admin-profile>
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 REPO="salo368/ingenieria-de-software-proyecto"
-STAGE=dev  # o prod
+STAGE=dev  # o pro
 user="github-actions-${STAGE}-deployer"
 
 # 1) Crear nueva key

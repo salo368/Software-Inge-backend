@@ -1,5 +1,10 @@
 # Contributing
 
+> **Antes de crear un archivo o carpeta nueva, leer
+> [`docs/repo-structure.md`](./docs/repo-structure.md).** Esa es la fuente unica de
+> verdad sobre como se organiza el codigo (servicios, lambdas, layers, tests). La IA
+> tambien la respeta via [`.cursor/rules/repo-structure.mdc`](./.cursor/rules/repo-structure.mdc).
+
 ## Reglas de oro
 
 1. **Nada se mergea directo.** Todo cambio va por Pull Request.
