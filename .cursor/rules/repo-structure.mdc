@@ -1,0 +1,66 @@
+---
+description: Estructura obligatoria del monorepo CDTS (Serverless multi-servicio en AWS)
+alwaysApply: true
+---
+
+# Estructura del repo CDTS
+
+Fuente extensa: [`docs/repo-structure.md`](../../docs/repo-structure.md). Esta regla es
+un resumen accionable. **Cumplir sin excepciones**; si algo no encaja, preguntar antes
+de crear archivos.
+
+## Reglas
+
+1. **Todo es Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
+2. **Un servicio = un dominio** en `services/<domain>/`. No importar entre servicios.
+   Lo cross-domain va en `layers/shared/`. Cada servicio se registra en
+   `serverless-compose.yml` de la raíz.
+3. **Estructura obligatoria de cada servicio:**
+   ```
+   services/<domain>/
+   ├── serverless.yml
+   ├── utils/        # helpers PRIVADOS del dominio
+   ├── data/         # modelos, DTOs, schemas, static data
+   └── src/
+       ├── handlers/    # API Lambdas (API Gateway HTTP)
+       ├── scheduled/   # Cron Lambdas (EventBridge)
+       └── workers/     # Worker Lambdas (SQS/SNS/streams/async)
+   ```
+4. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`, con
+   exactamente:
+   - `handler.py` (define `def handler(event, context)`)
+   - `function.yml` (config Serverless referenciada desde `serverless.yml` con
+     `${file(./src/<tipo>/<lambda>/function.yml)}`)
+5. **Naming**: todo en `kebab-case` (carpetas, funciones). Recursos AWS con prefijo
+   `cdts-<service>-<stage>-<resource>`.
+
+## Anti-patrones (rechazar)
+
+- Carpetas `common/` `shared/` `helpers/` dentro de `src/`.
+- Handler HTTP dentro de `workers/` o viceversa.
+- Un `handler.py` que importa desde otro servicio hermano.
+- Más de una Lambda por carpeta.
+- Código de negocio fuera de `src/`, `utils/` o `data/`.
+
+## Al crear una Lambda nueva, plantilla
+
+`services/<domain>/src/<tipo>/<lambda-name>/handler.py`:
+```python
+def handler(event, context):
+    return {"statusCode": 200, "body": ""}
+```
+
+`services/<domain>/src/<tipo>/<lambda-name>/function.yml`:
+```yaml
+handler: src/<tipo>/<lambda-name>/handler.handler
+events:
+  - httpApi: { method: POST, path: /ruta }   # solo si es handlers/
+  # - schedule: rate(1 day)                  # solo si es scheduled/
+  # - sqs: arn:...                            # solo si es workers/
+```
+
+Y registrar en `services/<domain>/serverless.yml`:
+```yaml
+functions:
+  <lambda-name>: ${file(./src/<tipo>/<lambda-name>/function.yml)}
+```
