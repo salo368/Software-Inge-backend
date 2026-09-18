@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       block:
-        description: "Bloque a forzar (vacio = auto detectar; '__all__' = todo el backend)"
+        description: "Block to force (empty = auto-detect; '__all__' = full backend)"
         required: false
         default: ""
 
@@ -88,16 +88,14 @@ jobs:
       - name: Deploy block "${{ matrix.block }}"
         run: |
           if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
-            echo "::notice::serverless-compose.yml sin services registrados; nada que desplegar."
+            echo "::notice::No services registered; nothing to deploy."
             exit 0
           fi
-          # Sintaxis serverless-compose para deploy de un servicio: <name>:deploy
           npx serverless-compose "${{ matrix.block }}:deploy" --stage pro --verbose
 
       - name: Apply migrations (if block == migrations)
         if: matrix.block == 'migrations'
         run: |
-          echo "== Invocando cdts-pro-migrations-apply ==" 
           aws lambda invoke \
             --function-name cdts-pro-migrations-apply \
             --payload '{}' \
@@ -106,11 +104,11 @@ jobs:
             --query 'LogResult' --output text \
             /tmp/response.json | base64 -d
           echo ""
-          echo "== Response payload =="
+          echo "== Response =="
           cat /tmp/response.json
           echo ""
           if grep -q '"errorType"' /tmp/response.json; then
-            echo "::error::La Lambda devolvio error. Ver logs arriba."
+            echo "::error::Lambda returned an error. See logs above."
             exit 1
           fi
 
@@ -122,11 +120,13 @@ jobs:
     steps:
       - name: Print summary
         run: |
-          echo "### Deploy PRO summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Bloques planeados: **${{ needs.plan.outputs.count }}**" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo '${{ needs.plan.outputs.blocks }}' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Resultado deploy job: **${{ needs.deploy.result }}**" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Deploy PRO summary"
+            echo ""
+            echo "Planned blocks: **${{ needs.plan.outputs.count }}**"
+            echo '```json'
+            echo '${{ needs.plan.outputs.blocks }}'
+            echo '```'
+            echo ""
+            echo "Deploy job result: **${{ needs.deploy.result }}**"
+          } >> "$GITHUB_STEP_SUMMARY"
