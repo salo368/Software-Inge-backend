@@ -4,6 +4,11 @@ import { requireAuth, requireGuest } from './core/auth.guard';
 
 export const routes: Routes = [
   {
+    // Simulador publico. Landing.
+    path: '',
+    loadComponent: () => import('./pages/simulator.component').then((m) => m.SimulatorComponent),
+  },
+  {
     path: 'login',
     canActivate: [requireGuest],
     loadComponent: () => import('./pages/login.component').then((m) => m.LoginComponent),
@@ -19,7 +24,8 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/docs/docs.routes').then((m) => m.DOCS_ROUTES),
   },
   {
-    path: '',
+    // Mi cuenta (dashboard privado).
+    path: 'me',
     canActivate: [requireAuth],
     loadComponent: () => import('./pages/home.component').then((m) => m.HomeComponent),
   },

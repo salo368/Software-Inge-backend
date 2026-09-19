@@ -1,4 +1,5 @@
 import json
+import math
 import os
 from decimal import Decimal, InvalidOperation
 
@@ -32,10 +33,12 @@ def _parse_term(raw) -> int:
 
 
 def _yield_cop(amount: Decimal, ea_pct: Decimal, days: int) -> tuple[Decimal, Decimal]:
-    """Interes simple prorrateado sobre EA. Devuelve (intereses_brutos, total_final)."""
-    # Aproximacion pedagogica: interes = amount * (rate/100) * (days/360)
-    interest = amount * (ea_pct / Decimal(100)) * (Decimal(days) / Decimal(360))
-    final = amount + interest
+    """Rendimiento a interes compuesto con Tasa Efectiva Anual, base 365 dias.
+    final = amount * (1 + r) ** (days / 365). Devuelve (intereses, total)."""
+    r = float(ea_pct) / 100.0
+    years = days / 365.0
+    final = Decimal(str(float(amount) * math.pow(1 + r, years)))
+    interest = final - amount
     return interest.quantize(Decimal("0.01")), final.quantize(Decimal("0.01"))
 
 
