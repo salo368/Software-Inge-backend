@@ -36,4 +36,10 @@ def handle_exceptions(func):
             db_session.rollback()
             Logger.log("ERROR", f"{func.__name__}: {e}\n{traceback.format_exc()}")
             return generate_response({"error": "internal_server_error"}, 500)
+        finally:
+            # The session is a module-level singleton that outlives the
+            # invocation on a warm container. Without this the transaction
+            # stays open and later invocations keep reading the same snapshot,
+            # missing rows another service committed in the meantime.
+            db_session.close()
     return wrapper
