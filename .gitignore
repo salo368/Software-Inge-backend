@@ -24,6 +24,11 @@ yarn-error.log*
 .serverless/
 .serverless_plugins/
 
+# Mirror of backend/libs/ copied into each service by functions.js at package time.
+# Source of truth is backend/libs/. Copies must never be committed.
+backend/services/*/libs/
+backend/platform/*/libs/
+
 # --- AWS / credenciales ---
 .aws/
 *.pem

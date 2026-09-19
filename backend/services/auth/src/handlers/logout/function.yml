@@ -1,0 +1,3 @@
+description: Revokes the current bearer token.
+events:
+  - httpApi: { method: POST, path: /auth/logout }
