@@ -206,6 +206,12 @@ jobs:
             exit 1
           fi
 
+      - name: Sync assets to S3 (if block == assets)
+        if: matrix.block == 'assets'
+        env:
+          STAGE: pro
+        run: bash scripts/ci/deploy-assets.sh
+
       # ---------------- Frontend path ----------------
 
       - name: Install Node dependencies (frontend)

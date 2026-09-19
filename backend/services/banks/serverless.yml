@@ -1,0 +1,51 @@
+service: banks
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-banks
+  memorySize: 512
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+    ASSETS_BASE_URL: https://cdts-${sls:stage}-assets.s3.${aws:region}.amazonaws.com
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-banks-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+
+functions: ${file(./functions.js):build}

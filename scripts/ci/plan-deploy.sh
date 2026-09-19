@@ -12,6 +12,7 @@ log() { echo "$@" >&2; }
 # platform block is treated as backend-global (deploys the entire backend).
 declare -A PLATFORM_CONTENT_DIRS=(
   ["migrations"]="sql"
+  ["assets"]="files"
 )
 
 CHANGED_FILES=""
