@@ -3,24 +3,11 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-import bcrypt
-
 from libs.core.responses import HandledError, generate_response
 from libs.orm.bearer_tokens import BearerTokens
 from libs.orm.users import Users
 
 TOKEN_TTL = timedelta(hours=24)
-
-
-def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(12)).decode()
-
-
-def verify_password(plain: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(plain.encode(), hashed.encode())
-    except (ValueError, TypeError):
-        return False
 
 
 def _hash(token: str) -> str:

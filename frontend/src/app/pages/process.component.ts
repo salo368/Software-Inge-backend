@@ -1,10 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AnimatedMoneyComponent } from '../components/animated-money.component';
 import { BanksService, Bank } from '../core/banks.service';
-import { FormsService } from '../core/forms.service';
 import { formatCOP } from '../core/format';
 import {
   ProcessDetail,
@@ -41,12 +40,11 @@ const STEPS: Step[] = [
   ],
   templateUrl: './process.component.html',
 })
-export class ProcessComponent implements OnInit, OnDestroy {
+export class ProcessComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private processesApi = inject(ProcessesService);
   private banksApi = inject(BanksService);
-  private formsApi = inject(FormsService);
 
   readonly STEPS = STEPS;
   readonly formatCOP = formatCOP;
@@ -56,8 +54,6 @@ export class ProcessComponent implements OnInit, OnDestroy {
   loading = signal(true);
   advancing = signal(false);
   error = signal<string | null>(null);
-
-  private pollHandle: number | null = null;
 
   readonly stage = computed<ProcessStage>(() => this.detail()?.process.stage ?? 'form');
   readonly stageIndex = computed(() => STAGE_ORDER.indexOf(this.stage()));
@@ -76,10 +72,6 @@ export class ProcessComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id')!;
     this.load(id);
-  }
-
-  ngOnDestroy(): void {
-    if (this.pollHandle !== null) window.clearInterval(this.pollHandle);
   }
 
   load(id: string): void {
@@ -109,18 +101,6 @@ export class ProcessComponent implements OnInit, OnDestroy {
     this.processesApi.get(d.process.id).subscribe({
       next: (fresh) => this.detail.set(fresh),
     });
-  }
-
-  startPolling(): void {
-    if (this.pollHandle !== null) return;
-    this.pollHandle = window.setInterval(() => this.refresh(), 2500);
-  }
-
-  stopPolling(): void {
-    if (this.pollHandle !== null) {
-      window.clearInterval(this.pollHandle);
-      this.pollHandle = null;
-    }
   }
 
   advance(): void {

@@ -2,7 +2,8 @@ import json
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.users import Users
-from libs.utils.auth import issue_token, verify_password
+from libs.utils.auth import issue_token
+from libs.utils.passwords import verify_password
 
 
 @handle_exceptions

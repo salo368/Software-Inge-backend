@@ -1,5 +1,14 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
+import {
+  Component,
+  EventEmitter,
+  Input,
+  OnChanges,
+  OnDestroy,
+  Output,
+  inject,
+  signal,
+} from '@angular/core';
 
 import { FileRow, FilesService } from '../../core/files.service';
 
@@ -12,12 +21,14 @@ const MAX_POLL = 15;
   imports: [CommonModule],
   templateUrl: './process-documents.component.html',
 })
-export class ProcessDocumentsComponent {
+export class ProcessDocumentsComponent implements OnChanges, OnDestroy {
   @Input({ required: true }) processId!: string;
   @Input() files: FileRow[] = [];
   @Output() uploaded = new EventEmitter<void>();
 
   private api = inject(FilesService);
+  private pollTimer: number | null = null;
+  private attempts = 0;
 
   uploading = signal(false);
   progressMsg = signal('');
@@ -25,6 +36,16 @@ export class ProcessDocumentsComponent {
 
   get declaracion(): FileRow | undefined {
     return this.files.find((f) => f.file_type === 'declaracion_renta');
+  }
+
+  // The parent refreshes asynchronously after each `uploaded` emit, so the
+  // registered row shows up here as a new `files` array rather than inline.
+  ngOnChanges(): void {
+    if (this.uploading() && this.declaracion) this.stopPolling('');
+  }
+
+  ngOnDestroy(): void {
+    this.clearTimer();
   }
 
   onFileChange(event: Event): void {
@@ -42,8 +63,8 @@ export class ProcessDocumentsComponent {
     this.progressMsg.set('Subiendo...');
     this.api.upload(this.processId, 'declaracion_renta', file).subscribe({
       next: () => {
-        this.progressMsg.set('Registrando...');
-        this.pollForFile(0);
+        this.progressMsg.set('Registrando el documento...');
+        this.startPolling();
       },
       error: () => {
         this.uploading.set(false);
@@ -53,20 +74,34 @@ export class ProcessDocumentsComponent {
     });
   }
 
-  private pollForFile(attempt: number): void {
+  private startPolling(): void {
+    this.attempts = 0;
+    this.clearTimer();
     this.uploaded.emit();
-    if (this.declaracion) {
-      this.uploading.set(false);
-      this.progressMsg.set('');
-      return;
+    this.pollTimer = window.setInterval(() => {
+      this.attempts += 1;
+      if (this.attempts >= MAX_POLL) {
+        this.stopPolling(
+          'El archivo se subio pero tarda en registrarse. Recarga la pagina en unos segundos.',
+        );
+        return;
+      }
+      this.uploaded.emit();
+    }, POLL_MS);
+  }
+
+  private stopPolling(errorMsg: string): void {
+    this.clearTimer();
+    this.uploading.set(false);
+    this.progressMsg.set('');
+    if (errorMsg) this.error.set(errorMsg);
+  }
+
+  private clearTimer(): void {
+    if (this.pollTimer !== null) {
+      window.clearInterval(this.pollTimer);
+      this.pollTimer = null;
     }
-    if (attempt >= MAX_POLL) {
-      this.uploading.set(false);
-      this.progressMsg.set('');
-      this.error.set('El archivo se subio pero tarda en registrarse. Refresca la pagina en un momento.');
-      return;
-    }
-    setTimeout(() => this.pollForFile(attempt + 1), POLL_MS);
   }
 
   openFile(): void {
