@@ -1,0 +1,93 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: #f7f8fa;
+  color: #0f172a;
+  font-family: system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+}
+
+.docs {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.side {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1.5rem 1.2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.brand h1 {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 1.15rem;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+}
+.brand .tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  background: #14b8a6;
+  color: #042f2e;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.brand .sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.side nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.side nav a {
+  display: block;
+  padding: 0.55rem 0.75rem;
+  color: #cbd5e1;
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 0.92rem;
+  transition: background 0.15s, color 0.15s;
+}
+.side nav a:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+.side nav a.active {
+  background: #14b8a6;
+  color: #042f2e;
+  font-weight: 600;
+}
+
+.side-foot {
+  margin-top: auto;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.main {
+  padding: 2.25rem 2.25rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+@media (max-width: 800px) {
+  .docs { grid-template-columns: 1fr; }
+  .side { position: relative; height: auto; }
+  .main { padding: 1.5rem 1.2rem; }
+}

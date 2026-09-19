@@ -1,0 +1,276 @@
+.page { max-width: 100%; }
+
+.page-head { margin-bottom: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.15rem; }
+.crumb { color: #64748b; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.07em; }
+.crumb-link { color: #14b8a6; text-decoration: none; }
+.crumb-link:hover { text-decoration: underline; }
+.page-head h1 { margin: 0.3rem 0 0.5rem; font-size: 1.75rem; letter-spacing: -0.02em; }
+.lead {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  max-width: 800px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+.chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.chip.basico { background: #dcfce7; color: #166534; }
+.chip.alternativo { background: #dbeafe; color: #1e40af; }
+.chip.error { background: #fee2e2; color: #991b1b; }
+.chip.extensivo { background: #ede9fe; color: #5b21b6; }
+
+.loading { color: #64748b; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.master {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 0.85rem;
+  position: sticky;
+  top: 1.5rem;
+  max-height: calc(100vh - 3rem);
+  overflow-y: auto;
+}
+.master h2 {
+  margin: 0 0 0.6rem;
+  padding: 0 0.6rem;
+  font-size: 0.78rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.master ul { list-style: none; margin: 0; padding: 0; }
+.master a {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #0f172a;
+  font-size: 0.87rem;
+  transition: background 0.12s;
+}
+.master a:hover { background: #f1f5f9; }
+.master a.active { background: #ccfbf1; color: #0f766e; }
+.master a.active .cid { background: #0f766e; color: #ccfbf1; }
+.master .cid {
+  display: inline-block;
+  background: #eef2f7;
+  color: #475569;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.76rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: 600;
+}
+.master .cname { line-height: 1.35; }
+
+.detail { min-width: 0; }
+
+.empty {
+  background: #fff;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 2rem 1.5rem;
+  color: #64748b;
+  text-align: center;
+}
+
+.uc-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+.cid-lg {
+  background: #0f172a;
+  color: #f0fdfa;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  padding: 0.4rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.uc-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #0f172a;
+  letter-spacing: -0.015em;
+}
+
+.block { margin: 0 0 2rem; }
+.block h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+  color: #0f172a;
+  border-left: 3px solid #14b8a6;
+  padding-left: 0.6rem;
+}
+.hint {
+  margin: 0 0 0.85rem;
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.hint code {
+  background: #eef2f7;
+  color: #475569;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.78rem;
+}
+
+.steps {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.step {
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.88rem;
+}
+.step:last-child { border-bottom: 0; }
+.step:hover { background: #f8fafc; }
+.pid {
+  display: inline-block;
+  color: #64748b;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+.ptext { color: #0f172a; line-height: 1.55; }
+
+.flows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.flow {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+.flow[data-type="basico"] { border-left-color: #22c55e; }
+.flow[data-type="alternativo"] { border-left-color: #3b82f6; }
+.flow[data-type="error"] { border-left-color: #ef4444; }
+.flow[data-type="extensivo"] { border-left-color: #8b5cf6; }
+.flow.highlight {
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25);
+}
+
+.flow-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-bottom: 0.5rem;
+}
+.fid {
+  background: #0f172a;
+  color: #f0fdfa;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.ftype {
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+.ftype-basico { color: #166534; }
+.ftype-alternativo { color: #1e40af; }
+.ftype-error { color: #991b1b; }
+.ftype-extensivo { color: #5b21b6; }
+
+.anchor {
+  margin-left: auto;
+  color: #cbd5e1;
+  text-decoration: none;
+  font-family: ui-monospace, monospace;
+  font-size: 0.9rem;
+}
+.anchor:hover { color: #14b8a6; }
+
+.flow-comp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: baseline;
+  padding: 0.5rem 0.6rem;
+  background: #f8fafc;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+.tok { display: inline-block; }
+.tok.step-tok {
+  background: #e0f2fe;
+  color: #075985;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tok.flow-tok {
+  background: #ede9fe;
+  color: #5b21b6;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.tok.arrow { color: #94a3b8; font-weight: 700; }
+.tok.text { color: #475569; font-style: italic; }
+
+.flow-closure {
+  margin-top: 0.55rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 0.85rem;
+  color: #334155;
+}
+.flow-closure .lbl {
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-right: 0.35rem;
+}
+
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .master { position: static; max-height: none; }
+}
