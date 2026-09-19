@@ -1,3 +1,8 @@
 services:
   migrations:
     path: platform/migrations
+
+  auth:
+    path: services/auth
+    dependsOn:
+      - migrations
