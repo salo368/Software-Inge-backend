@@ -24,68 +24,86 @@ antes de crear archivos.
 
 1. **Stages**: solo `dev` y `pro`. Nunca `prod`, `staging`, `qa`, etc.
 2. **Naming AWS**: `cdts-<stage>-<service>-<function>`. `stage` y `service`
-   idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
-   con guiones (`refresh-token`, `create-signature`).
+ idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
+ con guiones (`refresh-token`, `create-signature`).
 3. **Todo Serverless Framework v3 en AWS**. Nada de contenedores, EC2 o servidores.
 
 ### Naming interno (filesystem/Python) vs naming AWS
 
 - **Carpeta de una Lambda**: `snake_case` **obligatorio** (Python no importa
-  módulos con guión). Ejemplo: `src/handlers/refresh_token/`.
+ módulos con guión). Ejemplo: `src/handlers/refresh_token/`.
 - **Handler Python**: siempre `handler.py` con `def handler(event, context)`.
-- **Handler en `function.yml`**: usar **slashes + punto** para la función:
-  `handler: src/handlers/<carpeta>/handler.handler`.
-- **Nombre AWS de la Lambda**: declararlo **explícito** en cada `function.yml`
-  como `name: cdts-${sls:stage}-<servicio>-<function-kebab>`, donde
-  `<function-kebab>` es el nombre de la carpeta con `_` reemplazados por `-`.
-  - Carpeta `apply/` → `name: cdts-${sls:stage}-migrations-apply`.
-  - Carpeta `refresh_token/` → `name: cdts-${sls:stage}-auth-refresh-token`.
+- **`name` y `handler` NO se escriben en `function.yml`**: los autogenera el
+ helper `backend/utils/build-functions.js` desde la convencion:
+ - `name: cdts-<stage>-<service>-<carpeta-con-_-a-->`
+ - `handler: src/<tipo>/<carpeta>/handler.handler`
+ - Ejemplos: `refresh_token/` → `cdts-<stage>-auth-refresh-token`;
+ `apply/` → `cdts-<stage>-migrations-apply`.
+- **Escape hatch**: si el dev necesita romper la convencion (raro), puede
+ declarar `name:` o `handler:` explicito en `function.yml` y **ganan**. Debe
+ llevar un comentario justificando por que.
 - **API Gateway**: usar `- httpApi:` (v2). No `- http:` (v1) salvo que necesites
-  WAF o endpoints privados. CORS se configura una sola vez a nivel provider
-  (`provider.httpApi.cors: true`), no por función.
+ WAF o endpoints privados. CORS se configura una sola vez a nivel provider
+ (`provider.httpApi.cors: true`), no por función.
 4. **Dos tipos de bloque**:
-   - **Dominio de negocio** en `backend/services/<service>/`. No importar entre
-     servicios; lo cross-domain va en `backend/layers/shared/` (fuente en
-     `backend/utils/`).
-   - **Infraestructura runtime** en `backend/platform/<name>/` (ejemplo:
-     `platform/migrations/`). No usar un `platform/infrastructure/` catch-all;
-     cada responsabilidad tiene su propia carpeta descriptiva. `services/` NO
-     puede importar codigo de `platform/`.
+ - **Dominio de negocio** en `backend/services/<service>/`. No importar entre
+ servicios; lo cross-domain va en `backend/layers/shared/` (fuente en
+ `backend/utils/`).
+ - **Infraestructura runtime** en `backend/platform/<name>/` (ejemplo:
+ `platform/migrations/`). No usar un `platform/infrastructure/` catch-all;
+ cada responsabilidad tiene su propia carpeta descriptiva. `services/` NO
+ puede importar codigo de `platform/`.
 5. **Estructura obligatoria de cada bloque** (aplica tanto a `services/<X>/` como
-   a `platform/<X>/`):
-   ```
-   backend/{services,platform}/<name>/
-   ├── serverless.yml
-   ├── utils/        # helpers PRIVADOS del bloque
-   ├── data/         # modelos, DTOs, schemas, static data
-   └── src/
-       ├── handlers/    # API Lambdas (API Gateway HTTP)
-       ├── scheduled/   # Cron Lambdas (EventBridge)
-       └── workers/     # Worker Lambdas (SQS/SNS/streams/async)
-   ```
-   Los bloques de `platform/` pueden tener carpetas adicionales propias de su
-   responsabilidad (p.ej. `platform/migrations/sql/`).
+ a `platform/<X>/`):
+ ```
+ backend/{services,platform}/<name>/
+ ├── serverless.yml
+ ├── functions.js       # shim de 3 lineas (auto-registro, ver punto 8)
+ ├── utils/             # helpers PRIVADOS del bloque
+ ├── data/              # modelos, DTOs, schemas, static data
+ └── src/
+ ├── handlers/          # API Lambdas (API Gateway HTTP)
+ ├── scheduled/         # Cron Lambdas (EventBridge)
+ └── workers/           # Worker Lambdas (SQS/SNS/streams/async)
+ ```
+ Los bloques de `platform/` pueden tener carpetas adicionales propias de su
+ responsabilidad (p.ej. `platform/migrations/sql/`).
 6. **Directorios cross a nivel de backend** (compartidos por >1 bloque):
-   - `backend/config/` — configuración declarativa.
-   - `backend/utils/` — utilidades genéricas cross-domain (fuente que alimenta
-     `backend/layers/shared/`).
-   - `backend/data/` — datos estáticos, semillas, catálogos.
-   - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
+ - `backend/config/` — configuración declarativa.
+ - `backend/utils/` — utilidades genéricas cross-domain (fuente que alimenta
+ `backend/layers/shared/`). Aqui vive tambien `build-functions.js` (helper
+ de auto-registro; no se distribuye como layer, se usa en build-time).
+ - `backend/data/` — datos estáticos, semillas, catálogos.
+ - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
 7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`.
-   Carpeta obligatoriamente `snake_case`. Contenido:
-   - `handler.py` con `def handler(event, context)`.
-   - `function.yml` referenciado desde el `serverless.yml` del bloque como
-     `${file(./src/<tipo>/<carpeta>/function.yml)}`.
-   - En `function.yml`: `name: cdts-${sls:stage}-<servicio>-<carpeta-kebab>` y
-     `handler: src/<tipo>/<carpeta>/handler.handler`.
-8. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
-   Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
-9. **Migraciones**: los `.sql` de `backend/platform/migrations/sql/` **nunca
-   califican schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
-   La Lambda hace `SET LOCAL search_path TO <stage>` al inicio. Tambien
-   prohibido: `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA`. Enforcement
-   automatico: `scripts/ci/lint-migrations.py` en el CI. Ver
-   [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
+ Carpeta obligatoriamente `snake_case`. Contenido:
+ - `handler.py` con `def handler(event, context)`.
+ - `function.yml` **sin `name` ni `handler`**; solo lleva lo especifico
+ (events, memorySize override, timeout override, environment, layers,
+ description).
+8. **Auto-registro de Lambdas**: cada bloque tiene un `functions.js` de 3
+ lineas que delega en el helper compartido:
+ ```js
+ // backend/{services,platform}/<block>/functions.js
+ 'use strict';
+ module.exports.build = require('../../utils/build-functions')(__dirname);
+ ```
+ Y en el `serverless.yml` del bloque:
+ ```yaml
+ functions: ${file(./functions.js):build}
+ ```
+ El helper escanea `src/{handlers,scheduled,workers}/*/function.yml`, valida
+ que las carpetas sean `snake_case`, autoderiva `name` + `handler` desde la
+ convencion, y hace merge con lo declarado en cada `function.yml`. Tests en
+ `backend/tests/build-functions.test.js` (corren en el job `validate`).
+9. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
+ Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
+10. **Migraciones**: los `.sql` de `backend/platform/migrations/sql/` **nunca
+ califican schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
+ La Lambda hace `SET LOCAL search_path TO <stage>` al inicio. Tambien
+ prohibido: `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA`. Enforcement
+ automatico: `scripts/ci/lint-migrations.py` en el CI. Ver
+ [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
 
 ## Bloques de despliegue (deploy selectivo)
 
@@ -115,17 +133,16 @@ antes de crear archivos.
 
 - **Orden**: secuencial (`max-parallel: 1`). (1) `migrations` primero, (2) resto
  del backend alfabetico, (3) `frontend` al final.
-- `migrations` es un caso especial: NO es un `serverless.yml` clasico, es una
- carpeta `sql/` con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones
- `-- +migrate up` / `-- +migrate down`, aplicados por una Lambda
- `cdts-<stage>-migrations-apply`. Ver
+- `migrations` es un caso especial: la logica de negocio es una carpeta `sql/`
+ con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones `-- +migrate up` /
+ `-- +migrate down`, aplicados por la Lambda `cdts-<stage>-migrations-apply`
+ (autogenerada por el helper desde la carpeta `apply/`). Ver
  [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
 - `frontend` es un caso especial: usa Serverless para la infra (S3+CloudFront+OAC),
  pero el "deploy" real tiene 3 pasos: (1) `sls deploy`, (2) `ng build
- --configuration <stage>`, (3) `aws s3 sync dist/cdts-frontend/browser/
- s3://<bucket>/ --delete` + CloudFront invalidation. El job del workflow
- `deploy-<stage>.yml` que corre cuando `matrix.block == 'frontend'` ejecuta
- estos 3 pasos.
+ --configuration <stage>`, (3) upload S3 tipado + CloudFront invalidation via
+ `scripts/ci/deploy-frontend.sh`. El job del workflow `deploy-<stage>.yml` que
+ corre cuando `matrix.block == 'frontend'` ejecuta estos 3 pasos.
 
 ## Flujo de trabajo con GitHub Actions
 
@@ -133,9 +150,10 @@ antes de crear archivos.
 - Abrir PR (a cualquier base) → **0 workflows**.
 - Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
 - Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
-- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `validate → plan → deploy →
- summary`. El job `validate` corre pytest, `lint-migrations` y `serverless-compose
- package`. Si falla, `plan` y `deploy` no se ejecutan y AWS queda intacto.
+- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `plan → validate → deploy →
+ summary`. El job `validate` corre pytest, `lint-migrations`, `node --test`
+ sobre los helpers JS y `serverless-compose package`. Si falla, `deploy` no
+ se ejecuta y AWS queda intacto.
 - Para iterar en dev **sin gastar Actions**: hacer `sls deploy --stage dev`
  directamente desde local con credenciales AWS locales. Solo mergear a `main`
  cuando este todo validado — ese es el unico gasto real de Actions.
@@ -154,76 +172,89 @@ antes de crear archivos.
 - Un `handler.py` que importa desde otro servicio hermano.
 - Un handler de `services/` que importa desde `platform/` (o al revés).
 - Servicio catch-all `platform/infrastructure/` o similar. Cada responsabilidad
-  infra tiene su propia carpeta descriptiva.
+ infra tiene su propia carpeta descriptiva.
 - Más de una Lambda por carpeta.
 - Código de negocio fuera de `src/`, `utils/` o `data/`.
 - Uso del nombre `prod` en YAML, scripts o docs (el stage productivo es `pro`).
 - Naming viejo `cdts-<service>-<stage>-<function>`; el orden correcto es
-  `cdts-<stage>-<service>-<function>`.
+ `cdts-<stage>-<service>-<function>`.
 - Carpeta de una Lambda con guion (`refresh-token/`, `create-signature/`). Va
-  con `_` (`refresh_token/`); el guion aparece solo en el nombre AWS.
+ con `_` (`refresh_token/`); el guion aparece solo en el nombre AWS.
 - `provider.naming.functionName` en `serverless.yml`. Esa propiedad NO existe
-  en Serverless Framework 3 y falla la resolucion de variables. Usar
-  `provider.stackName` para el CFN stack y `name:` explicito por funcion.
-- Handler con dots (`src.handlers.login.handler.handler`) mezclado con
-  slashes. Uniformidad: usar SIEMPRE slashes (`src/handlers/login/handler.handler`).
+ en Serverless Framework 3 y falla la resolucion de variables. Usar
+ `provider.stackName` para el CFN stack y `functions: ${file(./functions.js):build}`
+ para el registro automatico.
+- Declarar `name:` o `handler:` en `function.yml` sin razon. Ambos se
+ autogeneran (punto 8); si aparecen, deben llevar un comentario que justifique
+ el override. Sin justificacion, se rechaza en review.
+- Enumerar Lambdas manualmente en el `functions:` del `serverless.yml`
+ (`create_signature: ${file(./src/...)}`). Es trabajo del helper; refactorizar
+ a `functions: ${file(./functions.js):build}`.
+- Handler con dots (`src.handlers.login.handler.handler`) en un override.
+ Uniformidad: usar SIEMPRE slashes (`src/handlers/login/handler.handler`).
 - `- http:` (API Gateway v1) por default. Usar `- httpApi:` (v2); v1 solo si
-  necesitas WAF o endpoints privados.
+ necesitas WAF o endpoints privados.
 - Registrar bloques "manualmente" en `plan-deploy.sh`. El descubrimiento es
-  por arbol; crear la carpeta correspondiente y ya.
+ por arbol; crear la carpeta correspondiente y ya.
 - Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main` —
-  escribir una migracion nueva con timestamp posterior que corrija.
+ escribir una migracion nueva con timestamp posterior que corrija.
 - Calificar schema en una migracion (`CREATE TABLE dev.users`,
-  `SELECT ... FROM pro.orders`). El linter lo rechaza.
+ `SELECT ... FROM pro.orders`). El linter lo rechaza.
 - `SET search_path`, `CREATE SCHEMA`, `DROP SCHEMA` dentro de un `.sql`. El
-  linter lo rechaza.
+ linter lo rechaza.
 
 ## Plantilla para una Lambda nueva
 
 Ejemplo: bloque `auth` (services), Lambda `refresh_token` HTTP POST.
+El bloque ya existe con su `serverless.yml` y `functions.js`; solo hay que
+crear la carpeta de la Lambda.
 
 `backend/services/auth/src/handlers/refresh_token/handler.py`:
 ```python
 def handler(event, context):
-    return {"statusCode": 200, "body": ""}
+ return {"statusCode": 200, "body": ""}
 ```
 
 `backend/services/auth/src/handlers/refresh_token/function.yml`:
 ```yaml
-# name = cdts-<stage>-<servicio>-<carpeta-con-_-a-->
-name: cdts-${sls:stage}-auth-refresh-token
-handler: src/handlers/refresh_token/handler.handler
+# El generador autoderiva:
+#   name:    cdts-<stage>-auth-refresh-token
+#   handler: src/handlers/refresh_token/handler.handler
 description: Renueva un access token a partir de un refresh token.
 timeout: 30
 events:
-  - httpApi: { method: POST, path: /auth/refresh-token }
-  # - schedule: rate(1 day)      # si fuera scheduled/
-  # - sqs: arn:aws:sqs:...       # si fuera workers/
+ - httpApi: { method: POST, path: /auth/refresh-token }
+ # - schedule: rate(1 day)      # si fuera scheduled/
+ # - sqs: arn:aws:sqs:...       # si fuera workers/
 ```
 
-`backend/services/auth/serverless.yml`:
+`backend/services/auth/functions.js` (una sola vez por bloque):
+```js
+'use strict';
+module.exports.build = require('../../utils/build-functions')(__dirname);
+```
+
+`backend/services/auth/serverless.yml` (una sola vez por bloque):
 ```yaml
 service: auth
 frameworkVersion: '3'
 
 provider:
-  name: aws
-  runtime: python3.11
-  region: ${opt:region, 'us-east-1'}
-  stage: ${opt:stage, 'dev'}
-  stackName: cdts-${sls:stage}-auth
-  httpApi:
-    cors: true
+ name: aws
+ runtime: python3.11
+ region: ${opt:region, 'us-east-1'}
+ stage: ${opt:stage, 'dev'}
+ stackName: cdts-${sls:stage}-auth
+ httpApi:
+ cors: true
 
-functions:
-  refresh_token: ${file(./src/handlers/refresh_token/function.yml)}
+functions: ${file(./functions.js):build}
 ```
 
 Observaciones:
 - `service:` es solo el nombre corto (`auth`), sin prefijo `cdts-` ni stage.
 - `stackName:` fuerza el nombre del CFN stack a la convencion.
-- El nombre AWS de la Lambda sale del `name:` del `function.yml`, NO de
-  concatenaciones magicas en `provider.naming.functionName` (esa propiedad
-  no existe).
-- El key del map `functions:` es libre (usar snake_case para consistencia con
-  la carpeta), pero lo importante es el `name:` explicito.
+- `functions: ${file(./functions.js):build}` es la unica linea del map de
+ funciones — el helper descubre y registra todas las Lambdas del bloque.
+- El `function.yml` solo lleva lo especifico de esa Lambda; `name` y `handler`
+ no se escriben.
