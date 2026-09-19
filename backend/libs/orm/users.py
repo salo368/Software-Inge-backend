@@ -1,5 +1,5 @@
-from datetime import datetime
-from uuid import UUID
+from datetime import datetime, timezone
+from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, String, Text, select
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -9,15 +9,19 @@ from libs.core.db import db_session
 from libs.orm.base import Base
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class Users(Base):
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
     password_hash: Mapped[str] = mapped_column(Text)
     full_name: Mapped[str] = mapped_column(String(200))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
     def public_dict(self) -> dict:
         d = self.to_dict()

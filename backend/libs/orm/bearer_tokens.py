@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from sqlalchemy import CHAR, DateTime, ForeignKey, select, update
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -9,17 +9,21 @@ from libs.core.db import db_session
 from libs.orm.base import Base
 
 
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 class BearerTokens(Base):
     __tablename__ = "bearer_tokens"
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
     )
     token_hash: Mapped[str] = mapped_column(CHAR(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     def is_alive(self) -> bool:
         return self.revoked_at is None and self.expires_at > datetime.now(timezone.utc)
