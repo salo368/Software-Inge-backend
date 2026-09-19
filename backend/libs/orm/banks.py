@@ -1,9 +1,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid import UUID, uuid4
 
-from sqlalchemy import ARRAY, Boolean, DateTime, Numeric, String, Text, select
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import ARRAY, Boolean, DateTime, Integer, Numeric, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
@@ -17,7 +15,7 @@ def _utcnow() -> datetime:
 class Banks(Base):
     __tablename__ = "banks"
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     code: Mapped[str] = mapped_column(String(50), unique=True)
     name: Mapped[str] = mapped_column(String(120))
     logo_key: Mapped[str] = mapped_column(Text)
@@ -32,7 +30,7 @@ class Banks(Base):
 
     def public_dict(self, assets_base_url: str = "") -> dict:
         return {
-            "id": str(self.id),
+            "id": self.id,
             "code": self.code,
             "name": self.name,
             "logo_url": f"{assets_base_url.rstrip('/')}/{self.logo_key}" if assets_base_url else self.logo_key,
