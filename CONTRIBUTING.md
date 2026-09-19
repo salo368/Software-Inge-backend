@@ -88,6 +88,24 @@ Usar [Conventional Commits](https://www.conventionalcommits.org/) en espanol o i
 - `chore(ci): actualizar version de serverless`
 - `docs(readme): documentar deploy manual`
 
+## Squash commits y `[skip ci]`
+
+El repo esta configurado para que el squash merge use `PR title` como subject
+y `PR body` como message (NO concatena los mensajes de los commits internos).
+Ver `Settings > General > Pull Requests`:
+
+- `Default commit message: Pull request title and description`
+
+Esto es importante: si un commit dentro de la rama contiene `[skip ci]` en
+su mensaje (por ejemplo un merge que trajo historia vieja), el squash **no**
+lo hereda y el `push` al destino dispara los workflows normalmente.
+
+Reglas:
+
+- **Nunca** poner `[skip ci]` en el **titulo del PR** ni en el **body del PR**
+  (a menos que quieras conscientemente que el deploy NO corra).
+- En commits locales es libre; se pierden en el squash.
+
 ## Tests
 
 Todo cambio de logica debe traer su test. Los tests viven en `backend/tests/`. La
