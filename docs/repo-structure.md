@@ -174,8 +174,13 @@ del bloque.
 - Deploy real (job de CI para el bloque `frontend`):
   1. `sls deploy --stage <stage>` — crea/actualiza infra CFN.
   2. `ng build --configuration <stage>` — genera `dist/cdts-frontend/browser/`.
-  3. `aws s3 sync dist/cdts-frontend/browser/ s3://<bucket>/ --delete` — publica.
-  4. `aws cloudfront create-invalidation --paths "/*"` — invalida cache.
+  3. [`scripts/ci/deploy-frontend.sh`](../scripts/ci/deploy-frontend.sh) — sube
+     los assets a S3 **con Content-Type explícito por extensión** (evita el bug
+     de `aws s3 sync` en Windows que sirve `.js` como `text/plain` y rompe la SPA),
+     aplica `Cache-Control: public, max-age=31536000, immutable` en assets
+     hasheados (js/css/svg/woff2/json) y `no-cache` en `index.html`, borra
+     archivos huérfanos con `aws s3 sync --delete --size-only`, y crea la
+     invalidación de CloudFront.
 - CloudFront devuelve `/index.html` (200) para 403/404 → SPA routing client-side.
 
 ## 6. Estructura obligatoria de un bloque

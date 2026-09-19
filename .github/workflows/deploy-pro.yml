@@ -207,7 +207,6 @@ jobs:
 
       - name: Sync assets to S3 and invalidate CloudFront
         if: matrix.block == 'frontend'
-        working-directory: frontend
         run: |
           BUCKET="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
             --query 'Stacks[0].Outputs[?OutputKey==`WebBucketName`].OutputValue' --output text)"
@@ -218,8 +217,9 @@ jobs:
           echo "Bucket:   ${BUCKET}"
           echo "DistId:   ${DIST_ID}"
           echo "Domain:   https://${DOMAIN}"
-          aws s3 sync dist/cdts-frontend/browser/ "s3://${BUCKET}/" --delete
-          aws cloudfront create-invalidation --distribution-id "${DIST_ID}" --paths "/*" >/dev/null
+          BUCKET="${BUCKET}" DIST_ID="${DIST_ID}" \
+            DIST_DIR="frontend/dist/cdts-frontend/browser" \
+            bash scripts/ci/deploy-frontend.sh
           echo "::notice::Frontend deployed: https://${DOMAIN}"
 
   summary:
