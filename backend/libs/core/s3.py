@@ -54,3 +54,7 @@ def presign_download(bucket: str, key: str, expires: int = DEFAULT_DOWNLOAD_TTL,
 
 def head_object(bucket: str, key: str) -> dict:
     return _client.head_object(Bucket=bucket, Key=key)
+
+
+def download_bytes(bucket: str, key: str) -> bytes:
+    return _client.get_object(Bucket=bucket, Key=key)["Body"].read()

@@ -1,0 +1,6 @@
+description: Validates an uploaded identity photo with Rekognition.
+timeout: 30
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{token}/validate

@@ -16,6 +16,7 @@ from libs.orm.bearer_tokens import BearerTokens
 from libs.orm.forms import Forms
 from libs.orm.processes import Processes
 from libs.orm.files import Files
+from libs.orm.signatures import Signatures
 
 __all__ = [
     "Base",
@@ -26,4 +27,5 @@ __all__ = [
     "Forms",
     "Processes",
     "Files",
+    "Signatures",
 ]

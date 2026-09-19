@@ -29,3 +29,9 @@ services:
     path: services/processes
     dependsOn:
       - migrations
+
+  signatures:
+    path: services/signatures
+    dependsOn:
+      - migrations
+      - files

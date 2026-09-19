@@ -1,0 +1,5 @@
+description: Opens a signature ceremony for a process and emails the signer a link.
+events:
+  - httpApi:
+      method: POST
+      path: /signatures

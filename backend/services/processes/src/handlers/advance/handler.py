@@ -6,7 +6,9 @@ Gates:
   form       : the user must have a Forms row (upserted via /forms/me).
                We snapshot it into process.form_snapshot.
   documents  : at least one file of type `declaracion_renta` must be present.
-  signature  : mocked. Any advance call moves it to `payment`.
+  signature  : a signature ceremony must have reached the `signed` stage. The
+               signatures service already advances the process on confirm, so
+               this gate only catches a client trying to skip the ceremony.
   payment    : mocked. Any advance call moves it to `done`.
   done       : idempotent; returns the process untouched.
 """
@@ -16,6 +18,7 @@ from libs.core.responses import HandledError, generate_response, handle_exceptio
 from libs.orm.files import Files
 from libs.orm.forms import Forms
 from libs.orm.processes import Processes
+from libs.orm.signatures import Signatures
 from libs.utils.auth import require_auth
 
 NEXT_STAGE = {
@@ -52,6 +55,11 @@ def handler(event, context):
         files = Files.list_by_process(proc.id)
         if not any(f.file_type == "declaracion_renta" for f in files):
             raise HandledError("declaracion_renta_required", 400)
+
+    elif proc.stage == "signature":
+        ceremony = Signatures.get_active_for_process(proc.id)
+        if ceremony is None or ceremony.stage != "signed":
+            raise HandledError("signature_required", 400)
 
     proc.advance_to(NEXT_STAGE[proc.stage])
     return generate_response({"process": proc.public_dict()})
