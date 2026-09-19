@@ -54,5 +54,4 @@ custom:
     layer: false
     fileName: requirements.txt
 
-functions:
-  apply: ${file(./src/handlers/apply/function.yml)}
+functions: ${file(./functions.js):build}

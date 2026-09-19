@@ -54,18 +54,23 @@ mismo concepto se escribe de dos formas distintas según el contexto:
 | Carpeta de la Lambda | `snake_case` **obligatorio** | `src/handlers/refresh_token/` |
 | Archivo del handler | siempre `handler.py` | `handler.py` |
 | Función entrypoint | siempre `def handler(event, context)` | — |
-| Referencia en `function.yml` | slashes + `.handler` | `handler: src/handlers/refresh_token/handler.handler` |
-| Nombre AWS de la Lambda | `kebab-case`, se declara **explícito** con `name:` en el `function.yml` | `name: cdts-${sls:stage}-auth-refresh-token` |
+| Nombre AWS de la Lambda | `kebab-case`, **autogenerado** por el helper (§8.1) | `cdts-dev-auth-refresh-token` |
+| Handler path | **autogenerado**: `src/<tipo>/<carpeta>/handler.handler` | — |
 
 Regla mnemotécnica: **en la carpeta usás `_`; en el nombre AWS ese `_` se vuelve `-`**.
+
+El dev **no escribe** el `name:` ni el `handler:` en `function.yml`; los deriva
+el generador `backend/utils/build-functions.js` a partir de la convención (ver
+§8.1). Si por alguna razón se necesita romper la convención, ambos campos son
+override-ables declarándolos explícitos en el `function.yml` (escape hatch).
 
 **No** usar `provider.naming.functionName` en el `serverless.yml` — esa
 propiedad no existe en Serverless Framework 3 y falla con
 `Cannot resolve variable at "provider.naming.functionName"`. En su lugar:
 
 - `provider.stackName: cdts-${sls:stage}-<service>` — nombre del CFN stack.
-- `functions.<key>.name: cdts-${sls:stage}-<service>-<function>` (dentro de
-  cada `function.yml`) — nombre AWS de la Lambda.
+- `functions: ${file(./functions.js):build}` — delega el registro completo al
+  generador (auto-descubre Lambdas y arma `name` + `handler`).
 
 ### 3.2 API Gateway: `httpApi` (v2) por default
 
@@ -246,11 +251,49 @@ Dentro de `handlers/`, `scheduled/` o `workers/`, cada Lambda es **una carpeta c
 exactamente dos archivos**:
 
 - `handler.py` — código Python (define la función `handler(event, context)`).
-- `function.yml` — configuración Serverless de esa función. Se referencia desde
-  `serverless.yml` con `${file(./src/<tipo>/<function>/function.yml)}`.
+- `function.yml` — configuración **específica** de esa función (events, memory,
+  timeout override, environment, layers, etc.). **NO lleva `name` ni `handler`**;
+  ambos se autogeneran (§8.1).
 
 Si una Lambda necesita más de un archivo, esos archivos van dentro de la misma carpeta
 de la Lambda, no fuera.
+
+### 8.1 Auto-registro de Lambdas (`functions.js`)
+
+Cada bloque tiene un `functions.js` de 3 líneas que delega el registro al
+generador compartido `backend/utils/build-functions.js`:
+
+```js
+// backend/{services,platform}/<block>/functions.js
+'use strict';
+module.exports.build = require('../../utils/build-functions')(__dirname);
+```
+
+Y en el `serverless.yml` del bloque:
+
+```yaml
+functions: ${file(./functions.js):build}
+```
+
+Al desplegar, el generador:
+
+1. Escanea `src/{handlers,scheduled,workers}/*/function.yml`.
+2. Valida que cada carpeta sea `snake_case` (falla el package si detecta un
+   guión, mayúsculas u otro carácter).
+3. Autoderiva por convención:
+   - `name: cdts-<stage>-<service>-<folder-kebab>` (ej. carpeta `refresh_token/`
+     con `service: auth` en `dev` → `cdts-dev-auth-refresh-token`).
+   - `handler: src/<tipo>/<carpeta>/handler.handler`.
+4. Hace merge con lo declarado en `function.yml` (events, timeout, memory,
+   environment, layers, etc.). Los campos del `function.yml` **ganan** si
+   declaran `name:` o `handler:` explícito (escape hatch para casos raros).
+
+Ventajas: el dev sólo crea la carpeta con `handler.py` + `function.yml`, y la
+Lambda aparece registrada con el nombre AWS correcto sin intervención. Cero
+boilerplate, cero risk de typo en el prefix `cdts-<stage>-<service>-`.
+
+Tests unitarios del generador en `backend/tests/build-functions.test.js`
+(runner `node --test`, corre en el job `validate` de los deploys).
 
 ## 9. Composición: `backend/serverless-compose.yml`
 
@@ -305,6 +348,13 @@ backend/services/signature/
             └── function.yml
 ```
 
+`backend/services/signature/functions.js` (3 líneas, siempre igual):
+
+```js
+'use strict';
+module.exports.build = require('../../utils/build-functions')(__dirname);
+```
+
 `backend/services/signature/serverless.yml`:
 
 ```yaml
@@ -323,18 +373,17 @@ provider:
   httpApi:
     cors: true                             # CORS global, no por funcion
 
-functions:
-  create_signature:     ${file(./src/handlers/create_signature/function.yml)}
-  sign:                 ${file(./src/workers/sign/function.yml)}
-  cleanup_expired_otps: ${file(./src/scheduled/cleanup_expired_otps/function.yml)}
+# Auto-descubre y registra todas las Lambdas bajo
+# src/{handlers,scheduled,workers}/* (ver §8.1).
+functions: ${file(./functions.js):build}
 ```
 
 `backend/services/signature/src/handlers/create_signature/function.yml`:
 
 ```yaml
-# name = cdts-<stage>-<servicio>-<carpeta con _ reemplazado por ->
-name: cdts-${sls:stage}-signature-create-signature
-handler: src/handlers/create_signature/handler.handler
+# No lleva 'name' ni 'handler': el generador los autoderiva como
+#   name:    cdts-<stage>-signature-create-signature
+#   handler: src/handlers/create_signature/handler.handler
 description: Crea una nueva solicitud de firma.
 timeout: 40
 events:
@@ -400,9 +449,17 @@ def handler(event, context):
   nombre AWS declarado en `function.yml`.
 - Uso de `provider.naming.functionName` en `serverless.yml`. Esa propiedad NO
   existe en Serverless Framework 3 y falla la resolución de variables. Usar
-  `provider.stackName` para el CFN stack y `name:` explícito en cada `function.yml`.
-- Uso de dots (`src.handlers.login.handler.handler`) en el `handler:`. La
-  convención es slashes: `src/handlers/login/handler.handler`.
+  `provider.stackName` para el CFN stack y `functions: ${file(./functions.js):build}`
+  para el registro automático de Lambdas.
+- Declarar `name:` o `handler:` en `function.yml` sin razón. Ambos se
+  autogeneran por convención (§8.1); si aparecen, deben tener un comentario que
+  justifique por qué se rompe la convención. Sin justificación, se rechaza en
+  review.
+- Uso de dots (`src.handlers.login.handler.handler`) en el `handler:` override.
+  La convención es slashes: `src/handlers/login/handler.handler`.
+- Enumerar Lambdas manualmente en el `functions:` del `serverless.yml`
+  (`create_signature: ${file(./src/...)}`, una por línea). Es el trabajo del
+  generador; si aparece, se refactoriza a `functions: ${file(./functions.js):build}`.
 - `- http:` (API Gateway v1) por default. Usar `- httpApi:` (v2); v1 sólo si
   necesitás WAF o endpoints privados.
 - CORS repetido dentro de cada `function.yml`. Va una sola vez en
