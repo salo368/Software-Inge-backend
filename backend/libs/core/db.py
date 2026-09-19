@@ -1,18 +1,25 @@
 import os
+
+import boto3
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from libs.core.logger import Logger
 
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT", "5432")
-DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
 STAGE = os.getenv("STAGE", "dev")
+SSM_DB_PATH = os.getenv("SSM_DB_PATH", f"/cdts/{STAGE}/db")
+
+
+def _load_db_config() -> dict:
+    ssm = boto3.client("ssm")
+    resp = ssm.get_parameters_by_path(Path=SSM_DB_PATH, WithDecryption=True)
+    return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in resp["Parameters"]}
+
+
+_cfg = _load_db_config()
 
 engine = create_engine(
-    url=f"postgresql+pg8000://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+    url=f"postgresql+pg8000://{_cfg['user']}:{_cfg['password']}@{_cfg['host']}:{_cfg['port']}/{_cfg['name']}",
     pool_pre_ping=True,
     pool_recycle=840,
 )

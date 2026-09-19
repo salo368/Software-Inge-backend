@@ -17,15 +17,18 @@ provider:
 
   environment:
     STAGE: ${sls:stage}
-    DB_HOST: ${ssm:/cdts/${sls:stage}/db/host}
-    DB_PORT: ${ssm:/cdts/${sls:stage}/db/port}
-    DB_NAME: ${ssm:/cdts/${sls:stage}/db/name}
-    DB_USER: ${ssm:/cdts/${sls:stage}/db/user}
-    DB_PASSWORD: ${ssm:/cdts/${sls:stage}/db/password}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
 
   iam:
     role:
       name: cdts-${sls:stage}-auth-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
 
 plugins:
   - serverless-python-requirements
