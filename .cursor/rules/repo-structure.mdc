@@ -12,11 +12,13 @@ antes de crear archivos.
 ## Layout del monorepo
 
 - **Raíz** = solo infra de proyecto: `.github/`, `.cursor/`, `docs/`, `scripts/iam/`,
-  `scripts/ci/`, `README.md`, `CONTRIBUTING.md`, `.gitignore`.
+ `scripts/ci/`, `README.md`, `CONTRIBUTING.md`, `.gitignore`.
 - **Todo el backend vive en [`backend/`](../../backend/)**: `serverless-compose.yml`,
-  `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
-  `config/`, `utils/`, `data/`, `services/`, `platform/`, `layers/`, `tests/`.
-- Un eventual `frontend/` iría a la raíz al mismo nivel que `backend/`.
+ `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
+ `config/`, `utils/`, `data/`, `services/`, `platform/`, `layers/`, `tests/`.
+- **El frontend vive en [`frontend/`](../../frontend/)**: Angular 18 SPA. Bloque
+ unico, no se subdivide. Infra: S3 privado + CloudFront con OAC, definida en
+ `frontend/serverless.yml` (service: `frontend`, sin Lambdas).
 
 ## Reglas duras
 
@@ -87,31 +89,66 @@ antes de crear archivos.
 
 ## Bloques de despliegue (deploy selectivo)
 
-- El pipeline **no** re-despliega todo el backend en cada push. Agrupa por
-  **bloques** y despliega solo los afectados por el diff.
-- Un bloque = una carpeta directa bajo `backend/services/<X>/` o
-  `backend/platform/<X>/`. Descubrimiento automatico via
-  [`scripts/ci/plan-deploy.sh`](../../scripts/ci/plan-deploy.sh).
-- **Diff solo en `backend/services/X/`** o **`backend/platform/X/`** → deploy
-  solo del bloque `X`.
-- **Diff en varios bloques** → todos los afectados, `migrations` primero,
-  resto alfabetico, secuencial.
-- **Diff en CUALQUIER archivo backend/ que no pertenezca a un bloque** →
-  deploy TOTAL. Incluye por regla general: `serverless-compose.yml`,
-  `package*.json`, `requirements-*.txt`, `.nvmrc`, `.python-version`,
-  `pytest.ini`, `config/**`, `utils/**`, `data/**`, `layers/**`, y cualquier
-  archivo suelto en `backend/`. Regla conservadora a proposito.
-- **Diff solo fuera de `backend/`** → NO se despliega nada.
+- El pipeline **no** re-despliega todo el proyecto en cada push. Agrupa por
+ **bloques** y despliega solo los afectados por el diff.
+- Bloques: cada carpeta directa bajo `backend/services/<X>/`, cada carpeta
+ directa bajo `backend/platform/<X>/`, y `frontend/` como bloque unico.
+ Descubrimiento automatico via
+ [`scripts/ci/plan-deploy.sh`](../../scripts/ci/plan-deploy.sh).
+- **Contenido vs codigo en `platform/`**: cada bloque `platform/<X>/` tiene
+ una lista de subcarpetas de "contenido puro" (declarada en
+ `PLATFORM_CONTENT_DIRS` dentro de `plan-deploy.sh`; para `migrations` es
+ `sql/`). Cambios SOLO dentro de esas subcarpetas → deploy del bloque. Cualquier
+ otro cambio dentro del bloque platform (codigo, `serverless.yml`, `utils/`,
+ `data/`, `src/**`) → **deploy total del backend**.
+- **Tabla de reglas**:
+
+| Diff en | Plan |
+|---|---|
+| Solo `backend/services/X/**` | Solo `X` |
+| Solo `backend/platform/X/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
+| Otra cosa en `backend/platform/X/**` (codigo/config del bloque) | Todo el backend |
+| Cualquier archivo "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | Todo el backend |
+| Solo `frontend/**` | Solo `frontend` |
+| Mezcla backend + frontend | Segun backend + `frontend` |
+| Solo fuera de `backend/` y `frontend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | 0 deploys |
+
+- **Orden**: secuencial (`max-parallel: 1`). (1) `migrations` primero, (2) resto
+ del backend alfabetico, (3) `frontend` al final.
 - `migrations` es un caso especial: NO es un `serverless.yml` clasico, es una
-  carpeta `sql/` con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones
-  `-- +migrate up` / `-- +migrate down`, aplicados por una Lambda
-  `cdts-<stage>-migrations-apply`. Ver
-  [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
+ carpeta `sql/` con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones
+ `-- +migrate up` / `-- +migrate down`, aplicados por una Lambda
+ `cdts-<stage>-migrations-apply`. Ver
+ [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
+- `frontend` es un caso especial: usa Serverless para la infra (S3+CloudFront+OAC),
+ pero el "deploy" real tiene 3 pasos: (1) `sls deploy`, (2) `ng build
+ --configuration <stage>`, (3) `aws s3 sync dist/cdts-frontend/browser/
+ s3://<bucket>/ --delete` + CloudFront invalidation. El job del workflow
+ `deploy-<stage>.yml` que corre cuando `matrix.block == 'frontend'` ejecuta
+ estos 3 pasos.
+
+## Flujo de trabajo con GitHub Actions
+
+- `git push feat/*` (o cualquier rama fuera de `main`/`develop`) → **0 workflows**.
+- Abrir PR (a cualquier base) → **0 workflows**.
+- Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
+- Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
+- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `validate → plan → deploy →
+ summary`. El job `validate` corre pytest, `lint-migrations` y `serverless-compose
+ package`. Si falla, `plan` y `deploy` no se ejecutan y AWS queda intacto.
+- Para iterar en dev **sin gastar Actions**: hacer `sls deploy --stage dev`
+ directamente desde local con credenciales AWS locales. Solo mergear a `main`
+ cuando este todo validado — ese es el unico gasto real de Actions.
 
 ## Anti-patrones (rechazar)
 
 - Archivos del backend (`.py`, `serverless*.yml`, `requirements-*.txt`, etc.) fuera
-  de `backend/`.
+ de `backend/`.
+- Archivos del frontend (`.ts` de Angular, `angular.json`, `package.json` del
+ frontend) fuera de `frontend/`.
+- Subdividir `frontend/` en sub-bloques desplegables. Es un bloque unico por
+ diseno; si aparece la necesidad de subdividir, se replantea la regla en
+ conjunto, no unilateralmente.
 - Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
 - Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
 - Un `handler.py` que importa desde otro servicio hermano.

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       block:
-        description: "Block to force (empty = auto-detect; '__all__' = full backend)"
+        description: "Block to force (empty = auto-detect; '__all__' = all blocks)"
         required: false
         default: ""
 
@@ -115,28 +115,32 @@ jobs:
     environment:
       name: pro
       url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (backend)
+        if: matrix.block != 'frontend'
         uses: actions/setup-node@v4
         with:
           node-version-file: backend/.nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - name: Setup Node.js (frontend)
+        if: matrix.block == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Setup Python
+        if: matrix.block != 'frontend'
         uses: actions/setup-python@v5
         with:
           python-version-file: backend/.python-version
-
-      - name: Install Node dependencies
-        run: npm ci
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -148,7 +152,16 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Deploy block "${{ matrix.block }}"
+      # ---------------- Backend path ----------------
+
+      - name: Install Node dependencies (backend)
+        if: matrix.block != 'frontend'
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy backend block "${{ matrix.block }}"
+        if: matrix.block != 'frontend'
+        working-directory: backend
         run: |
           if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
             echo "::notice::No services registered; nothing to deploy."
@@ -174,6 +187,40 @@ jobs:
             echo "::error::Lambda returned an error. See logs above."
             exit 1
           fi
+
+      # ---------------- Frontend path ----------------
+
+      - name: Install Node dependencies (frontend)
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        run: npm ci
+
+      - name: Deploy frontend infra (S3 + CloudFront)
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        run: npx serverless deploy --stage pro --verbose
+
+      - name: Build Angular (pro)
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        run: npx ng build --configuration pro
+
+      - name: Sync assets to S3 and invalidate CloudFront
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        run: |
+          BUCKET="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`WebBucketName`].OutputValue' --output text)"
+          DIST_ID="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text)"
+          DOMAIN="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDomainName`].OutputValue' --output text)"
+          echo "Bucket:   ${BUCKET}"
+          echo "DistId:   ${DIST_ID}"
+          echo "Domain:   https://${DOMAIN}"
+          aws s3 sync dist/cdts-frontend/browser/ "s3://${BUCKET}/" --delete
+          aws cloudfront create-invalidation --distribution-id "${DIST_ID}" --paths "/*" >/dev/null
+          echo "::notice::Frontend deployed: https://${DOMAIN}"
 
   summary:
     name: Deploy summary
