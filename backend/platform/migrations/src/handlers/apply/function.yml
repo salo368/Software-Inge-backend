@@ -1,5 +1,3 @@
-name: cdts-${sls:stage}-migrations-apply
-handler: src/handlers/apply/handler.handler
 description: Applies pending SQL migrations to the stage schema.
 memorySize: 512
 timeout: 300

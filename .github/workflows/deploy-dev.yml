@@ -79,6 +79,15 @@ jobs:
       - name: Lint SQL migrations
         run: python scripts/ci/lint-migrations.py
 
+      - name: Test JS helpers (node --test)
+        working-directory: backend
+        run: |
+          if ls tests/*.test.js >/dev/null 2>&1; then
+            node --test tests/*.test.js
+          else
+            echo "::notice::No JS tests found; skip."
+          fi
+
       - name: Validate serverless-compose (package)
         working-directory: backend
         run: |
