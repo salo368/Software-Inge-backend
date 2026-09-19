@@ -1,0 +1,45 @@
+# CODEOWNERS
+#
+# Cualquier PR que toque las rutas de abajo requiere review del owner listado.
+# Los PRs que NO tocan ninguna de estas rutas se pueden mergear sin review
+# (siempre respetando branch protection: main = squash + linear history).
+#
+# Ver: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# CI/CD workflows: solo el owner del proyecto puede aprobar cambios.
+/.github/                     @salo368
+
+# Scripts de CI (plan-deploy, deploy-frontend, lint-migrations, IAM bootstrap).
+/scripts/                     @salo368
+
+# Reglas persistentes para la IA y documentacion de estructura.
+/.cursor/                     @salo368
+/docs/repo-structure.md       @salo368
+
+# Configuracion global de proyecto.
+/CONTRIBUTING.md              @salo368
+/README.md                    @salo368
+/.gitignore                   @salo368
+
+# Configuracion global del backend (composer, deps, tests transversales, layers).
+/backend/serverless-compose.yml   @salo368
+/backend/package.json             @salo368
+/backend/package-lock.json        @salo368
+/backend/requirements-dev.txt     @salo368
+/backend/pytest.ini               @salo368
+/backend/.nvmrc                   @salo368
+/backend/.python-version          @salo368
+/backend/config/                  @salo368
+/backend/utils/                   @salo368
+/backend/data/                    @salo368
+/backend/layers/                  @salo368
+/backend/tests/                   @salo368
+
+# Infra del bloque frontend (Serverless, Angular config, deps).
+# El codigo de la SPA (frontend/src/**) queda libre para colaboradores.
+/frontend/serverless.yml          @salo368
+/frontend/angular.json            @salo368
+/frontend/package.json            @salo368
+/frontend/package-lock.json       @salo368
+/frontend/tsconfig*.json          @salo368
+/frontend/.nvmrc                  @salo368
