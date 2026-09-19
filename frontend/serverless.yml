@@ -6,7 +6,6 @@ provider:
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   stackName: cdts-${sls:stage}-frontend
-  runtime: nodejs20.x
 
 package:
   patterns:
