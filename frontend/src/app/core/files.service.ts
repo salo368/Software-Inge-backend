@@ -20,6 +20,7 @@ interface UploadUrlResponse {
   upload_url: string;
   key: string;
   content_type: string;
+  upload_headers: Record<string, string>;
   expires_in: number;
 }
 
@@ -53,7 +54,8 @@ export class FilesService {
         from(
           fetch(r.upload_url, {
             method: 'PUT',
-            headers: { 'Content-Type': r.content_type },
+            // Signed into the presigned URL, so they must go through as-is.
+            headers: r.upload_headers ?? { 'Content-Type': r.content_type },
             body: file,
           }).then((resp) => {
             if (!resp.ok) throw new Error(`S3 upload failed: ${resp.status}`);

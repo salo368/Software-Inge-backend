@@ -4,7 +4,7 @@ Keys look like: processes/{process_id}/{file_type}/{file_uuid}.{ext}
 The worker parses the key, fetches HEAD metadata, and registers a row in
 `files`. Idempotent: if the key already exists we skip.
 """
-from urllib.parse import unquote_plus
+from urllib.parse import unquote, unquote_plus
 from uuid import UUID
 
 from libs.core.db import db_session
@@ -45,11 +45,16 @@ def _process_record(record: dict) -> None:
         return
 
     head = head_object(bucket, key)
+    # get_upload_url stores the user-facing name here percent-encoded, since
+    # the key itself is a uuid. Fall back to the key's filename.
+    stored_name = (head.get("Metadata") or {}).get("original-name")
+    original_name = unquote(stored_name) if stored_name else filename
+
     Files.register_from_s3(
         process_id=process_id,
         file_type=file_type,
         s3_key=key,
-        original_name=filename,
+        original_name=original_name,
         size_bytes=head.get("ContentLength"),
         content_type=head.get("ContentType"),
     )

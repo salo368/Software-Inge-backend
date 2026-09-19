@@ -23,10 +23,17 @@ def upload_from_bytes(bucket: str, key: str, data: bytes, content_type: str | No
 
 
 def presign_upload(bucket: str, key: str, content_type: str,
+                   metadata: dict[str, str] | None = None,
                    expires: int = DEFAULT_UPLOAD_TTL) -> str:
+    """Metadata keys are signed into the URL, so the client must send each one
+    back as an `x-amz-meta-<key>` header with the identical value or S3 rejects
+    the PUT. Values must be ASCII; percent-encode anything else."""
+    params: dict = {"Bucket": bucket, "Key": key, "ContentType": content_type}
+    if metadata:
+        params["Metadata"] = metadata
     return _client.generate_presigned_url(
         "put_object",
-        Params={"Bucket": bucket, "Key": key, "ContentType": content_type},
+        Params=params,
         ExpiresIn=expires,
         HttpMethod="PUT",
     )

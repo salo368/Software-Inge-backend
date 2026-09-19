@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.parse import quote
 from uuid import UUID, uuid4
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
@@ -46,11 +47,20 @@ def handler(event, context):
     ext = _extension_for(content_type, original_name)
     key = f"processes/{process.id}/{file_type}/{file_id}{ext}"
 
-    url = presign_upload(BUCKET, key, content_type)
+    # Percent-encoded so names with accents or spaces survive the HTTP header.
+    safe_name = quote(original_name or f"{file_id}{ext}", safe="")
+    metadata = {"original-name": safe_name}
+
+    url = presign_upload(BUCKET, key, content_type, metadata=metadata)
     return generate_response({
         "upload_url": url,
         "key": key,
         "content_type": content_type,
+        # The client must echo these verbatim; they are part of the signature.
+        "upload_headers": {
+            "Content-Type": content_type,
+            "x-amz-meta-original-name": safe_name,
+        },
         "expires_in": 900,
     })
 

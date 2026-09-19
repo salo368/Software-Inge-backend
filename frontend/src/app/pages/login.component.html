@@ -1,27 +1,54 @@
-<section class="auth-card">
-  <h1>Iniciar sesión</h1>
+<div class="auth-bg">
+  <section class="card border-0 shadow-sm auth-card">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h3 fw-bold mb-1">Iniciar sesión</h1>
+      <p class="text-body-secondary small mb-4">
+        Accede para retomar tus procesos donde los dejaste.
+      </p>
 
-  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <label>
-      <span>Email</span>
-      <input type="email" formControlName="email" autocomplete="email" required />
-    </label>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="login-email">Email</label>
+          <input
+            id="login-email"
+            type="email"
+            class="form-control"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="tu@correo.com"
+            required
+          />
+        </div>
 
-    <label>
-      <span>Contraseña</span>
-      <input type="password" formControlName="password" autocomplete="current-password" required />
-    </label>
+        <div class="mb-3">
+          <label class="form-label" for="login-password">Contraseña</label>
+          <input
+            id="login-password"
+            type="password"
+            class="form-control"
+            formControlName="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
 
-    @if (error()) {
-      <p class="error">{{ error() }}</p>
-    }
+        @if (error()) {
+          <div class="alert alert-danger py-2 small">{{ error() }}</div>
+        }
 
-    <button type="submit" [disabled]="form.invalid || loading()">
-      {{ loading() ? 'Entrando…' : 'Entrar' }}
-    </button>
-  </form>
+        <button
+          type="submit"
+          class="btn btn-primary w-100 mt-2"
+          [disabled]="form.invalid || loading()"
+        >
+          {{ loading() ? 'Entrando…' : 'Entrar' }}
+        </button>
+      </form>
 
-  <p class="alt">
-    ¿No tienes cuenta? <a routerLink="/register">Regístrate</a>
-  </p>
-</section>
+      <p class="text-center small text-body-secondary mt-4 mb-0">
+        ¿No tienes cuenta?
+        <a routerLink="/register" class="fw-semibold text-decoration-none">Regístrate</a>
+      </p>
+    </div>
+  </section>
+</div>

@@ -68,9 +68,13 @@ h1, h2, h3, h4, h5, h6,
   box-shadow: 0 10px 28px rgba(124, 58, 237, 0.45);
   color: #fff;
 }
+/* Bootstrap dims disabled buttons to 0.65 opacity, which washes the gradient
+   out to near-white and makes the loading label unreadable. */
 .btn-primary:disabled {
-  background: #c4b5fd;
+  background: #a78bfa;
   box-shadow: none;
+  color: #fff;
+  opacity: 1;
 }
 
 .btn-outline-primary {

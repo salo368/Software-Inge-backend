@@ -1,33 +1,70 @@
-<section class="auth-card">
-  <h1>Crear cuenta</h1>
+<div class="auth-bg">
+  <section class="card border-0 shadow-sm auth-card">
+    <div class="card-body p-4 p-md-5">
+      <h1 class="h3 fw-bold mb-1">Crear cuenta</h1>
+      <p class="text-body-secondary small mb-4">
+        Te toma menos de un minuto y puedes abrir tu CDT enseguida.
+      </p>
 
-  <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-    <label>
-      <span>Nombre</span>
-      <input type="text" formControlName="full_name" autocomplete="name" required />
-    </label>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="register-name">Nombre</label>
+          <input
+            id="register-name"
+            type="text"
+            class="form-control"
+            formControlName="full_name"
+            autocomplete="name"
+            placeholder="Como apareces en tu documento"
+            required
+          />
+        </div>
 
-    <label>
-      <span>Email</span>
-      <input type="email" formControlName="email" autocomplete="email" required />
-    </label>
+        <div class="mb-3">
+          <label class="form-label" for="register-email">Email</label>
+          <input
+            id="register-email"
+            type="email"
+            class="form-control"
+            formControlName="email"
+            autocomplete="email"
+            placeholder="tu@correo.com"
+            required
+          />
+        </div>
 
-    <label>
-      <span>Contraseña</span>
-      <input type="password" formControlName="password" autocomplete="new-password" required />
-      <small>Mínimo 10 caracteres, con letras y números.</small>
-    </label>
+        <div class="mb-3">
+          <label class="form-label" for="register-password">Contraseña</label>
+          <input
+            id="register-password"
+            type="password"
+            class="form-control"
+            formControlName="password"
+            autocomplete="new-password"
+            required
+          />
+          <small class="text-body-secondary">
+            Mínimo 10 caracteres, con letras y números.
+          </small>
+        </div>
 
-    @if (error()) {
-      <p class="error">{{ error() }}</p>
-    }
+        @if (error()) {
+          <div class="alert alert-danger py-2 small">{{ error() }}</div>
+        }
 
-    <button type="submit" [disabled]="form.invalid || loading()">
-      {{ loading() ? 'Creando…' : 'Registrarme' }}
-    </button>
-  </form>
+        <button
+          type="submit"
+          class="btn btn-primary w-100 mt-2"
+          [disabled]="form.invalid || loading()"
+        >
+          {{ loading() ? 'Creando…' : 'Registrarme' }}
+        </button>
+      </form>
 
-  <p class="alt">
-    ¿Ya tienes cuenta? <a routerLink="/login">Inicia sesión</a>
-  </p>
-</section>
+      <p class="text-center small text-body-secondary mt-4 mb-0">
+        ¿Ya tienes cuenta?
+        <a routerLink="/login" class="fw-semibold text-decoration-none">Inicia sesión</a>
+      </p>
+    </div>
+  </section>
+</div>

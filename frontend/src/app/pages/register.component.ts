@@ -13,7 +13,6 @@ import { ProcessesService } from '../core/processes.service';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './register.component.html',
-  styleUrl: './auth-form.css',
 })
 export class RegisterComponent {
   private fb = inject(FormBuilder);
