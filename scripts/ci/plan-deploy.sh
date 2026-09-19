@@ -16,7 +16,12 @@ declare -A PLATFORM_CONTENT_DIRS=(
 
 CHANGED_FILES=""
 
-if [[ -n "${MANUAL_BLOCK:-}" ]]; then
+# Testing hook: PLAN_DEPLOY_TEST_CHANGED_FILES can inject a newline-separated
+# file list to skip real diff detection. Used by unit tests only.
+if [[ -n "${PLAN_DEPLOY_TEST_CHANGED_FILES:-}" ]]; then
+  CHANGED_FILES="${PLAN_DEPLOY_TEST_CHANGED_FILES}"
+  log "== TEST MODE: using injected CHANGED_FILES"
+elif [[ -n "${MANUAL_BLOCK:-}" ]]; then
   log "== manual: MANUAL_BLOCK='${MANUAL_BLOCK}'"
 elif [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
   BASE_REF="${GITHUB_BASE_REF:-main}"
@@ -191,7 +196,35 @@ else
   json+="]"
 fi
 
+# Count backend blocks in the plan (all blocks except 'frontend'). Used by the
+# workflow to skip Validate when the plan is purely frontend (Validate only
+# checks backend: pytest + lint-migrations + serverless-compose package).
+backend_count=0
+for b in "${ordered[@]}"; do
+  [[ "${b}" == "frontend" ]] && continue
+  backend_count=$((backend_count + 1))
+done
+
+# Detect whether frontend infra needs `sls deploy`. Only true if any file
+# under frontend/ OUTSIDE src/ changed (serverless.yml, package.json, angular.json,
+# etc.). Content-only changes under frontend/src/ skip sls deploy since the
+# stack does not need to change; only s3 sync + invalidation.
+frontend_infra_changed=0
+if [[ "${CHANGED_FILES}" == "__FORCE_ALL__" || -n "${MANUAL_BLOCK:-}" ]]; then
+  frontend_infra_changed=1
+elif [[ -n "${CHANGED_FILES}" ]]; then
+  while IFS= read -r f; do
+    [[ -z "${f}" ]] && continue
+    if [[ "${f}" =~ ^frontend/ && ! "${f}" =~ ^frontend/src/ ]]; then
+      frontend_infra_changed=1
+      break
+    fi
+  done <<<"${CHANGED_FILES}"
+fi
+
 log "== blocks=${json}"
+log "== backend_count=${backend_count}"
+log "== frontend_infra_changed=${frontend_infra_changed}"
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   log "== DRY_RUN active, skipping GITHUB_OUTPUT"
@@ -202,5 +235,7 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
     echo "blocks=${json}"
     echo "count=${#ordered[@]}"
+    echo "backend_count=${backend_count}"
+    echo "frontend_infra_changed=${frontend_infra_changed}"
   } >>"${GITHUB_OUTPUT}"
 fi
