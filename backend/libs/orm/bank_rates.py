@@ -15,8 +15,8 @@ def _utcnow() -> datetime:
 class BankRates(Base):
     __tablename__ = "bank_rates"
 
-    # PK compuesta: reemplaza al id sintetico y sirve como indice de lookup
-    # ("highest min_amount <= amount for a given bank+term").
+    # Composite PK doubles as the lookup index ("highest min_amount <= amount
+    # for a given bank+term"), so no extra secondary index is needed.
     bank_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("banks.id", ondelete="CASCADE"), primary_key=True
     )
@@ -39,9 +39,9 @@ class BankRates(Base):
 
     @classmethod
     def best_per_bank(cls, term_days: int, amount: Decimal) -> dict[int, Decimal]:
-        """Returns {bank_id: rate} para el (term, amount) dado, un rate por banco.
-        Un banco sin bracket aplicable (amount < todos sus min_amount) queda fuera."""
-        # DISTINCT ON: para cada bank_id, la fila con el mayor min_amount <= amount.
+        """{bank_id: rate} for a given (term, amount). Uses DISTINCT ON to pick
+        the highest applicable min_amount per bank in a single query. Banks
+        whose floor is above `amount` are omitted from the result."""
         subq = (
             select(cls.bank_id, cls.rate, cls.min_amount)
             .where(and_(cls.term_days == term_days, cls.min_amount <= amount))

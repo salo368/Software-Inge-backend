@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
-// Rutas hijas de /docs, todas lazy. Servicios y casos de uso re-usan el mismo
-// componente cuando solo cambian los params (default RouteReuseStrategy de Angular).
+// Children of /docs, all lazy-loaded. Services and use-cases reuse the same
+// component when only the params change (default Angular RouteReuseStrategy).
 export const DOCS_ROUTES: Routes = [
   {
     path: '',
@@ -32,8 +32,8 @@ export const DOCS_ROUTES: Routes = [
         path: 'use-cases/:useCaseId',
         loadComponent: () => import('./use-cases.component').then((m) => m.UseCasesComponent),
       },
-      // Rutas rotas dentro de /docs se quedan en el overview de docs; no salen a
-      // '' (que es protegida y redirige a /login sin sesion).
+      // Broken paths under /docs stay in the docs overview instead of
+      // falling out to '' (which would redirect unauthenticated users to /login).
       { path: '**', redirectTo: '' },
     ],
   },

@@ -32,7 +32,7 @@ export class LoginComponent {
     this.error.set(null);
     const { email, password } = this.form.getRawValue();
     this.auth.login(email, password).subscribe({
-      next: () => this.router.navigate(['/']),
+      next: () => this.router.navigate(['/me']),
       error: (err: HttpErrorResponse) => {
         this.error.set(err.error?.error ?? 'network_error');
         this.loading.set(false);

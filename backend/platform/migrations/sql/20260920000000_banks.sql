@@ -1,6 +1,6 @@
 -- Banks + bank_rates. Rates depend on (bank, term_days, amount range).
 -- Rate lookup: highest min_amount for (bank_id, term_days) such that min_amount <= amount.
--- Seed picks tasas variadas para que segun (monto, plazo) gane distinto banco.
+-- Rates are hand-tuned so the top bank changes depending on (amount, term).
 
 -- +migrate up
 
@@ -46,11 +46,11 @@ INSERT INTO banks (code, name, logo_key, description, tier, rating_by, min_amoun
 ('coltefinanciera', 'Coltefinanciera',       'banks/coltefinanciera.png', 'Especialista en CDTs. Las tasas mas altas del mercado.',                                      'AA',  'BRC Ratings',     2000000,  ARRAY['Las tasas mas altas del mercado', 'Especialista en CDTs']),
 ('nu',              'Nu Colombia',           'banks/nu.png',              'El neobanco mas grande del mundo. Experiencia 100% digital.',                                 'AA',  'Fitch Ratings',   100000,   ARRAY['El neobanco mas grande del mundo', 'Experiencia 100% digital', 'Sin letra pequena']);
 
--- Rates seed. 3 rangos por plazo por banco: [0-5M), [5M-50M), [50M+).
--- Tasas variadas para que en distintos (monto, plazo) gane distinto banco.
--- Formato: (code, term_days, min_amount, rate)
+-- Rates seed. Three brackets per bank/term: [0-5M), [5M-50M), [50M+).
+-- Rates are hand-tuned so the top bank changes depending on (amount, term).
+-- Format: (code, term_days, min_amount, rate)
 WITH r(code, term_days, min_amount, rate) AS (VALUES
-    -- Bancolombia (AAA, estable, tasas conservadoras)
+    -- Bancolombia (AAA, stable, conservative rates)
     ('bancolombia',    90, 0,        9.30),
     ('bancolombia',    90, 5000000,  9.60),
     ('bancolombia',    90, 50000000, 9.90),
@@ -67,7 +67,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('bancolombia',   720, 5000000, 12.00),
     ('bancolombia',   720, 50000000, 12.40),
 
-    -- Davivienda (AAA, fuerte en largos)
+    -- Davivienda (AAA, strong on long terms)
     ('davivienda',     90, 0,        8.80),
     ('davivienda',     90, 5000000,  9.10),
     ('davivienda',     90, 50000000, 9.40),
@@ -84,7 +84,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('davivienda',    720, 5000000, 13.20),
     ('davivienda',    720, 50000000, 13.60),
 
-    -- BBVA (AAA, tasas estables)
+    -- BBVA (AAA, stable rates)
     ('bbva',           90, 0,        9.60),
     ('bbva',           90, 5000000,  9.90),
     ('bbva',           90, 50000000, 10.20),
@@ -101,7 +101,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('bbva',          720, 5000000, 12.20),
     ('bbva',          720, 50000000, 12.50),
 
-    -- Banco de Bogota (AAA, similar a BBVA)
+    -- Banco de Bogota (AAA, similar to BBVA)
     ('bogota',         90, 0,        9.80),
     ('bogota',         90, 5000000, 10.10),
     ('bogota',         90, 50000000, 10.40),
@@ -118,7 +118,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('bogota',        720, 5000000, 12.20),
     ('bogota',        720, 50000000, 12.50),
 
-    -- Itau (AAA, equilibrio)
+    -- Itau (AAA, balanced)
     ('itau',           90, 0,       10.20),
     ('itau',           90, 5000000, 10.50),
     ('itau',           90, 50000000, 10.80),
@@ -135,7 +135,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('itau',          720, 5000000, 12.40),
     ('itau',          720, 50000000, 12.80),
 
-    -- Scotiabank Colpatria (AAA, mejora en largos)
+    -- Scotiabank Colpatria (AAA, improves on long terms)
     ('scotiabank',     90, 0,        9.30),
     ('scotiabank',     90, 5000000,  9.60),
     ('scotiabank',     90, 50000000, 9.90),
@@ -152,7 +152,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('scotiabank',    720, 5000000, 12.50),
     ('scotiabank',    720, 50000000, 12.90),
 
-    -- Serfinanza (AA+, top en plazos largos)
+    -- Serfinanza (AA+, top on long terms)
     ('serfinanza',     90, 1000000, 10.40),
     ('serfinanza',     90, 5000000, 10.70),
     ('serfinanza',     90, 50000000, 11.00),
@@ -169,7 +169,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('serfinanza',    720, 5000000, 13.70),
     ('serfinanza',    720, 50000000, 14.10),
 
-    -- Banco Pichincha (AA+, campeon del corto plazo, curva plana en largos)
+    -- Banco Pichincha (AA+, short-term champion, flat curve on long terms)
     ('pichincha',      90, 1000000, 11.90),
     ('pichincha',      90, 5000000, 12.20),
     ('pichincha',      90, 50000000, 12.50),
@@ -186,7 +186,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('pichincha',     720, 5000000, 12.40),
     ('pichincha',     720, 50000000, 12.70),
 
-    -- Banco Finandina (AA+, digital, competitivo en medios)
+    -- Banco Finandina (AA+, digital, competitive on mid terms)
     ('finandina',      90, 200000,  11.10),
     ('finandina',      90, 5000000, 11.40),
     ('finandina',      90, 50000000, 11.70),
@@ -203,7 +203,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('finandina',     720, 5000000, 12.80),
     ('finandina',     720, 50000000, 13.10),
 
-    -- Pibank (AA+, tasas agresivas)
+    -- Pibank (AA+, aggressive rates)
     ('pibank',         90, 200000,  11.70),
     ('pibank',         90, 5000000, 12.00),
     ('pibank',         90, 50000000, 12.30),
@@ -220,7 +220,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('pibank',        720, 5000000, 12.60),
     ('pibank',        720, 50000000, 12.90),
 
-    -- Coltefinanciera (AA, especialista en CDTs, gana casi todos los tramos altos)
+    -- Coltefinanciera (AA, CDT specialist, wins nearly every high-amount bracket)
     ('coltefinanciera', 90, 2000000, 10.90),
     ('coltefinanciera', 90, 10000000, 11.30),
     ('coltefinanciera', 90, 100000000, 11.70),
@@ -237,7 +237,7 @@ WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('coltefinanciera',720, 10000000, 13.90),
     ('coltefinanciera',720, 100000000, 14.40),
 
-    -- Nu Colombia (AA, gana en montos pequenos y plazos cortos)
+    -- Nu Colombia (AA, wins on small amounts and short terms)
     ('nu',             90, 100000,  12.10),
     ('nu',             90, 5000000, 12.30),
     ('nu',             90, 50000000, 12.50),

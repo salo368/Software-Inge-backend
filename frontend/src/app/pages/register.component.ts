@@ -33,7 +33,7 @@ export class RegisterComponent {
     this.error.set(null);
     const { email, password, full_name } = this.form.getRawValue();
     this.auth.register(email, password, full_name).subscribe({
-      next: () => this.router.navigate(['/']),
+      next: () => this.router.navigate(['/me']),
       error: (err: HttpErrorResponse) => {
         this.error.set(err.error?.error ?? 'network_error');
         this.loading.set(false);

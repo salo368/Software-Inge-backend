@@ -24,7 +24,7 @@ const USER_KEY = 'cdts_user';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private http = inject(HttpClient);
-  private base = environment.apiBaseUrl;
+  private base = environment.authApiUrl;
 
   private _token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   private _user = signal<User | null>(this.readStoredUser());
