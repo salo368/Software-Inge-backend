@@ -1,0 +1,100 @@
+<div *ngIf="loading()" class="text-center py-4">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<form *ngIf="!loading()" [formGroup]="form" (ngSubmit)="submit()">
+  <div *ngIf="prefilled()" class="alert alert-info d-flex align-items-center gap-2 py-2 small mb-4">
+    <i class="bi bi-info-circle"></i>
+    Precargamos tus datos del ultimo proceso. Revisa que sigan siendo correctos y actualiza lo que haya cambiado.
+  </div>
+
+  <h6 class="text-uppercase text-body-secondary small fw-bold mb-3">
+    <i class="bi bi-person-vcard me-1"></i>Informacion personal
+  </h6>
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <label class="form-label small fw-semibold">Nombre completo</label>
+      <input formControlName="full_name" class="form-control" placeholder="Como aparece en tu documento" />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Fecha de nacimiento</label>
+      <input formControlName="birth_date" type="date" class="form-control" />
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Tipo de documento</label>
+      <select formControlName="document_type" class="form-select">
+        <option *ngFor="let t of DOCUMENT_TYPES" [value]="t">{{ t }}</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small fw-semibold">Numero de documento</label>
+      <input formControlName="document_number" class="form-control" placeholder="1020304050" />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Telefono</label>
+      <input formControlName="phone" class="form-control" placeholder="+57 300 000 0000" />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Ciudad</label>
+      <input formControlName="city" class="form-control" placeholder="Bogota" />
+    </div>
+    <div class="col-12">
+      <label class="form-label small fw-semibold">Direccion de residencia</label>
+      <input formControlName="address" class="form-control" placeholder="Cll 123 # 45 - 67" />
+    </div>
+  </div>
+
+  <h6 class="text-uppercase text-body-secondary small fw-bold mb-3">
+    <i class="bi bi-briefcase me-1"></i>Perfil financiero
+  </h6>
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Ocupacion</label>
+      <input formControlName="occupation" class="form-control" placeholder="Ingeniero, medico, comerciante..." />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Actividad economica</label>
+      <input formControlName="economic_activity" class="form-control" placeholder="Empleado, independiente, empresa..." />
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Ingresos mensuales (COP)</label>
+      <input formControlName="monthly_income" type="number" min="0" step="10000" class="form-control" />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Egresos mensuales (COP)</label>
+      <input formControlName="monthly_expenses" type="number" min="0" step="10000" class="form-control" />
+    </div>
+
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Total activos (COP)</label>
+      <input formControlName="total_assets" type="number" min="0" step="100000" class="form-control" />
+    </div>
+    <div class="col-md-6">
+      <label class="form-label small fw-semibold">Total pasivos (COP)</label>
+      <input formControlName="total_liabilities" type="number" min="0" step="100000" class="form-control" />
+    </div>
+
+    <div class="col-12">
+      <label class="form-label small fw-semibold">Origen de los fondos</label>
+      <input formControlName="source_of_funds" class="form-control" placeholder="Ahorros, salario, herencia..." />
+    </div>
+
+    <div class="col-12">
+      <div class="form-check">
+        <input formControlName="is_peps" type="checkbox" class="form-check-input" id="pepsCheck" />
+        <label for="pepsCheck" class="form-check-label small">
+          Soy o he sido persona expuesta politicamente (PEP) o tengo un familiar cercano que lo sea.
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="error()" class="alert alert-danger py-2 small">{{ error() }}</div>
+
+  <button type="submit" class="btn btn-primary w-100 py-2" [disabled]="saving()">
+    <span *ngIf="saving()" class="spinner-border spinner-border-sm me-2"></span>
+    Guardar y continuar
+    <i class="bi bi-arrow-right ms-2"></i>
+  </button>
+</form>

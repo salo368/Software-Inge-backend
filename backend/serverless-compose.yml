@@ -14,3 +14,18 @@ services:
     path: services/banks
     dependsOn:
       - migrations
+
+  files:
+    path: services/files
+    dependsOn:
+      - migrations
+
+  forms:
+    path: services/forms
+    dependsOn:
+      - migrations
+
+  processes:
+    path: services/processes
+    dependsOn:
+      - migrations

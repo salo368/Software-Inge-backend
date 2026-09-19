@@ -1,0 +1,3 @@
+description: Returns the current user's form (KYC + financial profile) or null.
+events:
+  - httpApi: { method: GET, path: /forms/me }

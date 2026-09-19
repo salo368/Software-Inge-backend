@@ -1,0 +1,5 @@
+description: Presigned GET URL to display or download a file from the private bucket.
+events:
+  - httpApi:
+      method: GET
+      path: /files/{id}/download-url

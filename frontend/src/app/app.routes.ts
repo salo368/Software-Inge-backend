@@ -27,5 +27,10 @@ export const routes: Routes = [
     canActivate: [requireAuth],
     loadComponent: () => import('./pages/home.component').then((m) => m.HomeComponent),
   },
+  {
+    path: 'process/:id',
+    canActivate: [requireAuth],
+    loadComponent: () => import('./pages/process.component').then((m) => m.ProcessComponent),
+  },
   { path: '**', redirectTo: '' },
 ];

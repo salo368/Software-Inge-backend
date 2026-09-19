@@ -1,0 +1,39 @@
+<p class="text-body-secondary small mb-4">
+  Cargamos tus documentos de forma segura y los verificamos automaticamente.
+  Aceptamos PDF, JPG o PNG (max 10 MB).
+</p>
+
+<label
+  class="upload-box mb-3 d-flex align-items-center gap-3"
+  [class.uploaded]="declaracion"
+  [class.opacity-75]="uploading()"
+>
+  <input
+    type="file"
+    class="d-none"
+    accept="application/pdf,image/jpeg,image/png"
+    [disabled]="uploading()"
+    (change)="onFileChange($event)"
+  />
+  <i
+    class="bi fs-3"
+    [class.bi-cloud-arrow-up]="!declaracion && !uploading()"
+    [class.bi-hourglass-split]="uploading()"
+    [class.bi-check-circle-fill]="declaracion && !uploading()"
+  ></i>
+  <div class="flex-grow-1">
+    <div class="fw-semibold">Declaracion de renta</div>
+    <div class="small text-body-secondary" *ngIf="!declaracion && !uploading()">
+      Ultimo periodo disponible. PDF preferentemente.
+    </div>
+    <div class="small text-body-secondary" *ngIf="uploading()">{{ progressMsg() }}</div>
+    <div class="small text-body-secondary" *ngIf="declaracion && !uploading()">
+      {{ declaracion.original_name || 'archivo cargado' }}
+      <a href="javascript:void(0)" class="ms-2 fw-semibold" (click)="openFile(); $event.stopPropagation()">
+        ver <i class="bi bi-box-arrow-up-right"></i>
+      </a>
+    </div>
+  </div>
+</label>
+
+<div *ngIf="error()" class="alert alert-danger py-2 small">{{ error() }}</div>

@@ -7,6 +7,16 @@ import { AnimatedMoneyComponent } from '../components/animated-money.component';
 import { AuthService } from '../core/auth.service';
 import { BanksService, SimulationRow } from '../core/banks.service';
 import { formatCOP, tierCss } from '../core/format';
+import { ProcessesService } from '../core/processes.service';
+
+export const PENDING_CDT_KEY = 'cdts_pending_open';
+
+export interface PendingCdtIntent {
+  bank_id: number;
+  amount: number;
+  term_days: number;
+  rate: number;
+}
 
 interface TermOption {
   key: number;
@@ -38,8 +48,11 @@ const TIER_LABEL: Record<string, string> = {
 })
 export class SimulatorComponent implements OnInit {
   private banksApi = inject(BanksService);
+  private processesApi = inject(ProcessesService);
   private auth = inject(AuthService);
   private router = inject(Router);
+
+  openingId = signal<number | null>(null);
 
   readonly TERMS = TERMS;
   readonly formatCOP = formatCOP;
@@ -112,11 +125,28 @@ export class SimulatorComponent implements OnInit {
   }
 
   openCdt(row: SimulationRow): void {
+    const intent: PendingCdtIntent = {
+      bank_id: row.bank.id,
+      amount: this.amount(),
+      term_days: this.term(),
+      rate: row.rate,
+    };
     if (!this.auth.isAuthenticated()) {
+      localStorage.setItem(PENDING_CDT_KEY, JSON.stringify(intent));
       this.router.navigate(['/register']);
       return;
     }
-    // TODO: actual CDT open flow. For now land on /me.
-    this.router.navigate(['/me']);
+    if (this.openingId() !== null) return;
+    this.openingId.set(row.bank.id);
+    this.processesApi.create(intent).subscribe({
+      next: (r) => {
+        this.openingId.set(null);
+        this.router.navigate(['/process', r.process.id]);
+      },
+      error: () => {
+        this.openingId.set(null);
+        this.error.set('No pudimos abrir el CDT. Intenta de nuevo.');
+      },
+    });
   }
 }
