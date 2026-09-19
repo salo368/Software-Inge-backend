@@ -1,0 +1,47 @@
+service: auth
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-auth
+  memorySize: 512
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    DB_HOST: ${ssm:/cdts/${sls:stage}/db/host}
+    DB_PORT: ${ssm:/cdts/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/cdts/${sls:stage}/db/name}
+    DB_USER: ${ssm:/cdts/${sls:stage}/db/user}
+    DB_PASSWORD: ${ssm:/cdts/${sls:stage}/db/password}
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-auth-lambda
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+
+functions: ${file(./functions.js):build}
