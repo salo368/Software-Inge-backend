@@ -1,5 +1,6 @@
 description: Validates the OTP, stamps the signature and closes the ceremony.
-timeout: 30
+# Downloads four objects, stamps the PDF and renders the certificate.
+timeout: 29
 memorySize: 1536
 events:
   - httpApi:

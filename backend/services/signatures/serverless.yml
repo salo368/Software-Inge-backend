@@ -9,8 +9,7 @@ provider:
   stage: ${opt:stage, 'dev'}
   stackName: cdts-${sls:stage}-signatures
   memorySize: 1024
-  # Rendering the order and stamping the signature are the slow paths.
-  timeout: 30
+  timeout: 15
   logRetentionInDays: 14
 
   httpApi:
@@ -24,7 +23,9 @@ provider:
     # Optional override for the link emailed to the signer. Left empty the
     # handler falls back to the Origin of the request, which is the frontend
     # that started the ceremony -- no cross-stack dependency needed.
-    SIGN_BASE_URL: ${ssm:/cdts/${sls:stage}/frontend/url, ''}
+    # Resolved from the deployer's environment, not SSM: the CI `validate` job
+    # packages without AWS credentials and an ${ssm:} lookup would fail there.
+    SIGN_BASE_URL: ${env:SIGN_BASE_URL, ''}
 
   iam:
     role:
