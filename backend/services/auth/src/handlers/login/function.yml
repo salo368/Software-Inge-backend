@@ -1,0 +1,3 @@
+description: Authenticates a user and issues a bearer token.
+events:
+  - httpApi: { method: POST, path: /auth/login }
