@@ -1,15 +1,11 @@
-import { Component, VERSION } from '@angular/core';
-import { environment } from '../environments/environment';
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css',
+  imports: [RouterOutlet],
+  template: `<router-outlet />`,
+  styles: [],
 })
-export class AppComponent {
-  readonly stage = environment.stage;
-  readonly angularVersion = VERSION.full;
-  readonly buildTime = new Date().toISOString();
-}
+export class AppComponent {}
