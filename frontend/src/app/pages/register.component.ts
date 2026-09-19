@@ -5,6 +5,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../core/auth.service';
+import { completePostAuthRedirect } from '../core/post-auth';
+import { ProcessesService } from '../core/processes.service';
 
 @Component({
   selector: 'app-register',
@@ -17,6 +19,7 @@ export class RegisterComponent {
   private fb = inject(FormBuilder);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private processesApi = inject(ProcessesService);
 
   form = this.fb.nonNullable.group({
     full_name: ['', [Validators.required, Validators.minLength(2)]],
@@ -33,7 +36,7 @@ export class RegisterComponent {
     this.error.set(null);
     const { email, password, full_name } = this.form.getRawValue();
     this.auth.register(email, password, full_name).subscribe({
-      next: () => this.router.navigate(['/me']),
+      next: () => completePostAuthRedirect(this.router, this.processesApi),
       error: (err: HttpErrorResponse) => {
         this.error.set(err.error?.error ?? 'network_error');
         this.loading.set(false);

@@ -1,0 +1,5 @@
+description: Advances a process to the next stage after validating gates for the current stage.
+events:
+  - httpApi:
+      method: POST
+      path: /processes/{id}/advance

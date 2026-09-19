@@ -5,4 +5,7 @@ export const environment = {
   stage: 'dev' as const,
   authApiUrl: 'https://7sdsmzal74.execute-api.us-east-1.amazonaws.com',
   banksApiUrl: 'https://elrpxpxr10.execute-api.us-east-1.amazonaws.com',
+  filesApiUrl: 'https://REPLACE-AT-FIRST-DEV-DEPLOY.execute-api.us-east-1.amazonaws.com',
+  formsApiUrl: 'https://REPLACE-AT-FIRST-DEV-DEPLOY.execute-api.us-east-1.amazonaws.com',
+  processesApiUrl: 'https://REPLACE-AT-FIRST-DEV-DEPLOY.execute-api.us-east-1.amazonaws.com',
 };

@@ -213,7 +213,12 @@
           </div>
 
           <!-- CTA -->
-          <button class="btn btn-primary w-100 mt-3" (click)="openCdt(row)">
+          <button
+            class="btn btn-primary w-100 mt-3"
+            [disabled]="openingId() !== null"
+            (click)="openCdt(row)"
+          >
+            <span *ngIf="openingId() === row.bank.id" class="spinner-border spinner-border-sm me-2"></span>
             Abrir este CDT
             <i class="bi bi-arrow-right ms-1"></i>
           </button>

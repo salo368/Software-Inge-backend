@@ -1,24 +1,79 @@
-<section class="home">
-  <header>
-    <h1>CDTS <span class="badge">{{ stage }}</span></h1>
-    <button type="button" (click)="logout()" [disabled]="loading()">
-      {{ loading() ? 'Saliendo…' : 'Cerrar sesión' }}
-    </button>
-  </header>
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div>
+    <h3 class="fw-bolder mb-1">Hola, {{ user()?.full_name }}</h3>
+    <p class="text-body-secondary small mb-0">
+      Aqui puedes retomar cada proceso donde lo dejaste y abrir nuevos CDTs cuando quieras.
+    </p>
+  </div>
+  <a routerLink="/" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Simular un nuevo CDT
+  </a>
+</div>
 
-  @if (user(); as u) {
-    <article class="profile">
-      <h2>Hola, {{ u.full_name }}</h2>
-      <dl>
-        <dt>Email</dt>
-        <dd>{{ u.email }}</dd>
-        <dt>ID</dt>
-        <dd><code>{{ u.id }}</code></dd>
-        <dt>Miembro desde</dt>
-        <dd>{{ u.created_at | date:'medium' }}</dd>
-      </dl>
-    </article>
-  } @else {
-    <p>Cargando perfil…</p>
-  }
-</section>
+<div *ngIf="loading()" class="text-center py-5">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<ng-container *ngIf="!loading()">
+  <div *ngIf="rows().length === 0" class="text-center py-4 my-2">
+    <div class="empty-state-icon mb-3">
+      <i class="bi bi-piggy-bank"></i>
+    </div>
+    <h5 class="fw-bold mb-2">Aun no has abierto un CDT</h5>
+    <p class="text-body-secondary mb-4" style="max-width: 26rem; margin-inline: auto">
+      Compara tasas en el simulador y elige la entidad que mas te convenga.
+    </p>
+    <a routerLink="/" class="btn btn-primary px-4">Ir al simulador</a>
+  </div>
+
+  <div class="row g-3" *ngIf="rows().length > 0">
+    <div class="col-12 col-md-6 col-xl-4" *ngFor="let row of rows()">
+      <a [routerLink]="['/process', row.proc.id]" class="card h-100 shadow-sm text-decoration-none text-body bank-card">
+        <div class="card-body p-4 d-flex flex-column">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div *ngIf="row.bank" class="bank-logo">
+              <img [src]="row.bank.logo_url" [alt]="row.bank.name" loading="lazy" />
+            </div>
+            <div class="flex-grow-1">
+              <div class="fw-bold lh-sm">{{ row.bank?.name || 'CDT' }}</div>
+              <span class="badge mt-1" [ngClass]="stageClass[row.proc.stage]">
+                {{ stageLabel[row.proc.stage] }}
+              </span>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-stretch justify-content-between border-top pt-3">
+            <div>
+              <div class="text-body-secondary small fw-semibold">Monto</div>
+              <div class="fs-5 fw-bolder lh-1 mt-2">{{ formatCOP(row.proc.amount) }}</div>
+            </div>
+            <div class="text-end">
+              <div class="text-body-secondary small fw-semibold">Tasa</div>
+              <div class="fs-5 fw-bolder rate-gradient lh-1 mt-2">
+                {{ row.proc.rate.toFixed(2) }}<span class="fs-6">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-top small">
+            <div class="d-flex justify-content-between mb-1">
+              <span class="text-body-secondary">Plazo</span>
+              <span class="fw-semibold">{{ row.proc.term_days }} dias</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-body-secondary">Interes estimado</span>
+              <span class="fw-semibold money-positive">
+                +<app-animated-money [value]="interest(row.proc)"></app-animated-money>
+              </span>
+            </div>
+          </div>
+
+          <div class="mt-3 pt-3 border-top small d-flex justify-content-between">
+            <span class="text-body-secondary">Creado</span>
+            <span>{{ row.proc.created_at | date: 'mediumDate' }}</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+</ng-container>

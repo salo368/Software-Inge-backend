@@ -1,0 +1,151 @@
+<div *ngIf="loading()" class="text-center py-5">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<ng-container *ngIf="!loading() && detail() as d">
+  <!-- Header -->
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+    <div>
+      <a routerLink="/me" class="text-decoration-none small fw-semibold">
+        <i class="bi bi-arrow-left me-1"></i>Mis procesos
+      </a>
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <div *ngIf="bank() as b" class="bank-logo bank-logo-sm">
+          <img [src]="b.logo_url" [alt]="b.name" />
+        </div>
+        <h3 class="fw-bolder mb-0">
+          Apertura de CDT<span *ngIf="bank() as b"> &middot; {{ b.name }}</span>
+        </h3>
+      </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="badge text-bg-light border">{{ formatCOP(d.process.amount) }}</span>
+      <span class="badge text-bg-light border">{{ d.process.term_days }} dias</span>
+      <span class="badge text-bg-light border">{{ d.process.rate.toFixed(2) }}% E.A.</span>
+    </div>
+  </div>
+
+  <!-- Stepper -->
+  <div class="stepper mb-4">
+    <ng-container *ngFor="let s of STEPS; let i = index">
+      <div class="step" [class.done]="i < stageIndex()" [class.current]="i === stageIndex()">
+        <div class="step-dot">
+          <i class="bi" [ngClass]="i < stageIndex() ? 'bi-check-lg' : s.icon"></i>
+        </div>
+        <div class="step-label">{{ s.label }}</div>
+      </div>
+      <div *ngIf="i < STEPS.length - 1" class="step-line" [class.done]="i < stageIndex()"></div>
+    </ng-container>
+  </div>
+
+  <!-- Body card -->
+  <div class="card shadow-sm mx-auto" style="max-width: 720px">
+    <div class="card-body p-4 p-lg-5">
+      <!-- form -->
+      <ng-container *ngIf="stage() === 'form'">
+        <h5 class="fw-bold mb-1">Cuentanos de ti</h5>
+        <p class="text-body-secondary small mb-4">
+          Necesitamos algunos datos para cumplir la debida diligencia y precalificarte con la entidad.
+        </p>
+        <app-process-form (saved)="onFormSaved()"></app-process-form>
+      </ng-container>
+
+      <!-- documents -->
+      <ng-container *ngIf="stage() === 'documents'">
+        <h5 class="fw-bold mb-1">Carga tu declaracion de renta</h5>
+        <app-process-documents
+          [processId]="d.process.id"
+          [files]="d.files"
+          (uploaded)="refresh()"
+        ></app-process-documents>
+      </ng-container>
+
+      <!-- signature (mocked) -->
+      <ng-container *ngIf="stage() === 'signature'">
+        <h5 class="fw-bold mb-1">Firma tu contrato</h5>
+        <p class="text-body-secondary small mb-4">
+          En produccion enviaremos un enlace seguro a tu correo para firmar digitalmente.
+          Por ahora, la firma esta simulada: presiona continuar para marcarla como completada.
+        </p>
+        <div class="border rounded-3 p-3 mb-3 d-flex align-items-center gap-3" style="background: #faf9fe">
+          <i class="bi bi-file-earmark-text fs-3" style="color: var(--brand)"></i>
+          <div class="flex-grow-1">
+            <div class="fw-semibold">
+              Contrato de apertura<span *ngIf="bank() as b"> &middot; {{ b.name }}</span>
+            </div>
+            <div class="small text-body-secondary">
+              {{ formatCOP(d.process.amount) }} &middot; {{ d.process.term_days }} dias &middot;
+              {{ d.process.rate.toFixed(2) }}% E.A.
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- payment (mocked) -->
+      <ng-container *ngIf="stage() === 'payment'">
+        <h5 class="fw-bold mb-1">Fondea tu CDT</h5>
+        <p class="text-body-secondary small mb-4">
+          Elige como transferir {{ formatCOP(d.process.amount) }}. El pago tambien esta simulado por ahora.
+        </p>
+        <div class="upload-box mb-3 uploaded d-flex align-items-center gap-3">
+          <i class="bi bi-lightning-charge fs-3"></i>
+          <div>
+            <div class="fw-semibold">PSE</div>
+            <div class="small text-body-secondary">Debito inmediato desde tu banco</div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- done -->
+      <ng-container *ngIf="stage() === 'done'">
+        <div class="text-center">
+          <div
+            class="empty-state-icon mb-3"
+            style="background: linear-gradient(135deg, #dcfce7, #d1fae5); color: #059669"
+          >
+            <i class="bi bi-check-lg"></i>
+          </div>
+          <h4 class="fw-bolder mb-2">Tu CDT esta activo</h4>
+          <p class="text-body-secondary mb-4">Tu inversion ya esta trabajando por ti.</p>
+          <div class="border rounded-3 p-4 text-start mb-4" style="background: #faf9fe">
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-body-secondary">Invertiste</span>
+              <span class="fw-bold">{{ formatCOP(d.process.amount) }}</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-body-secondary">Plazo &middot; Tasa</span>
+              <span class="fw-bold">{{ d.process.term_days }} dias &middot; {{ d.process.rate.toFixed(2) }}% E.A.</span>
+            </div>
+            <div class="d-flex justify-content-between mb-2">
+              <span class="text-body-secondary">Ganaras</span>
+              <span class="fw-bold money-positive">+<app-animated-money [value]="interest()"></app-animated-money></span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span class="text-body-secondary">Recibiras al final</span>
+              <span class="fw-bold"><app-animated-money [value]="finalAmount()"></app-animated-money></span>
+            </div>
+          </div>
+          <a routerLink="/me" class="btn btn-primary px-4">Ir a mis procesos</a>
+        </div>
+      </ng-container>
+
+      <div *ngIf="error()" class="alert alert-danger mt-3 py-2 small mb-0">{{ error() }}</div>
+
+      <!-- Advance CTA (form stage is advanced by the sub-component; done has no CTA) -->
+      <button
+        *ngIf="stage() !== 'form' && stage() !== 'done'"
+        class="btn btn-primary w-100 mt-4 py-2"
+        [disabled]="advancing()"
+        (click)="advance()"
+      >
+        <span *ngIf="advancing()" class="spinner-border spinner-border-sm me-2"></span>
+        <ng-container [ngSwitch]="stage()">
+          <span *ngSwitchCase="'documents'">Continuar a la firma</span>
+          <span *ngSwitchCase="'signature'">Firmar (simulado)</span>
+          <span *ngSwitchCase="'payment'">Pagar {{ formatCOP(d.process.amount) }} (simulado)</span>
+        </ng-container>
+        <i class="bi bi-arrow-right ms-2"></i>
+      </button>
+    </div>
+  </div>
+</ng-container>
