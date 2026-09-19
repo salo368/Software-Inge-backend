@@ -84,30 +84,35 @@ provider:
 ## 4. Layout del monorepo
 
 La raíz del repo agrupa **infraestructura de proyecto**; el runtime backend vive
-completo bajo [`backend/`](../backend/).
+completo bajo [`backend/`](../backend/) y el frontend bajo [`frontend/`](../frontend/).
 
 ```
 repo/
 ├── .github/workflows/          ← CI/CD YAMLs
 ├── .cursor/rules/              ← reglas persistentes IA
 ├── docs/                       ← documentacion humana
-├── scripts/iam/                ← IAM bootstrap docs + JSON policy
+├── scripts/ci/, scripts/iam/   ← CI helpers + IAM bootstrap
 ├── backend/                    ← ★ TODO el backend Serverless
 │   ├── serverless-compose.yml
 │   ├── package.json, package-lock.json
 │   ├── requirements-dev.txt, pytest.ini
 │   ├── .nvmrc, .python-version
 │   ├── config/, utils/, data/    (§7)
-│   ├── services/<service>/       (§5)
+│   ├── services/<service>/       (§5.1)
+│   ├── platform/<name>/          (§5.2)
 │   ├── layers/shared/            (Lambda Layer)
 │   └── tests/
+├── frontend/                   ← ★ Angular SPA (bloque unico, §5.4)
+│   ├── serverless.yml            (S3 + CloudFront + OAC)
+│   ├── angular.json, package.json
+│   └── src/
 ├── README.md, CONTRIBUTING.md
 └── .gitignore
 ```
 
-Todo el trabajo de Lambda, Serverless, dependencias Python/Node y tests unitarios
-ocurre dentro de `backend/`. La raíz permanece "agnóstica" para dejar espacio a un
-futuro `frontend/` sin conflictos.
+Todo el trabajo de Lambda, Serverless backend, dependencias Python/Node de
+backend y tests unitarios ocurre dentro de `backend/`. Todo el trabajo del cliente
+web (Angular) ocurre dentro de `frontend/`. La raíz permanece "agnóstica".
 
 ## 5. Servicios de dominio vs bloques de plataforma
 
@@ -148,6 +153,35 @@ Para el pipeline `services/` y `platform/` son iguales: cada carpeta directa es
 un bloque descubierto automáticamente por `scripts/ci/plan-deploy.sh`. La única
 regla especial: `migrations` se despliega **primero** si forma parte del plan
 (ver §14).
+
+### 5.4 `frontend/` — SPA Angular (bloque único)
+
+Fuera de `backend/`, a nivel raíz, existe un único bloque `frontend`. No se
+subdivide: cualquier cambio dentro de `frontend/**` dispara el deploy completo
+del bloque.
+
+- Stack: **Angular 18** con builder `@angular-devkit/build-angular:application`.
+- Infra AWS: **S3 privado + CloudFront con Origin Access Control (OAC)**. Bucket
+  bloqueado, sólo CloudFront lee (via bucket policy con condition `aws:SourceArn`).
+- Definición: `frontend/serverless.yml` con `service: frontend`. Sin Lambdas;
+  solo `resources`. `package.patterns: ['!./**']` para no subir nada como zip.
+- Naming CFN: `stackName: cdts-${sls:stage}-frontend`. Bucket:
+  `cdts-<stage>-frontend-web-<accountId>` (sufijo del accountId para garantizar
+  unicidad global).
+- Configuraciones Angular: `dev` y `pro` (renombradas de las default `development`
+  y `production`). `pro` incluye `fileReplacements` para reemplazar
+  `src/environments/environment.ts` por `environment.pro.ts`.
+- Deploy real (job de CI para el bloque `frontend`):
+  1. `sls deploy --stage <stage>` — crea/actualiza infra CFN.
+  2. `ng build --configuration <stage>` — genera `dist/cdts-frontend/browser/`.
+  3. [`scripts/ci/deploy-frontend.sh`](../scripts/ci/deploy-frontend.sh) — sube
+     los assets a S3 **con Content-Type explícito por extensión** (evita el bug
+     de `aws s3 sync` en Windows que sirve `.js` como `text/plain` y rompe la SPA),
+     aplica `Cache-Control: public, max-age=31536000, immutable` en assets
+     hasheados (js/css/svg/woff2/json) y `no-cache` en `index.html`, borra
+     archivos huérfanos con `aws s3 sync --delete --size-only`, y crea la
+     invalidación de CloudFront.
+- CloudFront devuelve `/index.html` (200) para 403/404 → SPA routing client-side.
 
 ## 6. Estructura obligatoria de un bloque
 
@@ -392,56 +426,72 @@ Cada test es del tipo pytest (`test_*.py`, funciones `test_*`). El CI corre
 
 ## 14. Bloques de despliegue
 
-Para evitar re-desplegar todo el backend cada vez que se toca un archivo, el
+Para evitar re-desplegar todo el proyecto cada vez que se toca un archivo, el
 pipeline agrupa el codigo en **bloques** independientes y solo despliega los
-bloques afectados por el diff.
+bloques afectados por el diff. Un PR abierto NO dispara CI/CD (§15). El deploy
+ocurre solo al hacer push a `develop` (→ Deploy DEV) o merge/push a `main` (→
+Deploy PRO).
 
 ### 14.1 Que es un bloque
-
-Un bloque es una unidad autonoma que se despliega junta. Los bloques que existen
-hoy o pueden existir bajo `backend/`:
 
 | Bloque | Ubicacion | Que es |
 |---|---|---|
 | `<service>` | `backend/services/<service>/` | Servicio Serverless de dominio de negocio (§5.1). |
 | `<name>` | `backend/platform/<name>/` | Bloque de infraestructura runtime (§5.2). |
 | `migrations` | `backend/platform/migrations/` | Migraciones SQL versionadas. Ver [`backend/platform/migrations/README.md`](../backend/platform/migrations/README.md). |
+| `frontend` | `frontend/` | SPA Angular (§5.4). Bloque **unico**, no se subdivide. |
 
 Cada carpeta directa bajo `backend/services/` y `backend/platform/` genera
-automaticamente un bloque del mismo nombre. No hay que registrarlo en ningun
-lado extra: el [`scripts/ci/plan-deploy.sh`](../scripts/ci/plan-deploy.sh)
-descubre los bloques leyendo el arbol.
+automaticamente un bloque del mismo nombre. El bloque `frontend` es unico y
+existe siempre que exista la carpeta `frontend/`. Descubrimiento automatico
+en [`scripts/ci/plan-deploy.sh`](../scripts/ci/plan-deploy.sh).
 
 ### 14.2 Reglas de deploy selectivo
 
-1. **Cambios solo dentro de `backend/services/<X>/`** -> se despliega solo el
-   bloque `X`.
-2. **Cambios solo dentro de `backend/platform/<X>/`** -> se despliega solo el
-   bloque `X` (por ejemplo `migrations`).
-3. **Cambios en varios bloques a la vez** -> se despliegan todos los afectados,
-   en orden: `migrations` primero, despues el resto alfabetico.
-4. **Cambios en cualquier archivo backend/ que NO pertenezca a un bloque** ->
-   se re-despliegan **TODOS** los bloques. Regla conservadora: cualquier cosa
-   en `backend/` fuera de `services/<X>/` o `platform/<X>/` se considera cross
-   por defecto. Ejemplos tipicos:
-   - `backend/serverless-compose.yml`
-   - `backend/package.json`, `backend/package-lock.json`
-   - `backend/requirements-dev.txt`, `backend/requirements.txt`
-   - `backend/.nvmrc`, `backend/.python-version`, `backend/pytest.ini`
-   - `backend/config/**`
-   - `backend/utils/**`
-   - `backend/data/**`
-   - `backend/layers/**`
-5. **Cambios solo fuera de `backend/`** (docs, workflows, `.cursor/rules/`,
-   `scripts/iam/`, etc.) -> **no se despliega nada**. Solo corre CI.
-6. **Frontend** (cuando exista, en `frontend/`) siempre despliega **completo**;
-   no habra sub-bloques dentro. Se define en su propio workflow.
+Los bloques `platform/` distinguen entre **contenido** (datos autocontenidos) y
+**codigo/config** (que puede afectar a otros bloques). Cambios en contenido
+despliegan solo el bloque; cambios en codigo/config disparan **deploy total del
+backend**. La lista de subcarpetas de contenido por bloque platform vive en
+`PLATFORM_CONTENT_DIRS` dentro de `scripts/ci/plan-deploy.sh`:
+
+| Bloque platform | Subcarpetas de contenido |
+|---|---|
+| `migrations` | `sql/` |
+
+Tabla exhaustiva de que dispara que:
+
+| Diff detectado en | Bloques a desplegar |
+|---|---|
+| Solo `backend/services/<X>/**` (uno o varios) | Solo esos servicios |
+| Solo `backend/platform/<X>/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
+| Cualquier otra cosa dentro de `backend/platform/<X>/**` (codigo/config del bloque) | **Todos los bloques de backend** |
+| Cualquier "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | **Todos los bloques de backend** |
+| Solo `frontend/**` | Solo `frontend` |
+| Mezcla backend + frontend | Los del backend segun reglas de arriba **+** `frontend` |
+| Solo fuera de `backend/` y `frontend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | **0 deploys** |
+
+Ejemplos concretos:
+
+| Cambio | Plan |
+|---|---|
+| `backend/services/auth/src/handlers/login/handler.py` | `[auth]` |
+| `backend/platform/migrations/sql/20260919_add_users.sql` | `[migrations]` |
+| `backend/platform/migrations/src/handlers/apply/handler.py` | **`[migrations, ...todo el backend]`** |
+| `backend/platform/migrations/serverless.yml` | **`[migrations, ...todo el backend]`** |
+| `backend/config/pytest.ini` | `[migrations, auth, users, ...]` (todo backend) |
+| `frontend/src/app/app.component.html` | `[frontend]` |
+| `backend/services/auth/**` + `frontend/**` | `[auth, frontend]` |
+| `README.md` o `.github/workflows/deploy-dev.yml` | `[]` (no deploy) |
 
 ### 14.3 Orden de despliegue
 
 Cuando el plan incluye varios bloques, se despliegan **secuencialmente** con
-`max-parallel: 1`. `migrations` va siempre primero para garantizar que el
-esquema este al dia antes de que arranquen los servicios.
+`max-parallel: 1`, en este orden:
+
+1. `migrations` primero (si aplica). Asegura que el esquema este al dia.
+2. Resto del backend en orden alfabetico.
+3. `frontend` al final (si aplica). Asegura que la SPA consuma endpoints ya
+   desplegados.
 
 ### 14.4 Override manual
 
@@ -449,27 +499,51 @@ Los workflows `deploy-dev.yml` y `deploy-pro.yml` aceptan un input
 `workflow_dispatch`:
 
 - `block` vacio -> auto-detectar del diff.
-- `block=<nombre>` -> forzar deploy solo de ese bloque.
-- `block=__all__` -> forzar deploy total.
+- `block=<nombre>` -> forzar deploy solo de ese bloque (`auth`, `migrations`, `frontend`, etc.).
+- `block=__all__` -> forzar deploy total (todo el backend + frontend).
 
 Uso: desde GitHub UI, "Actions" -> el workflow -> "Run workflow" -> completar
-el input. Util para re-desplegar un bloque tras una rollback, o para redesplegar
-todo tras rotar credenciales.
+el input. Util para re-desplegar un bloque tras rollback o rotar credenciales.
 
-### 14.5 Preview en PR
-
-El `ci.yml` incluye un job `plan-preview` que corre `scripts/ci/plan-deploy.sh`
-en modo `DRY_RUN=1`. En el summary de la PR aparece el listado de bloques que se
-desplegarian tras el merge. Es informativo; el plan real se recalcula post-merge
-usando el diff efectivo entre el commit anterior y el nuevo HEAD.
-
-### 14.6 Anti-patrones
+### 14.5 Anti-patrones
 
 - Registrar un bloque "manualmente" en `plan-deploy.sh`. El descubrimiento es
   automatico por el arbol; si necesitas un bloque nuevo, crea la carpeta.
 - Poner logica cross-bloque en `backend/services/<X>/` para "no tener que tocar
   `backend/utils/`". Si es cross, va en `backend/utils/` o
   `backend/layers/shared/` aunque eso implique redeploy total.
-- Editar un `.sql` de `backend/migrations/sql/` ya mergeado a `main`. Ver reglas
-  duras en `backend/migrations/README.md`.
+- Meter un subproyecto dentro de `frontend/` para "no re-desplegar todo el
+  frontend". Frontend es un bloque unico por diseno; si aparece la necesidad
+  de subdividir, se replantea la regla.
+- Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main`.
+  Ver reglas duras en `backend/platform/migrations/README.md`.
+
+## 15. Flujo de trabajo con GitHub Actions
+
+El pipeline esta optimizado para gastar **minimos minutos** de Actions. Reglas:
+
+| Trigger | Actions que corren |
+|---|---|
+| `git push feat/*` (o cualquier rama que no sea `main`/`develop`) | **0 workflows** |
+| Abrir un PR (a cualquier base) | **0 workflows** |
+| Push a `develop` (directo o via merge de PR) | `Deploy DEV` completo |
+| Push a `main` (via merge de PR; directo bloqueado) | `Deploy PRO` completo |
+
+Consecuencias practicas:
+
+- **Los PRs no gastan CI**. La branch protection de `main` no exige status
+  checks (los quitamos junto con `ci.yml`); solo exige "require PR" para forzar
+  revision humana. `develop` no exige ni PR (admite push directo).
+- **Todos los checks del ex-`ci.yml`** (pytest, lint-migrations, `serverless-compose
+  package`) corren ahora en el job `validate` dentro de `Deploy DEV` y `Deploy PRO`.
+  Si `validate` falla, `plan` y `deploy` no se ejecutan y AWS queda intacto.
+- **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
+  a `develop`, hacer `sls deploy --stage dev` directamente desde local con
+  credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`
+  dispara Deploy PRO. El commit puede incluir `[skip ci]` en el cuerpo para
+  reforzar la intencion (pero en el nuevo esquema es redundante: los PRs ya no
+  disparan nada).
+- Si se necesita ahorrar aun un Deploy DEV (por ejemplo, cambios que solo tocan
+  docs o `.github/`), el propio `plan-deploy.sh` devuelve `[]` y el job
+  `deploy` se salta gracias a `if: needs.plan.outputs.count != '0'`.
 
