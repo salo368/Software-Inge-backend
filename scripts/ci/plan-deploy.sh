@@ -1,14 +1,27 @@
 #!/usr/bin/env bash
-# Computes which backend blocks to deploy based on the git diff.
-# See docs/repo-structure.md §14.
+# Computes which blocks to deploy based on the git diff.
+# Blocks: backend/services/<X>/, backend/platform/<X>/, and frontend/ (single block).
+# See docs/repo-structure.md.
 
 set -euo pipefail
 
 log() { echo "$@" >&2; }
 
+# Per platform block, list of subdirs treated as "content-only".
+# Changes ONLY inside these subdirs deploy just the block; anything else in the
+# platform block is treated as backend-global (deploys the entire backend).
+declare -A PLATFORM_CONTENT_DIRS=(
+  ["migrations"]="sql"
+)
+
 CHANGED_FILES=""
 
-if [[ -n "${MANUAL_BLOCK:-}" ]]; then
+# Testing hook: PLAN_DEPLOY_TEST_CHANGED_FILES can inject a newline-separated
+# file list to skip real diff detection. Used by unit tests only.
+if [[ -n "${PLAN_DEPLOY_TEST_CHANGED_FILES:-}" ]]; then
+  CHANGED_FILES="${PLAN_DEPLOY_TEST_CHANGED_FILES}"
+  log "== TEST MODE: using injected CHANGED_FILES"
+elif [[ -n "${MANUAL_BLOCK:-}" ]]; then
   log "== manual: MANUAL_BLOCK='${MANUAL_BLOCK}'"
 elif [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
   BASE_REF="${GITHUB_BASE_REF:-main}"
@@ -38,51 +51,73 @@ else
   CHANGED_FILES="$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")"
 fi
 
-ALL_BLOCKS=()
-
+# Discover backend blocks
+ALL_BACKEND_BLOCKS=()
 if [[ -d backend/services ]]; then
   while IFS= read -r -d '' d; do
-    ALL_BLOCKS+=("$(basename "${d}")")
+    ALL_BACKEND_BLOCKS+=("$(basename "${d}")")
   done < <(find backend/services -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
-
 if [[ -d backend/platform ]]; then
   while IFS= read -r -d '' d; do
-    ALL_BLOCKS+=("$(basename "${d}")")
+    ALL_BACKEND_BLOCKS+=("$(basename "${d}")")
   done < <(find backend/platform -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
 
-log "== discovered blocks: ${ALL_BLOCKS[*]:-<none>}"
+HAS_FRONTEND=0
+[[ -d frontend ]] && HAS_FRONTEND=1
 
-selected=()
+# All known blocks (for __all__ and full deploy scenarios).
+ALL_BLOCKS=("${ALL_BACKEND_BLOCKS[@]}")
+[[ ${HAS_FRONTEND} -eq 1 ]] && ALL_BLOCKS+=("frontend")
 
-# migrations first, then alphabetical, dedup
+log "== discovered backend blocks: ${ALL_BACKEND_BLOCKS[*]:-<none>}"
+log "== frontend present: ${HAS_FRONTEND}"
+
+# Order: migrations first, alphabetical middle, frontend last.
 order_blocks() {
   local sorted
   sorted="$(sort -u)"
   local out=()
-  if echo "${sorted}" | grep -qx 'migrations'; then
-    out+=("migrations")
-  fi
+  if echo "${sorted}" | grep -qx 'migrations'; then out+=("migrations"); fi
   while IFS= read -r b; do
-    [[ -z "${b}" || "${b}" == "migrations" ]] && continue
+    [[ -z "${b}" || "${b}" == "migrations" || "${b}" == "frontend" ]] && continue
     out+=("${b}")
   done <<<"${sorted}"
+  if echo "${sorted}" | grep -qx 'frontend'; then out+=("frontend"); fi
   printf '%s\n' "${out[@]}"
 }
 
 classify_change() {
   local f="$1"
-  if [[ "${f}" =~ ^backend/services/([^/]+)/ ]]; then
-    echo "block:${BASH_REMATCH[1]}"
-  elif [[ "${f}" =~ ^backend/platform/([^/]+)/ ]]; then
-    echo "block:${BASH_REMATCH[1]}"
-  elif [[ "${f}" =~ ^backend/ ]]; then
-    echo "backend-global"
-  else
-    echo "outside-backend"
+  if [[ "${f}" =~ ^frontend/ ]]; then
+    echo "block:frontend"; return
   fi
+  if [[ "${f}" =~ ^backend/services/([^/]+)/ ]]; then
+    echo "block:${BASH_REMATCH[1]}"; return
+  fi
+  if [[ "${f}" =~ ^backend/platform/([^/]+)/(.*)$ ]]; then
+    local block="${BASH_REMATCH[1]}"
+    local sub="${BASH_REMATCH[2]}"
+    local content_dirs="${PLATFORM_CONTENT_DIRS[$block]:-}"
+    if [[ -n "${content_dirs}" ]]; then
+      IFS=',' read -ra dirs <<< "${content_dirs}"
+      for cd in "${dirs[@]}"; do
+        if [[ "${sub}" == "${cd}/"* || "${sub}" == "${cd}" ]]; then
+          echo "block:${block}"; return
+        fi
+      done
+    fi
+    # Code/config change inside a platform block -> full backend redeploy.
+    echo "backend-global"; return
+  fi
+  if [[ "${f}" =~ ^backend/ ]]; then
+    echo "backend-global"; return
+  fi
+  echo "outside"
 }
+
+selected=()
 
 if [[ -n "${MANUAL_BLOCK:-}" ]]; then
   if [[ "${MANUAL_BLOCK}" == "__all__" ]]; then
@@ -98,37 +133,43 @@ elif [[ "${CHANGED_FILES}" == "__FORCE_ALL__" ]]; then
   selected=("${ALL_BLOCKS[@]}")
 elif [[ -z "${CHANGED_FILES}" ]]; then
   log "== no changes, nothing to deploy"
-  selected=()
 else
   log "== changed files:"
   echo "${CHANGED_FILES}" | sed 's/^/   /' >&2
 
   has_backend_global=0
-  block_hits=()
+  has_frontend=0
+  backend_block_hits=()
   while IFS= read -r f; do
     [[ -z "${f}" ]] && continue
     kind="$(classify_change "${f}")"
     case "${kind}" in
-      backend-global)  has_backend_global=1 ;;
-      block:*)         block_hits+=("${kind#block:}") ;;
-      outside-backend) : ;;
+      backend-global)   has_backend_global=1 ;;
+      block:frontend)   has_frontend=1 ;;
+      block:*)          backend_block_hits+=("${kind#block:}") ;;
+      outside)          : ;;
     esac
   done <<<"${CHANGED_FILES}"
 
   if [[ ${has_backend_global} -eq 1 ]]; then
-    log "== backend/ global change -> full deploy"
-    selected=("${ALL_BLOCKS[@]}")
-  elif [[ ${#block_hits[@]} -gt 0 ]]; then
-    for b in "${block_hits[@]}"; do
-      if [[ " ${ALL_BLOCKS[*]} " =~ " ${b} " ]]; then
+    log "== backend global change -> full backend deploy"
+    selected=("${ALL_BACKEND_BLOCKS[@]}")
+  elif [[ ${#backend_block_hits[@]} -gt 0 ]]; then
+    for b in "${backend_block_hits[@]}"; do
+      if [[ " ${ALL_BACKEND_BLOCKS[*]} " =~ " ${b} " ]]; then
         selected+=("${b}")
       else
         log "::warning::block '${b}' in diff but not in tree, ignoring"
       fi
     done
-  else
-    log "== only non-backend changes, nothing to deploy"
-    selected=()
+  fi
+
+  if [[ ${has_frontend} -eq 1 && ${HAS_FRONTEND} -eq 1 ]]; then
+    selected+=("frontend")
+  fi
+
+  if [[ ${#selected[@]} -eq 0 ]]; then
+    log "== only non-deployable changes, nothing to deploy"
   fi
 fi
 
@@ -155,7 +196,35 @@ else
   json+="]"
 fi
 
+# Count backend blocks in the plan (all blocks except 'frontend'). Used by the
+# workflow to skip Validate when the plan is purely frontend (Validate only
+# checks backend: pytest + lint-migrations + serverless-compose package).
+backend_count=0
+for b in "${ordered[@]}"; do
+  [[ "${b}" == "frontend" ]] && continue
+  backend_count=$((backend_count + 1))
+done
+
+# Detect whether frontend infra needs `sls deploy`. Only true if any file
+# under frontend/ OUTSIDE src/ changed (serverless.yml, package.json, angular.json,
+# etc.). Content-only changes under frontend/src/ skip sls deploy since the
+# stack does not need to change; only s3 sync + invalidation.
+frontend_infra_changed=0
+if [[ "${CHANGED_FILES}" == "__FORCE_ALL__" || -n "${MANUAL_BLOCK:-}" ]]; then
+  frontend_infra_changed=1
+elif [[ -n "${CHANGED_FILES}" ]]; then
+  while IFS= read -r f; do
+    [[ -z "${f}" ]] && continue
+    if [[ "${f}" =~ ^frontend/ && ! "${f}" =~ ^frontend/src/ ]]; then
+      frontend_infra_changed=1
+      break
+    fi
+  done <<<"${CHANGED_FILES}"
+fi
+
 log "== blocks=${json}"
+log "== backend_count=${backend_count}"
+log "== frontend_infra_changed=${frontend_infra_changed}"
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   log "== DRY_RUN active, skipping GITHUB_OUTPUT"
@@ -166,5 +235,7 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
     echo "blocks=${json}"
     echo "count=${#ordered[@]}"
+    echo "backend_count=${backend_count}"
+    echo "frontend_infra_changed=${frontend_infra_changed}"
   } >>"${GITHUB_OUTPUT}"
 fi

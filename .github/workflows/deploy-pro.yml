@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       block:
-        description: "Block to force (empty = auto-detect; '__all__' = full backend)"
+        description: "Block to force (empty = auto-detect; '__all__' = all blocks)"
         required: false
         default: ""
 
@@ -18,8 +18,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      blocks: ${{ steps.plan.outputs.blocks }}
+      count: ${{ steps.plan.outputs.count }}
+      backend_count: ${{ steps.plan.outputs.backend_count }}
+      frontend_infra_changed: ${{ steps.plan.outputs.frontend_infra_changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute deploy plan
+        id: plan
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          MANUAL_BLOCK: ${{ inputs.block }}
+        run: bash scripts/ci/plan-deploy.sh
+
   validate:
     name: Validate
+    needs: plan
+    # Skip when the plan is purely frontend (Validate checks backend only).
+    if: needs.plan.outputs.backend_count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -80,31 +105,15 @@ jobs:
           path: backend/pytest-report.xml
           retention-days: 7
 
-  plan:
-    name: Plan
-    needs: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      blocks: ${{ steps.plan.outputs.blocks }}
-      count: ${{ steps.plan.outputs.count }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Compute deploy plan
-        id: plan
-        env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          MANUAL_BLOCK: ${{ inputs.block }}
-        run: bash scripts/ci/plan-deploy.sh
-
   deploy:
     name: Deploy ${{ matrix.block }} (pro)
-    needs: plan
-    if: needs.plan.outputs.count != '0'
+    needs: [plan, validate]
+    # Runs if there is anything to deploy AND validate succeeded (or was skipped
+    # because the plan is purely frontend).
+    if: |
+      !cancelled()
+      && needs.plan.outputs.count != '0'
+      && (needs.validate.result == 'success' || needs.validate.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -115,28 +124,32 @@ jobs:
     environment:
       name: pro
       url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
-    defaults:
-      run:
-        working-directory: backend
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (backend)
+        if: matrix.block != 'frontend'
         uses: actions/setup-node@v4
         with:
           node-version-file: backend/.nvmrc
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      - name: Setup Node.js (frontend)
+        if: matrix.block == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Setup Python
+        if: matrix.block != 'frontend'
         uses: actions/setup-python@v5
         with:
           python-version-file: backend/.python-version
-
-      - name: Install Node dependencies
-        run: npm ci
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -148,7 +161,16 @@ jobs:
       - name: Verify AWS identity
         run: aws sts get-caller-identity
 
-      - name: Deploy block "${{ matrix.block }}"
+      # ---------------- Backend path ----------------
+
+      - name: Install Node dependencies (backend)
+        if: matrix.block != 'frontend'
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy backend block "${{ matrix.block }}"
+        if: matrix.block != 'frontend'
+        working-directory: backend
         run: |
           if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
             echo "::notice::No services registered; nothing to deploy."
@@ -175,9 +197,47 @@ jobs:
             exit 1
           fi
 
+      # ---------------- Frontend path ----------------
+
+      - name: Install Node dependencies (frontend)
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        # npm install (not ci): Angular's lock file has multiple versions of
+        # chokidar/readdirp in the tree; npm ci rejects it as inconsistent.
+        run: npm install --no-audit --no-fund --prefer-offline
+
+      - name: Deploy frontend infra (S3 + CloudFront)
+        # Skip sls deploy when only frontend/src/** changed; the stack does
+        # not need to change, only assets need re-sync.
+        if: matrix.block == 'frontend' && needs.plan.outputs.frontend_infra_changed == '1'
+        working-directory: frontend
+        run: npx serverless deploy --stage pro --verbose
+
+      - name: Build Angular (pro)
+        if: matrix.block == 'frontend'
+        working-directory: frontend
+        run: npx ng build --configuration pro
+
+      - name: Sync assets to S3 and invalidate CloudFront
+        if: matrix.block == 'frontend'
+        run: |
+          BUCKET="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`WebBucketName`].OutputValue' --output text)"
+          DIST_ID="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDistributionId`].OutputValue' --output text)"
+          DOMAIN="$(aws cloudformation describe-stacks --stack-name cdts-pro-frontend \
+            --query 'Stacks[0].Outputs[?OutputKey==`CloudFrontDomainName`].OutputValue' --output text)"
+          echo "Bucket:   ${BUCKET}"
+          echo "DistId:   ${DIST_ID}"
+          echo "Domain:   https://${DOMAIN}"
+          BUCKET="${BUCKET}" DIST_ID="${DIST_ID}" \
+            DIST_DIR="frontend/dist/cdts-frontend/browser" \
+            bash scripts/ci/deploy-frontend.sh
+          echo "::notice::Frontend deployed: https://${DOMAIN}"
+
   summary:
     name: Deploy summary
-    needs: [validate, plan, deploy]
+    needs: [plan, validate, deploy]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -186,11 +246,10 @@ jobs:
           {
             echo "### Deploy PRO summary"
             echo ""
-            echo "Validate:  **${{ needs.validate.result }}**"
-            echo "Plan:      **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
+            echo "Plan:      **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }}, backend: ${{ needs.plan.outputs.backend_count }}, frontend_infra_changed: ${{ needs.plan.outputs.frontend_infra_changed }})"
             echo '```json'
             echo '${{ needs.plan.outputs.blocks }}'
             echo '```'
-            echo ""
+            echo "Validate:  **${{ needs.validate.result }}**"
             echo "Deploy:    **${{ needs.deploy.result }}**"
           } >> "$GITHUB_STEP_SUMMARY"
