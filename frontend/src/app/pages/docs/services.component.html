@@ -1,0 +1,145 @@
+<article class="page">
+  <header class="page-head">
+    <span class="crumb">
+      <a routerLink="/docs" class="crumb-link">Docs</a> &rsaquo; Servicios de negocio
+    </span>
+    <h1>Servicios de negocio</h1>
+    <p class="lead">
+      Un <strong>servicio de negocio</strong> entrega un resultado de valor a un actor externo.
+      Cada servicio se compone de <strong>escenarios</strong> y cada escenario ejecuta una
+      secuencia de <strong>casos de uso</strong> con un flujo especifico.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="loading">Cargando&hellip;</p>
+  } @else {
+
+  <div class="layout">
+
+    <!-- Master: lista de servicios -->
+    <nav class="master">
+      <h2>Catalogo ({{ services().length }})</h2>
+      <ul>
+        @for (s of services(); track s.id) {
+          <li>
+            <a
+              [routerLink]="[s.id]"
+              routerLinkActive="active">
+              <span class="sid">{{ s.id }}</span>
+              <span class="sname">{{ s.name }}</span>
+              @if (s.scenarios.length > 0) {
+                <span class="badge">{{ s.scenarios.length }} esc.</span>
+              }
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    <!-- Detail -->
+    <section class="detail">
+
+      @if (!selected()) {
+        <div class="empty">
+          <p>Selecciona un servicio de la lista para ver su ficha, actores y escenarios.</p>
+        </div>
+      }
+
+      @if (selected(); as s) {
+        <div class="service-head">
+          <div class="sid-lg">{{ s.id }}</div>
+          <div>
+            <h2>{{ s.name }}</h2>
+            <p class="summary">{{ s.summary }}</p>
+          </div>
+        </div>
+
+        <dl class="kv">
+          <div>
+            <dt>Consumidores</dt>
+            <dd>
+              @for (c of s.consumers; track c) {
+                <span class="chip">{{ actorName(c) }}</span>
+              }
+            </dd>
+          </div>
+          <div>
+            <dt>Modelo de ingreso</dt>
+            <dd>{{ s.revenue ?? 'Sin ingreso directo' }}</dd>
+          </div>
+          @if (s.stages && s.stages.length > 0) {
+            <div>
+              <dt>Etapas</dt>
+              <dd>
+                @for (st of s.stages; track st; let last = $last) {
+                  <span class="stage">{{ st }}</span>@if (!last) { <span class="arrow">&rarr;</span> }
+                }
+              </dd>
+            </div>
+          }
+        </dl>
+
+        <!-- Escenarios: master (lista) + detalle en una sub-columna -->
+        @if (s.scenarios.length === 0) {
+          <div class="notice">
+            <p>Aun no se han detallado escenarios para este servicio. Los tenemos en el catalogo,
+            los detallaremos en las proximas iteraciones.</p>
+          </div>
+        } @else {
+          <section class="scen-block">
+            <h3>Escenarios ({{ s.scenarios.length }})</h3>
+
+            <div class="scen-layout">
+              <ul class="scen-list">
+                @for (sc of s.scenarios; track sc.id) {
+                  <li>
+                    <a
+                      [routerLink]="['scenarios', sc.id]"
+                      routerLinkActive="active">
+                      <span class="eid">{{ sc.id }}</span>
+                      <span class="ename">{{ sc.name }}</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+
+              <div class="scen-detail">
+                @if (selectedScenario(); as sc) {
+                  <div class="scen-head">
+                    <span class="eid-lg">{{ sc.id }}</span>
+                    <h4>{{ sc.name }}</h4>
+                  </div>
+                  <p class="scen-desc">{{ sc.description }}</p>
+
+                  <ol class="scen-steps">
+                    @for (st of sc.steps; track st.n) {
+                      <li>
+                        <span class="n">{{ st.n }}</span>
+                        <a class="uc-ref"
+                           [routerLink]="['/docs', 'use-cases', st.useCase]"
+                           [fragment]="st.flow">
+                          <code>{{ st.useCase }}</code>
+                          <span class="uc-name">{{ useCaseName(st.useCase) }}</span>
+                          <code class="flow-tag">{{ st.flow }}</code>
+                        </a>
+                        @if (st.note) {
+                          <span class="note">&mdash; {{ st.note }}</span>
+                        }
+                      </li>
+                    }
+                  </ol>
+                } @else {
+                  <p class="hint">Selecciona un escenario para ver su cadena de casos de uso.</p>
+                }
+              </div>
+            </div>
+          </section>
+        }
+      }
+
+    </section>
+  </div>
+
+  }
+</article>

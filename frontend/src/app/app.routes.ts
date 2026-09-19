@@ -14,6 +14,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/register.component').then((m) => m.RegisterComponent),
   },
   {
+    // Seccion escondida de documentacion. Publica, no linkeada en el UI.
+    path: 'docs',
+    loadChildren: () => import('./pages/docs/docs.routes').then((m) => m.DOCS_ROUTES),
+  },
+  {
     path: '',
     canActivate: [requireAuth],
     loadComponent: () => import('./pages/home.component').then((m) => m.HomeComponent),

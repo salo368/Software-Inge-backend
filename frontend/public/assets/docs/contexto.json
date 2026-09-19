@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "version": "0.1.0",
+    "updatedAt": "2026-09-19",
+    "source": "contexto_empresa.md"
+  },
+  "identity": {
+    "type": "Plataforma digital de intermediacion financiera",
+    "sector": "FinTech / Inversion",
+    "product": "CDT (Certificado de Deposito a Termino)",
+    "businessModel": "B2B2C - referenciacion / corretaje comercial",
+    "roleVsEntity": "Agente comercial externo avalado",
+    "revenueSource": "Comision pagada por las entidades financieras",
+    "channels": ["Aplicacion movil", "Web"],
+    "scope": "Multientidad (varias entidades bancarias y no bancarias aliadas)",
+    "definition": "Canal de intermediacion y distribucion digital de productos de inversion que conecta inversionistas con entidades financieras y ejecuta gran parte de la originacion digital de las operaciones."
+  },
+  "canvas": [
+    { "block": "Segmentos de cliente", "content": "Inversionistas (persona natural y juridica). Entidades financieras (bancarias y no bancarias)." },
+    { "block": "Propuesta de valor - inversionista", "content": "Constituir digitalmente la mejor alternativa de inversion y operar multiples entidades desde un unico canal." },
+    { "block": "Propuesta de valor - entidad financiera", "content": "Captar clientes por un canal digital externo con operaciones preprocesadas listas para constituir." },
+    { "block": "Canales", "content": "App movil + web + asesores especializados." },
+    { "block": "Relacion con el cliente", "content": "Autoservicio + asesoria personalizada para montos altos / tasas pactadas." },
+    { "block": "Fuentes de ingreso", "content": "Comision por originacion. Por renovacion. Por recarga. Por compraventa. Campanas contratadas." },
+    { "block": "Recursos clave", "content": "Plataforma digital, integraciones con entidades, red de asesores, relaciones comerciales." },
+    { "block": "Actividades clave", "content": "Originacion digital, mantenimiento de integraciones, curaduria de tasas y productos, atencion y asesoria." },
+    { "block": "Socios clave", "content": "Entidades aliadas. Proveedores de identidad, firma y pagos. DECEVAL." },
+    { "block": "Estructura de costos", "content": "Desarrollo y operacion de plataforma, comisiones a proveedores, operacion comercial, marketing." }
+  ],
+  "actorRoles": [
+    { "actor": "Inversionista", "role": "Actor generalizado", "consumesServices": true, "isPayer": false, "note": "Consume S01-S05." },
+    { "actor": "  Persona natural", "role": "Especializacion", "consumesServices": true, "isPayer": false, "note": "Segmento principal." },
+    { "actor": "  Persona juridica", "role": "Especializacion", "consumesServices": true, "isPayer": false, "note": "Reglas y condiciones particulares." },
+    { "actor": "Entidad financiera", "role": "Actor generalizado", "consumesServices": true, "isPayer": true, "note": "Participa en S01-S05 y contrata S06." },
+    { "actor": "  Entidad bancaria", "role": "Especializacion", "consumesServices": true, "isPayer": true, "note": "Bancos aliados." },
+    { "actor": "  Entidad financiera no bancaria", "role": "Especializacion", "consumesServices": true, "isPayer": true, "note": "Cooperativas, fintechs, financieras." },
+    { "actor": "Proveedor de identidad", "role": "Habilitador", "consumesServices": false, "isPayer": false, "note": "KYC / validacion." },
+    { "actor": "Proveedor de firma", "role": "Habilitador", "consumesServices": false, "isPayer": false, "note": "Firma electronica." },
+    { "actor": "Proveedor de pagos", "role": "Habilitador", "consumesServices": false, "isPayer": false, "note": "Recaudo / consignacion." },
+    { "actor": "DECEVAL", "role": "Deposito centralizado", "consumesServices": false, "isPayer": false, "note": "Custodio del CDT constituido." },
+    { "actor": "Regulador financiero", "role": "Supervisor", "consumesServices": false, "isPayer": false, "note": "Cumplimiento normativo." }
+  ],
+  "capabilities": [
+    {
+      "domain": "Descubrimiento e inversion",
+      "supports": ["S04"],
+      "items": ["Comparacion de alternativas", "Simulacion de escenarios", "Asesoria especializada"]
+    },
+    {
+      "domain": "Originacion digital",
+      "supports": ["S04", "S03", "S05"],
+      "items": [
+        "Registro de inversionista",
+        "Validacion de identidad",
+        "Captura de informacion financiera",
+        "Gestion documental",
+        "Firma electronica",
+        "Recaudo del pago",
+        "Envio y seguimiento con la entidad"
+      ]
+    },
+    {
+      "domain": "Ciclo de vida de la inversion",
+      "supports": ["S02", "S03", "S05", "S01"],
+      "items": ["Consulta y seguimiento", "Renovacion al vencimiento", "Recarga", "Traspaso en mercado secundario"]
+    },
+    {
+      "domain": "Consolidacion multientidad",
+      "supports": ["S02"],
+      "items": ["Posicion unificada", "Operacion cruzada por entidad"]
+    },
+    {
+      "domain": "Distribucion y captacion B2B",
+      "supports": ["S06", "S02"],
+      "items": ["Cartelera de productos", "Campanas y promociones", "Adquisicion de segmentos digitales"]
+    },
+    {
+      "domain": "Relacion con entidades financieras",
+      "supports": ["transversal"],
+      "items": ["Vinculacion y aval", "Configuracion de productos, tasas y cupos", "Integracion operativa (variable)", "Liquidacion de comisiones"]
+    },
+    {
+      "domain": "Habilitadores",
+      "supports": ["transversal"],
+      "items": ["Identidad y KYC", "Firma electronica", "Recaudo y pagos", "Custodia (DECEVAL)", "Atencion al cliente"]
+    }
+  ],
+  "products": [
+    { "name": "CDT tradicional", "description": "Deposito a termino con tasa y plazo fijos.", "services": ["S04", "S03", "S02", "S01"] },
+    { "name": "CDT Flexible", "description": "Permite liquidez antes del vencimiento.", "services": ["S04", "S02", "S01"] },
+    { "name": "CDT Recargable", "description": "Permite anadir capital a la inversion.", "services": ["S04", "S05", "S02"] },
+    { "name": "CDT del mercado secundario", "description": "CDT ya constituido puesto en venta por otro inversionista.", "services": ["S01"] }
+  ]
+}
