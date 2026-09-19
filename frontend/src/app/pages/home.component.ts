@@ -23,7 +23,6 @@ export class HomeComponent implements OnInit {
   error = signal<string | null>(null);
 
   ngOnInit(): void {
-    // Verifica el token contra el backend en cada entrada.
     this.auth.me().subscribe({
       error: () => {
         // Interceptor ya redirige a /login en 401.
@@ -37,7 +36,7 @@ export class HomeComponent implements OnInit {
     this.auth.logout().subscribe({
       next: () => this.router.navigate(['/login']),
       error: () => {
-        // Interceptor limpia y redirige si es 401. Para otros errores igual salimos localmente.
+        // Interceptor clears + redirects on 401. For other errors we still bail out locally.
         this.auth.clear();
         this.router.navigate(['/login']);
       },

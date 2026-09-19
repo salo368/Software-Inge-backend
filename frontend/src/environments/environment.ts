@@ -1,6 +1,6 @@
-// Default (dev). Cada servicio backend expone su propio HttpApi en API Gateway,
-// asi que hay una URL base distinta por dominio. Cuando se consolide todo bajo
-// un unico dominio custom (o REST API compartida) se colapsa a un solo apiBaseUrl.
+// Default (dev). Each backend service exposes its own API Gateway HttpApi so
+// each domain has its own base URL. Once we consolidate under a single custom
+// domain (or a shared REST API), these collapse to one apiBaseUrl.
 export const environment = {
   stage: 'dev' as const,
   authApiUrl: 'https://7sdsmzal74.execute-api.us-east-1.amazonaws.com',

@@ -1,3 +1,3 @@
-description: Simula CDT para (amount, term_days) y devuelve la tasa aplicable de cada banco.
+description: CDT simulation for (amount, term_days). Returns the applicable rate for each bank.
 events:
   - httpApi: { method: POST, path: /banks/simulate }

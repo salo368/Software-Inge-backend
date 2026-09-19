@@ -33,8 +33,7 @@ def _parse_term(raw) -> int:
 
 
 def _yield_cop(amount: Decimal, ea_pct: Decimal, days: int) -> tuple[Decimal, Decimal]:
-    """Rendimiento a interes compuesto con Tasa Efectiva Anual, base 365 dias.
-    final = amount * (1 + r) ** (days / 365). Devuelve (intereses, total)."""
+    """Compound EAR yield over `days` (365-day base). Returns (interest, total)."""
     r = float(ea_pct) / 100.0
     years = days / 365.0
     final = Decimal(str(float(amount) * math.pow(1 + r, years)))
@@ -54,9 +53,8 @@ def handler(event, context):
     results = []
     for bank in banks:
         rate = rates_by_bank.get(bank.id)
-        # Un banco puede no aplicar si el monto es menor a su piso (bank.min_amount).
-        # En ese caso, no tiene bracket <= amount y se omite del resultado.
         if rate is None:
+            # Skip banks whose floor is above `amount` (no bracket applies).
             continue
         interest, final = _yield_cop(amount, rate, term_days)
         results.append({
@@ -66,7 +64,6 @@ def handler(event, context):
             "final": float(final),
         })
 
-    # Ordenar por rendimiento (rate desc).
     results.sort(key=lambda r: r["rate"], reverse=True)
 
     return generate_response({

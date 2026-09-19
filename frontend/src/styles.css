@@ -1,7 +1,7 @@
 /* ============================================================
-   CDTs - Design system estilo neobanco
-   Paleta: violeta profundo + indigo oscuro + emerald para dinero
-   Basado en el design system del legacy/mvp.
+   CDTs - Neobank-style design system
+   Palette: deep violet + dark indigo + emerald for money
+   Ported from the legacy/mvp design system.
    ============================================================ */
 
 :root {
@@ -35,7 +35,7 @@ body {
   letter-spacing: -0.011em;
 }
 
-/* Sticky footer: el main crece y empuja el footer al fondo del viewport */
+/* Sticky footer: main grows to push the footer to the viewport bottom. */
 app-root {
   min-height: 100vh;
   display: flex;
@@ -49,7 +49,7 @@ h1, h2, h3, h4, h5, h6,
   color: var(--bs-heading-color);
 }
 
-/* ---------- Botones ---------- */
+/* ---------- Buttons ---------- */
 .btn {
   font-weight: 600;
   border-radius: var(--radius-sm);
@@ -174,7 +174,7 @@ h1, h2, h3, h4, h5, h6,
   flex-shrink: 0;
 }
 
-/* ---------- Hero oscuro con mesh gradient ---------- */
+/* ---------- Dark hero with mesh gradient ---------- */
 .hero-dark {
   position: relative;
   overflow: hidden;
@@ -233,7 +233,7 @@ h1, h2, h3, h4, h5, h6,
 }
 .trust-chip i { color: #a7f3d0; }
 
-/* Glass card flotante del hero */
+/* Hero floating glass card */
 .glass-card {
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -250,7 +250,7 @@ h1, h2, h3, h4, h5, h6,
   font-weight: 600;
 }
 
-/* ---------- Fila de controles: input, segmented y CTA misma altura ---------- */
+/* ---------- Controls row: input + segmented + CTA all same height ---------- */
 .amount-input {
   width: 290px;
   max-width: 100%;
@@ -279,7 +279,7 @@ h1, h2, h3, h4, h5, h6,
   .amount-input { width: 100%; }
 }
 
-/* ---------- Segmented control (plazos) ---------- */
+/* ---------- Segmented control (terms) ---------- */
 .segmented {
   display: inline-flex;
   flex-wrap: wrap;
@@ -306,7 +306,7 @@ h1, h2, h3, h4, h5, h6,
   box-shadow: 0 2px 10px rgba(23, 20, 58, 0.14);
 }
 
-/* ---------- Tarjetas de resultado ---------- */
+/* ---------- Result cards ---------- */
 .bank-card {
   animation: revealUp 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
@@ -360,7 +360,7 @@ h1, h2, h3, h4, h5, h6,
   border-radius: 0.45rem;
   letter-spacing: 0.02em;
 }
-/* Colores por tier (equivalente a TIER_COLORS del legacy) */
+/* Tier colors (mirrors TIER_COLORS from legacy). */
 .tier-AAA { background: #dcfce7; color: #15803d; }
 .tier-AAplus, .tier-AA\+ { background: #dbeafe; color: #1d4ed8; }
 .tier-AA { background: #ede9fe; color: #6d28d9; }

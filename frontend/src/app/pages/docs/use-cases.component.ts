@@ -34,7 +34,7 @@ export class UseCasesComponent {
   activeFlow = computed(() => this.fragment() ?? null);
 
   constructor() {
-    // Scroll al fragment de flujo cuando cambia la seleccion.
+    // Scroll to the selected flow fragment when the selection changes.
     effect(() => {
       const flow = this.activeFlow();
       const uc = this.selected();
@@ -61,9 +61,9 @@ export class UseCasesComponent {
     return `${this.flowTypeLabel(f.type)} - ${f.name}`;
   }
 
-  // Devuelve la composicion como array de tokens para render con badges.
+  // Splits `composition` into typed tokens so the template can render each
+  // token with the right badge style. Example: "P1 -> P2 -> C17-FB -> P3".
   compositionTokens(f: Flow): { type: 'step' | 'flow-ref' | 'arrow' | 'text'; value: string }[] {
-    // Ejemplo: "P1 -> P2 -> C17-FB -> P3 . si falla: P12"
     const tokens: { type: 'step' | 'flow-ref' | 'arrow' | 'text'; value: string }[] = [];
     const parts = f.composition.split(/\s+/);
     for (const raw of parts) {

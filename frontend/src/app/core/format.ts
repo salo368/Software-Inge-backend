@@ -10,7 +10,7 @@ export function formatCOP(n: number): string {
   return copFormatter.format(n);
 }
 
-/** CSS class helper para tier badges (mapea AA+ -> tier-AAplus). */
+/** CSS class helper for tier badges (maps AA+ -> tier-AAplus). */
 export function tierCss(tier: string): string {
   return 'tier-' + tier.replace('+', 'plus');
 }

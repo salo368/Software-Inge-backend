@@ -20,7 +20,6 @@ export interface BanksResponse {
   banks: Bank[];
 }
 
-/** Un resultado de simulacion para un banco. */
 export interface SimulationRow {
   bank: Bank;
   rate: number;

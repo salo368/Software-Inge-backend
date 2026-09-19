@@ -83,7 +83,6 @@ export class SimulatorComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    // Pre-cargar la lista de bancos solo para el contador del hero.
     this.banksApi.listBanks().subscribe({
       next: (r) => this.totalBanks.set(r.banks.length),
     });
@@ -109,7 +108,6 @@ export class SimulatorComponent implements OnInit {
   changeTerm(t: number): void {
     if (this.term() === t) return;
     this.term.set(t);
-    // Si ya hay resultados a la vista, re-simular con el nuevo plazo.
     if (this.showResults()) this.onSimulate();
   }
 
@@ -118,8 +116,7 @@ export class SimulatorComponent implements OnInit {
       this.router.navigate(['/register']);
       return;
     }
-    // Placeholder: la funcionalidad de apertura de CDT sera futura.
-    // Por ahora navegamos a /me como landing autenticado.
+    // TODO: actual CDT open flow. For now land on /me.
     this.router.navigate(['/me']);
   }
 }

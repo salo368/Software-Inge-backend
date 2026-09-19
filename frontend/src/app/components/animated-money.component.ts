@@ -2,7 +2,7 @@ import { Component, Input, OnChanges, OnDestroy, SimpleChanges, signal } from '@
 
 import { formatCOP } from '../core/format';
 
-/** Anima el conteo de un valor numerico y lo formatea como COP. */
+/** Animates a numeric count-up and formats it as COP. */
 @Component({
   selector: 'app-animated-money',
   standalone: true,

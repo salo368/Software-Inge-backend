@@ -1,10 +1,10 @@
--- Rediseno de banks + bank_rates:
---   * banks.id UUID -> INT autoincremental (catalogo cerrado, code es la key publica).
---   * bank_rates: quitar id sintetico, PK compuesta (bank_id, term_days, min_amount).
---     La PK compuesta ya cubre el lookup "highest min_amount <= amount for (bank, term)".
---
--- Reemplaza al bootstrap 20260920000000_banks.sql. Re-seedea los mismos 12 bancos
--- y 180 tasas (misma data, esquema nuevo).
+-- Rework of banks + bank_rates:
+--   * banks.id: UUID -> autoincremental INT (closed catalog, code is the public key).
+--   * bank_rates: drop synthetic id, use composite PK (bank_id, term_days,
+--     min_amount). The PK already covers the "highest min_amount <= amount for
+--     (bank, term)" lookup, so no extra index is needed.
+-- Supersedes 20260920000000_banks.sql. Re-seeds the same 12 banks and 180
+-- rates with the new schema.
 
 -- +migrate up
 
@@ -50,8 +50,8 @@ INSERT INTO banks (code, name, logo_key, description, tier, rating_by, min_amoun
 ('coltefinanciera', 'Coltefinanciera',       'banks/coltefinanciera.png', 'Especialista en CDTs. Las tasas mas altas del mercado.',                                      'AA',  'BRC Ratings',     2000000,  ARRAY['Las tasas mas altas del mercado', 'Especialista en CDTs']),
 ('nu',              'Nu Colombia',           'banks/nu.png',              'El neobanco mas grande del mundo. Experiencia 100% digital.',                                 'AA',  'Fitch Ratings',   100000,   ARRAY['El neobanco mas grande del mundo', 'Experiencia 100% digital', 'Sin letra pequena']);
 
--- Rates seed. 3 rangos por plazo por banco: [floor-5M), [5M-50M), [50M+).
--- Tasas variadas para que en distintos (monto, plazo) gane distinto banco.
+-- Rates seed. Three brackets per bank/term: [floor-5M), [5M-50M), [50M+).
+-- Rates are hand-tuned so the top bank changes depending on (amount, term).
 WITH r(code, term_days, min_amount, rate) AS (VALUES
     ('bancolombia',    90, 0,        9.30),
     ('bancolombia',    90, 5000000,  9.60),

@@ -1,5 +1,5 @@
-// PROD. Rellenar banksApiUrl con el HttpApiUrl del stack cdts-pro-banks
-// que aparece en las Outputs cuando Actions haga el primer Deploy PRO del bloque.
+// PROD. Fill banksApiUrl with the HttpApiUrl output of the cdts-pro-banks
+// stack once Actions has run the first PRO deploy of the banks block.
 export const environment = {
   stage: 'pro' as const,
   authApiUrl: 'https://yaf407aj6h.execute-api.us-east-1.amazonaws.com',

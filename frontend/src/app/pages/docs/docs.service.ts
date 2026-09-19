@@ -4,8 +4,8 @@ import { Observable, forkJoin, shareReplay } from 'rxjs';
 
 import { ContextoDoc, ParexDoc } from './docs.models';
 
-// Fetch de los JSON estaticos servidos desde /assets/docs/. Se cachean con shareReplay
-// para no re-descargar cuando el usuario navega entre subrutas de /docs.
+// Fetches static JSON from /assets/docs/. shareReplay caches the response so
+// we don't re-download when the user navigates between /docs subroutes.
 @Injectable({ providedIn: 'root' })
 export class DocsService {
   private http = inject(HttpClient);
