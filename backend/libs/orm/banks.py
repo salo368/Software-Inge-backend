@@ -45,3 +45,7 @@ class Banks(Base):
     def list_active(cls):
         stmt = select(cls).where(cls.is_active.is_(True)).order_by(cls.tier, cls.name)
         return list(db_session.session.execute(stmt).scalars().all())
+
+    @classmethod
+    def get_by_id(cls, bank_id: int):
+        return db_session.session.get(cls, bank_id)
