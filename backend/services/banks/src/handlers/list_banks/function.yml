@@ -1,0 +1,3 @@
+description: Lista todos los bancos activos con su ficha (logo, tier, minimos, highlights).
+events:
+  - httpApi: { method: GET, path: /banks }
