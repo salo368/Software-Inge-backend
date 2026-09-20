@@ -1,0 +1,5 @@
+description: Public read of a signature ceremony addressed by its token.
+events:
+  - httpApi:
+      method: GET
+      path: /signatures/{token}

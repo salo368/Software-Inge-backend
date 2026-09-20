@@ -1,0 +1,60 @@
+service: assets
+
+frameworkVersion: '3'
+
+# Public static asset hosting: an S3 bucket with public read.
+# Content lives in files/ and gets sync'd post-deploy by scripts/ci/deploy-assets.sh.
+# The bucket has no Lambdas; only CloudFormation resources.
+
+provider:
+  name: aws
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-assets
+  # Runtime declared to satisfy the provider schema even though there are no
+  # Lambdas in this block. Serverless requires a runtime on the provider.
+  runtime: python3.12
+
+resources:
+  Resources:
+    AssetsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: cdts-${sls:stage}-assets
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+          BlockPublicPolicy: false
+          IgnorePublicAcls: false
+          RestrictPublicBuckets: false
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerEnforced
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods: [GET, HEAD]
+              AllowedOrigins: ['*']
+              AllowedHeaders: ['*']
+              MaxAge: 3600
+
+    AssetsBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref AssetsBucket
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: PublicReadGetObject
+              Effect: Allow
+              Principal: '*'
+              Action: s3:GetObject
+              Resource: !Sub 'arn:aws:s3:::${AssetsBucket}/*'
+
+  Outputs:
+    AssetsBucketName:
+      Value: !Ref AssetsBucket
+      Export:
+        Name: cdts-${sls:stage}-assets-bucket
+    AssetsBaseUrl:
+      Value: !Sub 'https://${AssetsBucket}.s3.${AWS::Region}.amazonaws.com'
+      Export:
+        Name: cdts-${sls:stage}-assets-base-url

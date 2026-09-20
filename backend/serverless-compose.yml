@@ -2,7 +2,36 @@ services:
   migrations:
     path: platform/migrations
 
+  assets:
+    path: platform/assets
+
   auth:
     path: services/auth
     dependsOn:
       - migrations
+
+  banks:
+    path: services/banks
+    dependsOn:
+      - migrations
+
+  files:
+    path: services/files
+    dependsOn:
+      - migrations
+
+  forms:
+    path: services/forms
+    dependsOn:
+      - migrations
+
+  processes:
+    path: services/processes
+    dependsOn:
+      - migrations
+
+  signatures:
+    path: services/signatures
+    dependsOn:
+      - migrations
+      - files

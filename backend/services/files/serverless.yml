@@ -1,0 +1,108 @@
+service: files
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-files
+  memorySize: 512
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+    FILES_BUCKET: cdts-${sls:stage}-files
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-files-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:DeleteObject
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-files/*
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+
+functions: ${file(./functions.js):build}
+
+resources:
+  Resources:
+    FilesBucket:
+      Type: AWS::S3::Bucket
+      DependsOn:
+        - OnUnderscoreuploadLambdaPermissionFilesBucketS3
+      Properties:
+        BucketName: cdts-${sls:stage}-files
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerEnforced
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods: [PUT, GET, HEAD]
+              AllowedOrigins: ['*']
+              AllowedHeaders: ['*']
+              ExposedHeaders: [ETag]
+              MaxAge: 3600
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt OnUnderscoreuploadLambdaFunction.Arn
+              Filter:
+                S3Key:
+                  Rules:
+                    - Name: prefix
+                      Value: processes/
+
+    OnUnderscoreuploadLambdaPermissionFilesBucketS3:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnUnderscoreuploadLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: s3.amazonaws.com
+        SourceAccount: !Ref AWS::AccountId
+        SourceArn: !Sub 'arn:aws:s3:::cdts-${sls:stage}-files'
+
+  Outputs:
+    FilesBucketName:
+      Value: !Ref FilesBucket

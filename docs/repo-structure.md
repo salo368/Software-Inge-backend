@@ -86,10 +86,10 @@ provider:
     cors: true
 ```
 
-## 4. Layout del monorepo
+## 4. Layout del repo
 
-La raíz del repo agrupa **infraestructura de proyecto**; el runtime backend vive
-completo bajo [`backend/`](../backend/) y el frontend bajo [`frontend/`](../frontend/).
+La raíz del repo agrupa **infraestructura de proyecto**; el runtime vive completo
+bajo [`backend/`](../backend/).
 
 ```
 repo/
@@ -107,17 +107,16 @@ repo/
 │   ├── platform/<name>/          (§5.2)
 │   ├── layers/shared/            (Lambda Layer)
 │   └── tests/
-├── frontend/                   ← ★ Angular SPA (bloque unico, §5.4)
-│   ├── serverless.yml            (S3 + CloudFront + OAC)
-│   ├── angular.json, package.json
-│   └── src/
 ├── README.md, CONTRIBUTING.md
 └── .gitignore
 ```
 
-Todo el trabajo de Lambda, Serverless backend, dependencias Python/Node de
-backend y tests unitarios ocurre dentro de `backend/`. Todo el trabajo del cliente
-web (Angular) ocurre dentro de `frontend/`. La raíz permanece "agnóstica".
+Todo el trabajo de Lambda, Serverless, dependencias Python/Node y tests unitarios
+ocurre dentro de `backend/`. La raíz permanece "agnóstica".
+
+La SPA que consume estas APIs **no vive en este repo**: está en
+[`salo368/Software-Inge-frontend`](https://github.com/salo368/Software-Inge-frontend),
+con su propio pipeline. Ver §5.4.
 
 ## 5. Servicios de dominio vs bloques de plataforma
 
@@ -159,34 +158,28 @@ un bloque descubierto automáticamente por `scripts/ci/plan-deploy.sh`. La únic
 regla especial: `migrations` se despliega **primero** si forma parte del plan
 (ver §14).
 
-### 5.4 `frontend/` — SPA Angular (bloque único)
+### 5.4 El frontend vive en otro repo
 
-Fuera de `backend/`, a nivel raíz, existe un único bloque `frontend`. No se
-subdivide: cualquier cambio dentro de `frontend/**` dispara el deploy completo
-del bloque.
+La SPA está en
+[`salo368/Software-Inge-frontend`](https://github.com/salo368/Software-Inge-frontend):
+Angular 18 sobre S3 privado + CloudFront con OAC, stack `cdts-<stage>-frontend`,
+con su propio pipeline y sus propias credenciales IAM (usuarios
+`github-actions-<stage>-frontend-deployer`, que no pueden desplegar backend).
 
-- Stack: **Angular 18** con builder `@angular-devkit/build-angular:application`.
-- Infra AWS: **S3 privado + CloudFront con Origin Access Control (OAC)**. Bucket
-  bloqueado, sólo CloudFront lee (via bucket policy con condition `aws:SourceArn`).
-- Definición: `frontend/serverless.yml` con `service: frontend`. Sin Lambdas;
-  solo `resources`. `package.patterns: ['!./**']` para no subir nada como zip.
-- Naming CFN: `stackName: cdts-${sls:stage}-frontend`. Bucket:
-  `cdts-<stage>-frontend-web-<accountId>` (sufijo del accountId para garantizar
-  unicidad global).
-- Configuraciones Angular: `dev` y `pro` (renombradas de las default `development`
-  y `production`). `pro` incluye `fileReplacements` para reemplazar
-  `src/environments/environment.ts` por `environment.pro.ts`.
-- Deploy real (job de CI para el bloque `frontend`):
-  1. `sls deploy --stage <stage>` — crea/actualiza infra CFN.
-  2. `ng build --configuration <stage>` — genera `dist/cdts-frontend/browser/`.
-  3. [`scripts/ci/deploy-frontend.sh`](../scripts/ci/deploy-frontend.sh) — sube
-     los assets a S3 **con Content-Type explícito por extensión** (evita el bug
-     de `aws s3 sync` en Windows que sirve `.js` como `text/plain` y rompe la SPA),
-     aplica `Cache-Control: public, max-age=31536000, immutable` en assets
-     hasheados (js/css/svg/woff2/json) y `no-cache` en `index.html`, borra
-     archivos huérfanos con `aws s3 sync --delete --size-only`, y crea la
-     invalidación de CloudFront.
-- CloudFront devuelve `/index.html` (200) para 403/404 → SPA routing client-side.
+**No añadir un `frontend/` a este repo.** Se separó justamente para que backend y
+cliente web se desplieguen y revisen de forma independiente.
+
+El contrato entre los dos repos es deliberadamente delgado y va enteramente por AWS:
+
+| Dirección | Mecanismo |
+|---|---|
+| Frontend → backend | Llama los HTTP API de cada servicio. Las URLs están hardcodeadas en los `environment.ts` de la SPA. |
+| Backend → frontend | Lee el parámetro SSM `/cdts/<stage>/frontend/url`, que el stack del frontend publica al desplegarse, para armar enlaces absolutos hacia la SPA (el correo de la ceremonia de firma, por ejemplo). |
+
+Se usa SSM y no un `Fn::ImportValue` a propósito: un import cruzado haría que
+CloudFormation bloqueara cambios en el stack del frontend mientras el backend
+dependa de él, y obligaría a un orden de despliegue entre repos. Leyendo el
+parámetro en runtime, cada stack se despliega cuando quiera.
 
 ## 6. Estructura obligatoria de un bloque
 
@@ -465,7 +458,7 @@ def handler(event, context):
 - CORS repetido dentro de cada `function.yml`. Va una sola vez en
   `provider.httpApi.cors`.
 - Archivos del backend (Python, `serverless.yml`, `requirements-*.txt`, etc.) fuera
-  de `backend/`. La raíz permanece para infra de proyecto y para un eventual `frontend/`.
+  de `backend/`. La raíz permanece para infra de proyecto.
 
 ## 13. Tests
 
@@ -496,12 +489,10 @@ Deploy PRO).
 | `<service>` | `backend/services/<service>/` | Servicio Serverless de dominio de negocio (§5.1). |
 | `<name>` | `backend/platform/<name>/` | Bloque de infraestructura runtime (§5.2). |
 | `migrations` | `backend/platform/migrations/` | Migraciones SQL versionadas. Ver [`backend/platform/migrations/README.md`](../backend/platform/migrations/README.md). |
-| `frontend` | `frontend/` | SPA Angular (§5.4). Bloque **unico**, no se subdivide. |
 
 Cada carpeta directa bajo `backend/services/` y `backend/platform/` genera
-automaticamente un bloque del mismo nombre. El bloque `frontend` es unico y
-existe siempre que exista la carpeta `frontend/`. Descubrimiento automatico
-en [`scripts/ci/plan-deploy.sh`](../scripts/ci/plan-deploy.sh).
+automaticamente un bloque del mismo nombre. Descubrimiento automatico en
+[`scripts/ci/plan-deploy.sh`](../scripts/ci/plan-deploy.sh).
 
 ### 14.2 Reglas de deploy selectivo
 
@@ -523,9 +514,7 @@ Tabla exhaustiva de que dispara que:
 | Solo `backend/platform/<X>/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
 | Cualquier otra cosa dentro de `backend/platform/<X>/**` (codigo/config del bloque) | **Todos los bloques de backend** |
 | Cualquier "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | **Todos los bloques de backend** |
-| Solo `frontend/**` | Solo `frontend` |
-| Mezcla backend + frontend | Los del backend segun reglas de arriba **+** `frontend` |
-| Solo fuera de `backend/` y `frontend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | **0 deploys** |
+| Solo fuera de `backend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | **0 deploys** |
 
 Ejemplos concretos:
 
@@ -536,8 +525,6 @@ Ejemplos concretos:
 | `backend/platform/migrations/src/handlers/apply/handler.py` | **`[migrations, ...todo el backend]`** |
 | `backend/platform/migrations/serverless.yml` | **`[migrations, ...todo el backend]`** |
 | `backend/config/pytest.ini` | `[migrations, auth, users, ...]` (todo backend) |
-| `frontend/src/app/app.component.html` | `[frontend]` |
-| `backend/services/auth/**` + `frontend/**` | `[auth, frontend]` |
 | `README.md` o `.github/workflows/deploy-dev.yml` | `[]` (no deploy) |
 
 ### 14.3 Orden de despliegue
@@ -546,9 +533,7 @@ Cuando el plan incluye varios bloques, se despliegan **secuencialmente** con
 `max-parallel: 1`, en este orden:
 
 1. `migrations` primero (si aplica). Asegura que el esquema este al dia.
-2. Resto del backend en orden alfabetico.
-3. `frontend` al final (si aplica). Asegura que la SPA consuma endpoints ya
-   desplegados.
+2. Resto de los bloques en orden alfabetico.
 
 ### 14.4 Override manual
 
@@ -556,8 +541,8 @@ Los workflows `deploy-dev.yml` y `deploy-pro.yml` aceptan un input
 `workflow_dispatch`:
 
 - `block` vacio -> auto-detectar del diff.
-- `block=<nombre>` -> forzar deploy solo de ese bloque (`auth`, `migrations`, `frontend`, etc.).
-- `block=__all__` -> forzar deploy total (todo el backend + frontend).
+- `block=<nombre>` -> forzar deploy solo de ese bloque (`auth`, `migrations`, etc.).
+- `block=__all__` -> forzar deploy total.
 
 Uso: desde GitHub UI, "Actions" -> el workflow -> "Run workflow" -> completar
 el input. Util para re-desplegar un bloque tras rollback o rotar credenciales.
@@ -569,9 +554,6 @@ el input. Util para re-desplegar un bloque tras rollback o rotar credenciales.
 - Poner logica cross-bloque en `backend/services/<X>/` para "no tener que tocar
   `backend/utils/`". Si es cross, va en `backend/utils/` o
   `backend/layers/shared/` aunque eso implique redeploy total.
-- Meter un subproyecto dentro de `frontend/` para "no re-desplegar todo el
-  frontend". Frontend es un bloque unico por diseno; si aparece la necesidad
-  de subdividir, se replantea la regla.
 - Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main`.
   Ver reglas duras en `backend/platform/migrations/README.md`.
 

@@ -31,6 +31,29 @@ La region esta como GitHub repo variable: `AWS_REGION=us-east-1`.
   policy.
 - **CloudFormation-driven.** Los deploys van via CloudFormation (Serverless), no comandos
   directos.
+- **SSM de solo lectura.** Ningun stack de este repo crea parametros: los secretos
+  (`/cdts/<stage>/db/*`, `/cdts/<stage>/smtp/*`) se crean a mano, y
+  `/cdts/<stage>/frontend/url` lo publica el stack del frontend desde su propio
+  repo con sus propias credenciales.
+
+## Actualizar la policy
+
+El JSON de este directorio es la fuente de verdad. Despues de editarlo hay que publicar
+una version nueva y dejarla como default:
+
+```bash
+export AWS_PROFILE=<admin-profile>
+export MSYS_NO_PATHCONV=1
+export MSYS2_ARG_CONV_EXCL="*"
+
+aws iam create-policy-version \
+  --policy-arn arn:aws:iam::658548982073:policy/CdtsGithubActionsDeploy \
+  --policy-document file://scripts/iam/github-actions-deploy-policy.json \
+  --set-as-default
+```
+
+IAM guarda maximo 5 versiones: si falla por ese limite, borrar la mas vieja con
+`aws iam delete-policy-version --version-id <vN>`.
 
 ## Reproducibilidad
 

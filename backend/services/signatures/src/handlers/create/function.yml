@@ -1,0 +1,7 @@
+description: Opens a signature ceremony for a process and emails the signer a link.
+# Renders the investment order and talks to an SMTP server.
+timeout: 29
+events:
+  - httpApi:
+      method: POST
+      path: /signatures

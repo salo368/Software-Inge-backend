@@ -3,24 +3,12 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
-import bcrypt
-
+from libs.core.logger import Logger
 from libs.core.responses import HandledError, generate_response
 from libs.orm.bearer_tokens import BearerTokens
 from libs.orm.users import Users
 
 TOKEN_TTL = timedelta(hours=24)
-
-
-def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(12)).decode()
-
-
-def verify_password(plain: str, hashed: str) -> bool:
-    try:
-        return bcrypt.checkpw(plain.encode(), hashed.encode())
-    except (ValueError, TypeError):
-        return False
 
 
 def _hash(token: str) -> str:
@@ -35,16 +23,29 @@ def issue_token(user_id) -> tuple[str, datetime]:
 
 
 def verify_token(token: str):
-    """Returns (user, bearer_token) or raises HandledError(401)."""
+    """Returns (user, bearer_token) or raises HandledError(401).
+
+    Every rejection returns the same opaque message so callers cannot probe
+    which part failed, but each one logs a distinct reason.
+    """
     if not token:
-        raise HandledError("invalid_or_expired_token", 401)
+        raise _reject("empty token")
     bearer = BearerTokens.get_by_hash(_hash(token))
-    if bearer is None or not bearer.is_alive():
-        raise HandledError("invalid_or_expired_token", 401)
+    if bearer is None:
+        raise _reject("no row for hash")
+    if bearer.revoked_at is not None:
+        raise _reject("token revoked")
+    if not bearer.is_alive():
+        raise _reject(f"token expired at {bearer.expires_at}")
     user = Users.get_by_id(bearer.user_id)
     if user is None:
-        raise HandledError("invalid_or_expired_token", 401)
+        raise _reject(f"no user {bearer.user_id}")
     return user, bearer
+
+
+def _reject(reason: str) -> HandledError:
+    Logger.log("WARNING", f"verify_token rejected: {reason}")
+    return HandledError("invalid_or_expired_token", 401)
 
 
 def require_auth(handler):

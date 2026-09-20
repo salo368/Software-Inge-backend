@@ -1,0 +1,72 @@
+service: signatures
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-signatures
+  memorySize: 1024
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+    SSM_SMTP_PATH: /cdts/${sls:stage}/smtp
+    FILES_BUCKET: cdts-${sls:stage}-files
+  iam:
+    role:
+      name: cdts-${sls:stage}-signatures-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+            - ssm:GetParameter
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend/*
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-files/*
+        - Effect: Allow
+          Action:
+            - rekognition:DetectText
+            - rekognition:DetectFaces
+          Resource: '*'
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    - 'utils/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+
+functions: ${file(./functions.js):build}
