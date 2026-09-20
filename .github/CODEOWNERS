@@ -35,11 +35,4 @@
 /backend/layers/                  @salo368
 /backend/tests/                   @salo368
 
-# Infra del bloque frontend (Serverless, Angular config, deps).
-# El codigo de la SPA (frontend/src/**) queda libre para colaboradores.
-/frontend/serverless.yml          @salo368
-/frontend/angular.json            @salo368
-/frontend/package.json            @salo368
-/frontend/package-lock.json       @salo368
-/frontend/tsconfig*.json          @salo368
-/frontend/.nvmrc                  @salo368
+# El frontend vive en salo368/Software-Inge-frontend y tiene su propio CODEOWNERS.

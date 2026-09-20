@@ -31,9 +31,10 @@ La region esta como GitHub repo variable: `AWS_REGION=us-east-1`.
   policy.
 - **CloudFormation-driven.** Los deploys van via CloudFormation (Serverless), no comandos
   directos.
-- **SSM de solo lectura global, escritura scopeada a `/cdts/*`.** Los stacks publican ahi
-  datos que otros bloques necesitan (por ejemplo la URL del frontend, que la Lambda de
-  firmas usa para armar el enlace del correo). Los secretos siguen creandose a mano.
+- **SSM de solo lectura.** Ningun stack de este repo crea parametros: los secretos
+  (`/cdts/<stage>/db/*`, `/cdts/<stage>/smtp/*`) se crean a mano, y
+  `/cdts/<stage>/frontend/url` lo publica el stack del frontend desde su propio
+  repo con sus propias credenciales.
 
 ## Actualizar la policy
 

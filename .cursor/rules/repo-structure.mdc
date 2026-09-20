@@ -1,5 +1,5 @@
 ---
-description: Estructura obligatoria del monorepo CDTS (backend Serverless en AWS)
+description: Estructura obligatoria del repo CDTS backend (Serverless en AWS)
 alwaysApply: true
 ---
 
@@ -9,16 +9,19 @@ Fuente extensa: [`docs/repo-structure.md`](../../docs/repo-structure.md). Esta r
 es un resumen accionable. **Cumplir sin excepciones**; si algo no encaja, preguntar
 antes de crear archivos.
 
-## Layout del monorepo
+## Layout del repo
 
 - **Raíz** = solo infra de proyecto: `.github/`, `.cursor/`, `docs/`, `scripts/iam/`,
  `scripts/ci/`, `README.md`, `CONTRIBUTING.md`, `.gitignore`.
 - **Todo el backend vive en [`backend/`](../../backend/)**: `serverless-compose.yml`,
  `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
  `config/`, `utils/`, `data/`, `services/`, `platform/`, `layers/`, `tests/`.
-- **El frontend vive en [`frontend/`](../../frontend/)**: Angular 18 SPA. Bloque
- unico, no se subdivide. Infra: S3 privado + CloudFront con OAC, definida en
- `frontend/serverless.yml` (service: `frontend`, sin Lambdas).
+- **El frontend NO vive aqui**: esta en
+ [`salo368/Software-Inge-frontend`](https://github.com/salo368/Software-Inge-frontend),
+ con su propio pipeline. No crear un `frontend/` en este repo. El unico
+ contacto entre los dos es el parametro SSM `/cdts/<stage>/frontend/url`, que
+ el stack del frontend publica y el backend lee en runtime para armar enlaces
+ absolutos hacia la SPA.
 
 ## Reglas duras
 
@@ -109,9 +112,8 @@ antes de crear archivos.
 
 - El pipeline **no** re-despliega todo el proyecto en cada push. Agrupa por
  **bloques** y despliega solo los afectados por el diff.
-- Bloques: cada carpeta directa bajo `backend/services/<X>/`, cada carpeta
- directa bajo `backend/platform/<X>/`, y `frontend/` como bloque unico.
- Descubrimiento automatico via
+- Bloques: cada carpeta directa bajo `backend/services/<X>/` y cada carpeta
+ directa bajo `backend/platform/<X>/`. Descubrimiento automatico via
  [`scripts/ci/plan-deploy.sh`](../../scripts/ci/plan-deploy.sh).
 - **Contenido vs codigo en `platform/`**: cada bloque `platform/<X>/` tiene
  una lista de subcarpetas de "contenido puro" (declarada en
@@ -127,22 +129,15 @@ antes de crear archivos.
 | Solo `backend/platform/X/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
 | Otra cosa en `backend/platform/X/**` (codigo/config del bloque) | Todo el backend |
 | Cualquier archivo "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | Todo el backend |
-| Solo `frontend/**` | Solo `frontend` |
-| Mezcla backend + frontend | Segun backend + `frontend` |
-| Solo fuera de `backend/` y `frontend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | 0 deploys |
+| Solo fuera de `backend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | 0 deploys |
 
 - **Orden**: secuencial (`max-parallel: 1`). (1) `migrations` primero, (2) resto
- del backend alfabetico, (3) `frontend` al final.
+ alfabetico.
 - `migrations` es un caso especial: la logica de negocio es una carpeta `sql/`
  con archivos `YYYYMMDDHHMMSS_desc.sql` con secciones `-- +migrate up` /
  `-- +migrate down`, aplicados por la Lambda `cdts-<stage>-migrations-apply`
  (autogenerada por el helper desde la carpeta `apply/`). Ver
  [`backend/platform/migrations/README.md`](../../backend/platform/migrations/README.md).
-- `frontend` es un caso especial: usa Serverless para la infra (S3+CloudFront+OAC),
- pero el "deploy" real tiene 3 pasos: (1) `sls deploy`, (2) `ng build
- --configuration <stage>`, (3) upload S3 tipado + CloudFront invalidation via
- `scripts/ci/deploy-frontend.sh`. El job del workflow `deploy-<stage>.yml` que
- corre cuando `matrix.block == 'frontend'` ejecuta estos 3 pasos.
 
 ## Flujo de trabajo con GitHub Actions
 
@@ -162,11 +157,8 @@ antes de crear archivos.
 
 - Archivos del backend (`.py`, `serverless*.yml`, `requirements-*.txt`, etc.) fuera
  de `backend/`.
-- Archivos del frontend (`.ts` de Angular, `angular.json`, `package.json` del
- frontend) fuera de `frontend/`.
-- Subdividir `frontend/` en sub-bloques desplegables. Es un bloque unico por
- diseno; si aparece la necesidad de subdividir, se replantea la regla en
- conjunto, no unilateralmente.
+- Crear un `frontend/` (o cualquier codigo de Angular) en este repo. Va en
+ `salo368/Software-Inge-frontend`.
 - Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
 - Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
 - Un `handler.py` que importa desde otro servicio hermano.
