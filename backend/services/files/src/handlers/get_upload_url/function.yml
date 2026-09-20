@@ -1,0 +1,3 @@
+description: Presigned PUT URL for direct browser uploads to the private files bucket.
+events:
+  - httpApi: { method: POST, path: /files/upload-url }

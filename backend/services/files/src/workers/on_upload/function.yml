@@ -1,0 +1,4 @@
+description: S3 ObjectCreated trigger. Registers uploads into the `files` table.
+timeout: 30
+# S3 event source is wired via the bucket NotificationConfiguration
+# declared in serverless.yml resources. No events: block needed here.

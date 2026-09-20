@@ -1,0 +1,5 @@
+description: Presigned PUT for one piece of identity evidence of a ceremony.
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{token}/upload-url

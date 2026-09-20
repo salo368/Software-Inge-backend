@@ -2,7 +2,8 @@ import json
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.users import Users
-from libs.utils.auth import hash_password, issue_token
+from libs.utils.auth import issue_token
+from libs.utils.passwords import hash_password
 from libs.utils.validators import password_reason, valid_email
 
 

@@ -1,0 +1,7 @@
+description: Validates an uploaded identity photo with Rekognition.
+# Two Rekognition round trips on a cold container.
+timeout: 29
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{token}/validate

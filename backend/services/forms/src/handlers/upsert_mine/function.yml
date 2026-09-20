@@ -1,0 +1,3 @@
+description: Upsert the current user's form (KYC + financial profile).
+events:
+  - httpApi: { method: PUT, path: /forms/me }
