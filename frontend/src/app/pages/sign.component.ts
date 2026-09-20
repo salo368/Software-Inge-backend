@@ -129,7 +129,17 @@ export class SignComponent implements OnInit, OnDestroy {
   private poll: number | null = null;
 
   ngOnInit(): void {
-    this.token = this.route.snapshot.paramMap.get('token')!;
+    // Angular reuses the component across tokens, so read the param stream
+    // rather than the snapshot.
+    this.route.paramMap.subscribe((params) => {
+      this.token = params.get('token')!;
+      this.load();
+    });
+  }
+
+  private load(): void {
+    this.notFound.set(false);
+    this.ceremony.set(null);
     this.api.get(this.token).subscribe({
       next: (c) => {
         this.apply(c);
@@ -137,7 +147,7 @@ export class SignComponent implements OnInit, OnDestroy {
         if (c.stage === 'otp') this.otpSent.set(false);
         if (c.signed_pdf_url) this.signedPdfUrl.set(c.signed_pdf_url);
         // Evidence can also be captured on another device; only move forward.
-        this.poll = window.setInterval(() => this.sync(), 4000);
+        if (this.poll === null) this.poll = window.setInterval(() => this.sync(), 4000);
       },
       error: () => this.notFound.set(true),
     });
@@ -150,7 +160,7 @@ export class SignComponent implements OnInit, OnDestroy {
   private apply(c: SignatureCeremony): void {
     this.ceremony.set(c);
     this.docDone.set({ ...c.uploads });
-    if (!this.currentDoc()) this.currentDoc.set(this.nextPendingDoc());
+    this.currentDoc.set(this.nextPendingDoc());
   }
 
   private nextPendingDoc(): EvidenceType | '' {

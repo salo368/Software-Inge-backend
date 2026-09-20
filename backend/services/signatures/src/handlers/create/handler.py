@@ -29,11 +29,13 @@ BUCKET = os.environ["FILES_BUCKET"]
 SIGN_BASE_URL = os.environ.get("SIGN_BASE_URL", "").rstrip("/")
 
 
-def _base_url(event) -> str:
-    if SIGN_BASE_URL:
-        return SIGN_BASE_URL
-    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-    return (headers.get("origin") or "").rstrip("/")
+def _sign_url(event, token: str) -> str:
+    """The SPA is served with hash routing, so the link needs the `#`."""
+    base = SIGN_BASE_URL
+    if not base:
+        headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+        base = (headers.get("origin") or "").rstrip("/")
+    return f"{base}/#/firmar/{token}"
 
 
 @handle_exceptions
@@ -56,7 +58,7 @@ def handler(event, context):
     if existing is not None and existing.stage != "signed":
         return generate_response({
             "signature": existing.public_dict(),
-            "sign_url": f"{_base_url(event)}/firmar/{existing.token}",
+            "sign_url": _sign_url(event, existing.token),
             "reused": True,
         })
 
@@ -86,7 +88,7 @@ def handler(event, context):
         token=token,
     )
 
-    sign_url = f"{_base_url(event)}/firmar/{token}"
+    sign_url = _sign_url(event, token)
     emailed = send_email(
         user.email,
         f"Firma tu orden de inversión · {bank_name}",
