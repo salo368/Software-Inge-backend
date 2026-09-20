@@ -276,7 +276,7 @@ jobs:
     needs: [plan, deploy]
     if: needs.plan.outputs.count != '0' && needs.deploy.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     continue-on-error: true
     strategy:
       # Let every block's integration run even if a sibling fails; a
@@ -286,6 +286,16 @@ jobs:
         block: ${{ fromJson(needs.plan.outputs.blocks) }}
     environment:
       name: dev
+    env:
+      # GH-hosted runners are NOT EC2 -- probing IMDS for creds/region hangs
+      # for the full retry budget (up to 5 minutes) before boto3 gives up.
+      # Disable it so any boto3 client init uses env vars directly.
+      AWS_EC2_METADATA_DISABLED: "true"
+      # Bound the SDK retry budget so a real failure surfaces fast instead
+      # of stretching to minutes of exponential backoff. Belt-and-suspenders
+      # with integration_helpers._BOTO_CONFIG (which sets the same at
+      # per-client scope).
+      AWS_MAX_ATTEMPTS: "2"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -348,11 +358,14 @@ jobs:
           # used by every service in serverless.yml; integration_helpers.py
           # falls back to this if the env var is not set.
           FILES_BUCKET: cdts-dev-files
+          # Unbuffered so live output shows in the GH logs while a test is
+          # running (useful for triage when a request hangs).
+          PYTHONUNBUFFERED: "1"
         run: |
           python -m pytest ${{ steps.path.outputs.dir }} \
             --integration \
             -m integration \
-            -ra \
+            -v -s -ra --tb=short \
             --junitxml=pytest-integration-${{ matrix.block }}.xml
 
       - name: Record outcome for summary

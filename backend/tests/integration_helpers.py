@@ -24,8 +24,28 @@ from functools import lru_cache
 from typing import Any, Iterator
 
 import boto3
+import botocore.config
 import pg8000.native
 import requests
+
+# ---------------------------------------------------------------------------
+# boto3 client factory with fast, bounded retries.
+#
+# GitHub-hosted runners are NOT EC2 instances, so IMDS (Instance Metadata
+# Service) probes just hang for their full timeout budget. We disable IMDS
+# via `AWS_EC2_METADATA_DISABLED=true` at the workflow level; here we also
+# cap client-side retries so a real failure surfaces in ~15s instead of
+# after 5 minutes of exponential backoff.
+# ---------------------------------------------------------------------------
+_BOTO_CONFIG = botocore.config.Config(
+    retries={"max_attempts": 2, "mode": "standard"},
+    connect_timeout=5,
+    read_timeout=15,
+)
+
+
+def _client(service: str):
+    return boto3.client(service, region_name=REGION, config=_BOTO_CONFIG)
 
 
 # ---------------------------------------------------------------------------
@@ -66,7 +86,7 @@ def api_base(service: str) -> str:
     the integration job rather than silently hitting the wrong host.
     """
     stack_name = f"cdts-{STAGE}-{service}"
-    cfn = boto3.client("cloudformation", region_name=REGION)
+    cfn = _client("cloudformation")
     try:
         resp = cfn.describe_stacks(StackName=stack_name)
         outputs = resp["Stacks"][0].get("Outputs", []) or []
@@ -79,7 +99,7 @@ def api_base(service: str) -> str:
 
     # Fallback: enumerate HTTP APIs and match by conventional name. Serverless
     # names the HttpApi resource `${sls:stage}-${service}` by default.
-    apigw = boto3.client("apigatewayv2", region_name=REGION)
+    apigw = _client("apigatewayv2")
     candidate_names = {
         f"{STAGE}-{service}",
         f"cdts-{STAGE}-{service}",
@@ -110,7 +130,7 @@ def api_base(service: str) -> str:
 # ---------------------------------------------------------------------------
 @lru_cache(maxsize=1)
 def _load_db_config() -> dict[str, str]:
-    ssm = boto3.client("ssm", region_name=REGION)
+    ssm = _client("ssm")
     resp = ssm.get_parameters_by_path(
         Path=SSM_DB_PATH.rstrip("/") + "/",
         WithDecryption=True,
@@ -124,7 +144,12 @@ def db_conn() -> Iterator[pg8000.native.Connection]:
     """Opens a Postgres connection with `search_path` set to the stage schema.
 
     Use as `with db_conn() as c: c.run("SELECT ...")`. Rolls back and closes
-    on exit."""
+    on exit.
+
+    NOTE: `ssl_context` is intentionally None (the default) to mirror what
+    `libs/core/db.py` uses at runtime. Passing `ssl_context=True` when the
+    RDS server does not require SSL causes pg8000 to hang on the TLS
+    handshake instead of falling back cleanly."""
     cfg = _load_db_config()
     conn = pg8000.native.Connection(
         host=cfg["host"],
@@ -132,8 +157,7 @@ def db_conn() -> Iterator[pg8000.native.Connection]:
         database=cfg["name"],
         user=cfg["user"],
         password=cfg["password"],
-        ssl_context=True,
-        timeout=30,
+        timeout=15,
     )
     try:
         conn.run(f'SET search_path TO "{cfg.get("schema", STAGE)}", pg_catalog')
@@ -173,7 +197,7 @@ def execute(sql: str, **params) -> None:
 # S3 access
 # ---------------------------------------------------------------------------
 def _s3():
-    return boto3.client("s3", region_name=REGION)
+    return _client("s3")
 
 
 def s3_head(bucket: str, key: str) -> dict | None:
