@@ -87,7 +87,19 @@ os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
 #        builds a valid dict and the engine URL formats cleanly,
 #      - a MagicMock for every other method (rekognition, s3, ses, ...).
 #    Since the SQLAlchemy engine is lazy, no real connection is opened.
+#
+#    IMPORTANT: The stub must NOT be installed when running integration.py
+#    tests (--integration), because those tests use REAL boto3 to talk to
+#    the deployed dev infra. If the fake takes over, calls like
+#    `boto3.client("cloudformation").describe_stacks(...)` return MagicMocks
+#    that silently break control flow (e.g. paginators that never terminate
+#    because MagicMock is truthy). We detect the flag from sys.argv here at
+#    module-import time because conftest module code runs before pytest has
+#    parsed --integration into config.
 # ---------------------------------------------------------------------------
+_INTEGRATION_RUN = "--integration" in sys.argv
+
+
 class _FakeAWSClient:
     def get_parameters_by_path(self, Path, WithDecryption=False):  # noqa: N803
         base = Path.rstrip("/")
@@ -111,10 +123,11 @@ class _FakeAWSClient:
         return MagicMock()
 
 
-_fake_boto3 = ModuleType("boto3")
-_fake_boto3.client = lambda *a, **kw: _FakeAWSClient()
-_fake_boto3.resource = lambda *a, **kw: _FakeAWSClient()
-sys.modules["boto3"] = _fake_boto3
+if not _INTEGRATION_RUN:
+    _fake_boto3 = ModuleType("boto3")
+    _fake_boto3.client = lambda *a, **kw: _FakeAWSClient()
+    _fake_boto3.resource = lambda *a, **kw: _FakeAWSClient()
+    sys.modules["boto3"] = _fake_boto3
 
 
 # ---------------------------------------------------------------------------
