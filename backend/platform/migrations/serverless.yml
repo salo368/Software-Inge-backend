@@ -41,6 +41,7 @@ package:
     - '!tests/**'
     # Colocated tests live next to each handler.py; keep them out of the zip.
     - '!**/test.py'
+    - '!**/integration.py'
     - '!**/conftest.py'
     - 'src/**'
     - 'utils/**'

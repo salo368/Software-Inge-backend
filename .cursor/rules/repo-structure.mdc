@@ -79,18 +79,33 @@ antes de crear archivos.
  - `backend/data/` — datos estáticos, semillas, catálogos.
  - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
 7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`.
- Carpeta obligatoriamente `snake_case`. Contenido **obligatorio** (tres archivos):
+ Carpeta obligatoriamente `snake_case`. Contenido **obligatorio** (tres archivos)
+ más UN archivo opcional:
  - `handler.py` con `def handler(event, context)`.
  - `function.yml` **sin `name` ni `handler`**; solo lleva lo especifico
  (events, memorySize override, timeout override, environment, layers,
  description).
- - `test.py` con al menos tres casos pytest (happy path, validacion de entrada,
- falla de dominio). Corre en el job `tests` del pipeline por bloque (§Tests
- abajo). Si un `test.py` falla, ningun bloque se despliega. Los tests NO
- llaman a AWS/BD reales: monkeypatch `Users.*`, `Processes.*`, `presign_upload`,
- `send_email`, etc. Importan el handler con la fixture `load_handler(__file__)`
- provista por `backend/conftest.py`. El `test.py` se excluye del zip via
- `- '!**/test.py'` en `package.patterns` del `serverless.yml` del bloque.
+ - `test.py` (unit, en seco) con al menos tres casos pytest (happy path,
+ validacion de entrada, falla de dominio). Corre en el job `tests` del
+ pipeline por bloque. Si un `test.py` falla, ningun bloque se despliega.
+ Los tests NO llaman a AWS/BD reales: monkeypatch `Users.*`, `Processes.*`,
+ `presign_upload`, `send_email`, etc. Importan el handler con la fixture
+ `load_handler(__file__)` provista por `backend/conftest.py`. El `test.py` se
+ excluye del zip via `- '!**/test.py'` en `package.patterns` del
+ `serverless.yml` del bloque.
+ - `integration.py` (OPCIONAL, solo dev). Corre POST-deploy contra la
+ infra REAL de dev y valida (a) el contrato HTTP en vivo y (b) que el
+ efecto lateral persistio en Postgres/S3 ("fuentes de reposo"). Usa
+ `pytestmark = pytest.mark.integration` y helpers de
+ `backend/tests/integration_helpers.py` (`api_base`, `db_conn`,
+ `query_one`, `s3_head`, `signup_and_login`, `unique_email`,
+ `cleanup_user`, `wait_for`). Un `pytest` local NO los corre; requiere
+ `--integration`. NO bloquea deploy (job `integration` con
+ `continue-on-error: true`). Se agrega solo donde tiene sentido:
+ endpoints con efectos laterales persistentes o flujos async con
+ workers. Handlers de solo lectura no necesitan uno. El
+ `integration.py` se excluye del zip via `- '!**/integration.py'` en
+ `package.patterns`. Detalle completo en `docs/repo-structure.md §13.3`.
 8. **Auto-registro de Lambdas**: cada bloque tiene un `functions.js` de 3
  lineas que delega en el helper compartido:
  ```js
@@ -152,16 +167,26 @@ antes de crear archivos.
 - Abrir PR (a cualquier base) → **0 workflows**.
 - Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
 - Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
-- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `plan → validate → tests
- → deploy → summary`. `plan` y `validate` corren una sola vez. `tests` y
- `deploy` son matrix por bloque (`plan.outputs.blocks`); `tests` corre en
- paralelo, `deploy` secuencial (`max-parallel: 1`, migrations primero).
+- Forma canonica:
+ - `Deploy DEV`: `plan → validate → tests → deploy → integration → summary`.
+ - `Deploy PRO`: `plan → validate → tests → deploy → summary` (SIN
+ `integration`; no queremos usuarios de prueba en produccion).
+- `plan` y `validate` corren una sola vez. `tests`, `deploy` e `integration`
+ son matrix por bloque (`plan.outputs.blocks`); `tests` e `integration`
+ corren en paralelo, `deploy` secuencial (`max-parallel: 1`, migrations
+ primero).
  - `validate` corre `lint-migrations`, `node --test` sobre los helpers JS,
  `serverless-compose package` y el pytest cross-cutting de `backend/tests/`.
  - `tests` corre `pytest <services|platform>/<block>` en un shard por bloque
- para levantar los `test.py` colocalizados de cada Lambda del bloque.
- - Si `validate` o cualquier shard de `tests` falla, `deploy` no se ejecuta
- y AWS queda intacto.
+ para levantar los `test.py` colocalizados de cada Lambda del bloque
+ (unit, mockeado). Si un shard falla, ningun bloque se despliega.
+ - `integration` (solo dev) corre `pytest --integration -m integration
+ <services|platform>/<block>` contra la infra REAL desplegada. Tiene
+ `continue-on-error: true` y `needs: [deploy]`: un fallo NO revierte
+ AWS ni marca el workflow en rojo — queda en annotations, en el
+ artifact `pytest-integration-dev-<block>` y en el `summary` (icono
+ por bloque). Si el bloque no tiene `integration.py`, el job se saltea
+ con un `::notice::` y se marca como `skipped` en el summary.
 - Para iterar en dev **sin gastar Actions**: hacer `sls deploy --stage dev`
  directamente desde local con credenciales AWS locales. Solo mergear a `main`
  cuando este todo validado — ese es el unico gasto real de Actions.
@@ -255,6 +280,35 @@ events:
  - httpApi: { method: POST, path: /auth/refresh-token }
  # - schedule: rate(1 day)      # si fuera scheduled/
  # - sqs: arn:aws:sqs:...       # si fuera workers/
+```
+
+`backend/services/auth/src/handlers/refresh_token/integration.py` (OPCIONAL):
+```python
+# Solo si la Lambda tiene efecto lateral persistente (mutacion en DB/S3
+# o dispara un worker async). No aplica a handlers puros de lectura.
+# Corre POST-deploy contra dev; --integration lo activa.
+import pytest, requests
+from tests.integration_helpers import (
+ api_base, cleanup_user, query_one, signup_and_login,
+)
+
+pytestmark = pytest.mark.integration
+
+def test_refresh_token_rotates_the_bearer_row_in_db():
+ session = signup_and_login()
+ try:
+ resp = requests.post(
+ f"{api_base('auth')}/auth/refresh-token",
+ json={"refresh_token": session["token"]}, timeout=15,
+ )
+ assert resp.status_code == 200
+ new_token = resp.json()["token"]
+ # Fuente de reposo: el token viejo debe estar revocado, el nuevo activo.
+ old = query_one("SELECT revoked_at FROM bearer_tokens WHERE user_id = :u ORDER BY created_at ASC LIMIT 1", u=session["user_id"])
+ assert old and old["revoked_at"] is not None
+ assert new_token and new_token != session["token"]
+ finally:
+ cleanup_user(session["email"])
 ```
 
 `backend/services/auth/functions.js` (una sola vez por bloque):
