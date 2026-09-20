@@ -262,22 +262,180 @@ jobs:
           STAGE: dev
         run: bash scripts/ci/deploy-assets.sh
 
+  # Non-blocking post-deploy verification. Hits the REAL deployed dev
+  # API + REAL Postgres/S3 through the colocated `integration.py` tests.
+  # If it fails, deploy is NOT rolled back and the workflow still exits
+  # green (continue-on-error at the job level). Failures surface as:
+  #   * annotations on the run page,
+  #   * a red row in the Deploy summary,
+  #   * a saved pytest-integration-<block>.xml artifact for triage.
+  # Runs only in dev; deploy-pro.yml intentionally has no equivalent
+  # (we don't want throwaway users landing in production).
+  integration:
+    name: Integration ${{ matrix.block }} (dev)
+    needs: [plan, deploy]
+    if: needs.plan.outputs.count != '0' && needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    strategy:
+      # Let every block's integration run even if a sibling fails; a
+      # broken auth ceremony shouldn't hide a working files upload flow.
+      fail-fast: false
+      matrix:
+        block: ${{ fromJson(needs.plan.outputs.blocks) }}
+    environment:
+      name: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve block path
+        id: path
+        working-directory: backend
+        run: |
+          if [ -d "services/${{ matrix.block }}" ]; then
+            echo "dir=services/${{ matrix.block }}" >> "$GITHUB_OUTPUT"
+          elif [ -d "platform/${{ matrix.block }}" ]; then
+            echo "dir=platform/${{ matrix.block }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::block '${{ matrix.block }}' not found under services/ or platform/"
+            exit 1
+          fi
+
+      # Skip cleanly if the block has no integration.py yet. `integration.py`
+      # is OPTIONAL (see docs/repo-structure.md §13.3) so the absence must
+      # not be treated as a failure.
+      - name: Detect integration.py files
+        id: detect
+        working-directory: backend
+        run: |
+          shopt -s nullglob
+          hits=(${{ steps.path.outputs.dir }}/src/*/*/integration.py)
+          echo "count=${#hits[@]}" >> "$GITHUB_OUTPUT"
+          if [ ${#hits[@]} -eq 0 ]; then
+            echo "::notice::No integration.py files under ${{ steps.path.outputs.dir }}/src/. Skipping (they are optional; see docs/repo-structure.md §13.3)."
+          fi
+
+      - name: Run integration tests for "${{ matrix.block }}"
+        id: pytest
+        if: steps.detect.outputs.count != '0'
+        working-directory: backend
+        env:
+          STAGE: dev
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          # The bucket name follows the same cdts-<stage>-<name> convention
+          # used by every service in serverless.yml; integration_helpers.py
+          # falls back to this if the env var is not set.
+          FILES_BUCKET: cdts-dev-files
+        run: |
+          python -m pytest ${{ steps.path.outputs.dir }} \
+            --integration \
+            -m integration \
+            -ra \
+            --junitxml=pytest-integration-${{ matrix.block }}.xml
+
+      - name: Record outcome for summary
+        if: always()
+        run: |
+          mkdir -p /tmp/int-status
+          if [ "${{ steps.detect.outputs.count }}" = "0" ]; then
+            echo "skipped" > "/tmp/int-status/${{ matrix.block }}.txt"
+          else
+            echo "${{ steps.pytest.outcome }}" > "/tmp/int-status/${{ matrix.block }}.txt"
+            if [ "${{ steps.pytest.outcome }}" != "success" ]; then
+              echo "::warning::Integration tests failed for ${{ matrix.block }} (non-blocking; deploy already succeeded — investigate before promoting to pro)"
+            fi
+          fi
+
+      - name: Upload integration status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-status-${{ matrix.block }}
+          path: /tmp/int-status/${{ matrix.block }}.txt
+          retention-days: 7
+
+      - name: Upload integration pytest report
+        if: always() && hashFiles(format('backend/pytest-integration-{0}.xml', matrix.block)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-integration-dev-${{ matrix.block }}
+          path: backend/pytest-integration-${{ matrix.block }}.xml
+          retention-days: 7
+
   summary:
     name: Deploy summary
-    needs: [plan, validate, tests, deploy]
+    needs: [plan, validate, tests, deploy, integration]
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Download integration statuses
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          pattern: integration-status-*
+          path: /tmp/int-status
+          merge-multiple: true
+        continue-on-error: true
+
       - name: Print summary
         run: |
+          # Aggregate per-block integration outcomes. `needs.integration.result`
+          # is always "success" because the job has continue-on-error: true;
+          # the real signal lives in the per-block status files.
+          int_section=""
+          if compgen -G "/tmp/int-status/*.txt" > /dev/null; then
+            while IFS= read -r f; do
+              block=$(basename "$f" .txt)
+              outcome=$(tr -d '[:space:]' < "$f")
+              case "$outcome" in
+                success) icon=":white_check_mark:" ;;
+                skipped) icon=":fast_forward:" ;;
+                *)       icon=":x:" ;;
+              esac
+              int_section+="  - ${icon} \`${block}\`: ${outcome}"$'\n'
+            done < <(ls /tmp/int-status/*.txt)
+          else
+            int_section="  - _(no integration jobs ran)_"$'\n'
+          fi
+
           {
             echo "### Deploy DEV summary"
             echo ""
-            echo "Plan:      **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
+            echo "Plan:         **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
             echo '```json'
             echo '${{ needs.plan.outputs.blocks }}'
             echo '```'
-            echo "Validate:  **${{ needs.validate.result }}**"
-            echo "Tests:     **${{ needs.tests.result }}**"
-            echo "Deploy:    **${{ needs.deploy.result }}**"
+            echo "Validate:     **${{ needs.validate.result }}**"
+            echo "Tests (unit): **${{ needs.tests.result }}**"
+            echo "Deploy:       **${{ needs.deploy.result }}**"
+            echo ""
+            echo "**Integration (non-blocking, dev only):**"
+            echo ""
+            echo "${int_section}"
+            echo ""
+            echo "> Integration failures do not roll back the deploy. Investigate the"
+            echo "> per-block \`pytest-integration-dev-<block>\` artifact and the"
+            echo "> annotations panel on this run before promoting to pro."
           } >> "$GITHUB_STEP_SUMMARY"

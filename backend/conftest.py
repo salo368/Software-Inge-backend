@@ -34,6 +34,35 @@ from unittest.mock import MagicMock
 
 import pytest
 
+
+# ---------------------------------------------------------------------------
+# 0) `--integration` flag: colocated `integration.py` tests hit real deployed
+#    infra (dev API Gateway + Postgres + S3). They MUST NOT run on a plain
+#    local `pytest` invocation, so we auto-skip anything marked
+#    `@pytest.mark.integration` unless `--integration` is passed. The CI
+#    integration job passes it; unit runs (local or `tests` job) do not.
+# ---------------------------------------------------------------------------
+def pytest_addoption(parser):
+    parser.addoption(
+        "--integration",
+        action="store_true",
+        default=False,
+        help="Also run integration.py tests that hit real dev AWS/DB. "
+             "Without this flag, tests marked @pytest.mark.integration are "
+             "collected but skipped, so a plain `pytest` never touches infra.",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--integration"):
+        return
+    skip_marker = pytest.mark.skip(
+        reason="pass --integration to run tests that hit real dev infra"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_marker)
+
 # ---------------------------------------------------------------------------
 # 1) Make `backend/` importable so tests can do `from libs.core... import ...`
 #    exactly like Lambda does at runtime (Lambda's cwd is the zip root, which

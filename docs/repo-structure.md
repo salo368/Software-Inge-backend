@@ -530,12 +530,101 @@ build, generadores compartidos):
 backend/tests/
 ├── test_migrations_parser.py    ← unit test del parser SQL
 ├── build-functions.test.js       ← unit test del helper de auto-registro
+├── integration_helpers.py        ← helpers para los integration.py (§13.3)
 └── ...
 ```
 
 Cada test es del tipo pytest (`test_*.py`, funciones `test_*`) o Node
 (`*.test.js` via `node --test`). El CI corre `pytest tests -ra` **dentro de
 `backend/`** en el job `validate` (una sola vez, no por bloque).
+
+> `tests/integration_helpers.py` NO es un archivo de tests (no matchea
+> `test_*.py`); es el módulo con los helpers compartidos que consumen los
+> `integration.py` colocalizados. Ver §13.3.
+
+### 13.3 Colocalizados en vivo: `integration.py` (opcional, solo dev)
+
+Además del `test.py` "en seco" (unit, mockeado, bloquea deploy), cada
+Lambda **PUEDE** tener un `integration.py` hermano que corre contra la
+infra REAL de `dev` DESPUÉS del deploy. Sirve para dos cosas al mismo
+tiempo:
+
+1. **Contrato en vivo** — hace el request HTTP real contra API Gateway y
+   verifica el status/shape que el frontend va a recibir.
+2. **Validación de fuentes de reposo** — abre Postgres/S3 directamente y
+   verifica que el efecto lateral persistió (fila del usuario existente,
+   objeto en S3, token en `bearer_tokens`, worker async terminó, etc.).
+
+Contrato:
+
+- **Es opcional**. `test.py` sigue siendo obligatorio; `integration.py`
+  se agrega donde tiene sentido (endpoints con efectos laterales
+  persistentes o flujos async con workers). Handlers de solo lectura
+  como `forms/get_mine` no lo necesitan.
+- Cada test se marca con `@pytest.mark.integration` (o
+  `pytestmark = pytest.mark.integration` a nivel de módulo).
+- Un `pytest` local NO los ejecuta (se saltean via el hook
+  `pytest_collection_modifyitems` en `backend/conftest.py`). Para
+  correrlos explícitamente: `pytest --integration -m integration
+  services/auth/src/handlers/register/`. Sin `--integration` aparecen
+  como `SKIPPED`.
+- Usan helpers de `backend/tests/integration_helpers.py`:
+  `api_base(service)`, `db_conn()`, `query_one(sql, **params)`,
+  `s3_head(bucket, key)`, `signup_and_login()`, `cleanup_user(email)`,
+  `unique_email()`, `wait_for(condition)`.
+- **Aislamiento**: cada test genera identificadores únicos con prefijo
+  `itest-` (`unique_email()` → `itest-<uuid>@itest.cdts.dev`). Los
+  `cleanup_*` en `finally` borran las filas creadas por el test. Los
+  helpers de cleanup rechazan borrar cualquier cosa que no empiece con
+  `itest-` como red de seguridad.
+- **Descubrimiento del API URL**: `api_base(service)` primero busca el
+  output `HttpApiUrl` del stack `cdts-dev-<service>` en CloudFormation
+  y, si no está, hace fallback a `apigatewayv2 get-apis` filtrando por
+  nombre. Cero configuración manual.
+
+Plantilla mínima:
+
+```python
+# backend/services/auth/src/handlers/register/integration.py
+import pytest, requests
+from tests.integration_helpers import (
+    api_base, cleanup_user, query_one, unique_email,
+)
+
+pytestmark = pytest.mark.integration
+
+
+def test_register_persists_user_in_db():
+    email = unique_email()
+    try:
+        r = requests.post(f"{api_base('auth')}/auth/register", json={
+            "email": email, "password": "hunter22aa", "full_name": "Bot",
+        }, timeout=15)
+        assert r.status_code == 201
+
+        # fuente de reposo: la fila realmente existe en Postgres.
+        row = query_one("SELECT id, email, password_hash FROM users WHERE email = :e", e=email)
+        assert row is not None
+        assert row["password_hash"].startswith("$2")  # bcrypt marker
+    finally:
+        cleanup_user(email)  # ¡siempre!
+```
+
+Estos `integration.py` corren en el job `integration` del pipeline
+(§15), **solo en Deploy DEV**, matrix por bloque, `continue-on-error:
+true` y `needs: [deploy]`. Es decir:
+
+- Un fallo NO revierte AWS: el deploy ya sucedió.
+- El workflow termina en verde con warnings; los detalles quedan en
+  annotations y en el artifact `pytest-integration-dev-<block>`.
+- El resumen final (`summary`) muestra por bloque el estado
+  (:white_check_mark: / :fast_forward: skipped / :x:).
+- Deploy PRO **no** corre integration (no queremos usuarios de prueba
+  en producción).
+
+**Exclusión del zip**: cada `serverless.yml` incluye
+`- '!**/integration.py'` en `package.patterns` para no subirlo a
+Lambda.
 
 ## 14. Bloques de despliegue
 
@@ -641,11 +730,23 @@ Consecuencias practicas:
   `Deploy PRO`. Los `test.py` colocalizados de cada Lambda corren en el job
   `tests`, un shard por bloque en paralelo. Si `validate` o `tests` fallan,
   `deploy` no se ejecuta y AWS queda intacto.
-- **Forma canónica del pipeline**: `plan → validate → tests → deploy →
-  summary`. `plan` y `validate` corren una sola vez; `tests` y `deploy` son
-  matrix por bloque (matrix por `plan.outputs.blocks`), con `tests` en
-  paralelo y `deploy` secuencial (`max-parallel: 1`). `summary` siempre corre
-  y imprime el resultado de cada stage.
+- **Forma canónica del pipeline**:
+  - **Deploy DEV**: `plan → validate → tests → deploy → integration → summary`.
+  - **Deploy PRO**: `plan → validate → tests → deploy → summary` (SIN
+    `integration`; no queremos usuarios de prueba en producción).
+
+  `plan` y `validate` corren una sola vez; `tests`, `deploy` e
+  `integration` son matrix por bloque (matrix por
+  `plan.outputs.blocks`), con `tests` e `integration` en paralelo y
+  `deploy` secuencial (`max-parallel: 1`).
+
+  El job `integration` (§13.3) tiene `continue-on-error: true` y
+  `needs: [plan, deploy]`: corre solo si el deploy salió bien y su
+  fallo NO revierte AWS ni marca el workflow en rojo — el resultado
+  detallado por bloque queda en el `summary` (:white_check_mark:
+  passed / :fast_forward: sin `integration.py` / :x: failed) y en el
+  artifact `pytest-integration-dev-<block>`. `summary` siempre corre y
+  espera a todos los jobs (`if: always()`).
 - **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
   a `develop`, hacer `sls deploy --stage dev` directamente desde local con
   credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`
