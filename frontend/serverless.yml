@@ -89,6 +89,15 @@ resources:
                 StringEquals:
                   AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}'
 
+    # Published so the backend can build absolute links into the SPA (the
+    # signing email, for one) without a cross-stack import.
+    FrontendUrlParameter:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /cdts/${sls:stage}/frontend/url
+        Type: String
+        Value: !Sub 'https://${CloudFrontDistribution.DomainName}'
+
   Outputs:
     WebBucketName:
       Value: !Ref WebBucket

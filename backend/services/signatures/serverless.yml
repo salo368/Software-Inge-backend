@@ -20,13 +20,6 @@ provider:
     SSM_DB_PATH: /cdts/${sls:stage}/db
     SSM_SMTP_PATH: /cdts/${sls:stage}/smtp
     FILES_BUCKET: cdts-${sls:stage}-files
-    # Optional override for the link emailed to the signer. Left empty the
-    # handler falls back to the Origin of the request, which is the frontend
-    # that started the ceremony -- no cross-stack dependency needed.
-    # Resolved from the deployer's environment, not SSM: the CI `validate` job
-    # packages without AWS credentials and an ${ssm:} lookup would fail there.
-    SIGN_BASE_URL: ${env:SIGN_BASE_URL, ''}
-
   iam:
     role:
       name: cdts-${sls:stage}-signatures-lambda
@@ -34,11 +27,14 @@ provider:
         - Effect: Allow
           Action:
             - ssm:GetParametersByPath
+            - ssm:GetParameter
           Resource:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend/*
         - Effect: Allow
           Action:
             - kms:Decrypt

@@ -4,6 +4,7 @@ Renders the investment order, parks it in S3 and emails the signer a link.
 Calling it again on a process that already has an unfinished ceremony returns
 that one instead of stacking duplicates.
 """
+import boto3
 import json
 import os
 import secrets
@@ -26,15 +27,26 @@ from utils.investment_order import (
 )
 
 BUCKET = os.environ["FILES_BUCKET"]
-SIGN_BASE_URL = os.environ.get("SIGN_BASE_URL", "").rstrip("/")
+STAGE = os.environ.get("STAGE", "dev")
+_base_url_cache: str | None = None
+
+
+def _frontend_url() -> str:
+    """Where the SPA lives, published by the frontend stack on deploy."""
+    global _base_url_cache
+    if _base_url_cache is None:
+        try:
+            resp = boto3.client("ssm").get_parameter(Name=f"/cdts/{STAGE}/frontend/url")
+            _base_url_cache = resp["Parameter"]["Value"].rstrip("/")
+        except Exception:
+            _base_url_cache = ""
+    return _base_url_cache
 
 
 def _sign_url(event, token: str) -> str:
-    """The SPA is served with hash routing, so the link needs the `#`."""
-    base = SIGN_BASE_URL
-    if not base:
-        headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-        base = (headers.get("origin") or "").rstrip("/")
+    """The SPA uses hash routing, so the emailed link has to carry the `#`."""
+    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    base = _frontend_url() or (headers.get("origin") or "").rstrip("/")
     return f"{base}/#/firmar/{token}"
 
 
