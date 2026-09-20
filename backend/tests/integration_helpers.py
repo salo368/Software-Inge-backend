@@ -99,6 +99,12 @@ def api_base(service: str) -> str:
 
     # Fallback: enumerate HTTP APIs and match by conventional name. Serverless
     # names the HttpApi resource `${sls:stage}-${service}` by default.
+    #
+    # Belt-and-suspenders: cap the pagination loop at 20 pages so a broken
+    # response (e.g. a MagicMock stub returning a truthy MagicMock for
+    # NextToken forever) fails loudly instead of hanging the runner. The
+    # real AWS account has O(10) HTTP APIs -- 20 pages of 500 is way more
+    # than enough.
     apigw = _client("apigatewayv2")
     candidate_names = {
         f"{STAGE}-{service}",
@@ -106,16 +112,22 @@ def api_base(service: str) -> str:
         stack_name,
     }
     token = None
-    while True:
-        kwargs = {"MaxResults": "500"}
+    for _ in range(20):
+        kwargs: dict[str, Any] = {"MaxResults": "500"}
         if token:
             kwargs["NextToken"] = token
         page = apigw.get_apis(**kwargs)
-        for api in page.get("Items", []):
+        items = page.get("Items", []) or []
+        if not isinstance(items, list):
+            raise RuntimeError(
+                f"apigatewayv2.get_apis returned a non-list Items ({type(items).__name__}); "
+                f"is boto3 stubbed by conftest.py? See conftest.py step 3."
+            )
+        for api in items:
             if api.get("Name") in candidate_names:
                 return api["ApiEndpoint"].rstrip("/")
         token = page.get("NextToken")
-        if not token:
+        if not token or not isinstance(token, str):
             break
 
     raise RuntimeError(
