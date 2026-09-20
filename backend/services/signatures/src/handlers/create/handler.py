@@ -44,10 +44,10 @@ def _frontend_url() -> str:
 
 
 def _sign_url(event, token: str) -> str:
-    """The SPA uses hash routing, so the emailed link has to carry the `#`."""
+    """`/sign/` is its own micro frontend, served from the same domain."""
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     base = _frontend_url() or (headers.get("origin") or "").rstrip("/")
-    return f"{base}/#/firmar/{token}"
+    return f"{base}/sign/{token}"
 
 
 @handle_exceptions
