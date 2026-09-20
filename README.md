@@ -1,14 +1,18 @@
-# CDTS · Backend
+# Proyecto Ingeniería de Software · Backend
 
-Proyecto serverless multi-servicio en AWS (Lambda + API Gateway HTTP API) con
+> **Ejercicio académico** de la Pontificia Universidad Javeriana. No es un producto
+> real ni está asociado a ninguna empresa; existe para practicar arquitectura
+> serverless, CI/CD y buenas prácticas de repositorio.
+
+Backend serverless multi-servicio en AWS (Lambda + API Gateway HTTP API) con
 Serverless Framework v3. Todo el runtime vive bajo [`backend/`](./backend/); la raíz
 agrupa solo infraestructura de proyecto (CI/CD, docs, reglas, IAM bootstrap).
 
 La SPA que consume estas APIs vive en un repo aparte:
 [`salo368/Software-Inge-frontend`](https://github.com/salo368/Software-Inge-frontend).
 Se despliegan por separado y no comparten pipeline; el único punto de contacto es
-AWS, donde el frontend publica su URL en el parámetro SSM `/cdts/<stage>/frontend/url`
-para que el backend arme enlaces absolutos hacia la SPA.
+AWS, donde el frontend publica su URL en un parámetro SSM para que el backend arme
+enlaces absolutos hacia la SPA.
 
 > **Estado:** rebuild post-MVP. La rama `develop` es la nueva base limpia. El codigo del MVP
 > vive en la rama `legacy/mvp` como referencia y se migra por PRs pequenas.
