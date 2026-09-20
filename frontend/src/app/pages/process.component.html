@@ -60,18 +60,18 @@
         ></app-process-documents>
       </ng-container>
 
-      <!-- signature (mocked) -->
+      <!-- signature -->
       <ng-container *ngIf="stage() === 'signature'">
-        <h5 class="fw-bold mb-1">Firma tu contrato</h5>
+        <h5 class="fw-bold mb-1">Firma tu orden de inversion</h5>
         <p class="text-body-secondary small mb-4">
-          En produccion enviaremos un enlace seguro a tu correo para firmar digitalmente.
-          Por ahora, la firma esta simulada: presiona continuar para marcarla como completada.
+          Te enviaremos un enlace seguro a tu correo. Revisas el documento, validas tu identidad
+          con la camara y confirmas con un codigo de un solo uso.
         </p>
         <div class="border rounded-3 p-3 mb-3 d-flex align-items-center gap-3" style="background: #faf9fe">
           <i class="bi bi-file-earmark-text fs-3" style="color: var(--brand)"></i>
           <div class="flex-grow-1">
             <div class="fw-semibold">
-              Contrato de apertura<span *ngIf="bank() as b"> &middot; {{ b.name }}</span>
+              Orden de inversion<span *ngIf="bank() as b"> &middot; {{ b.name }}</span>
             </div>
             <div class="small text-body-secondary">
               {{ formatCOP(d.process.amount) }} &middot; {{ d.process.term_days }} dias &middot;
@@ -79,6 +79,22 @@
             </div>
           </div>
         </div>
+
+        <div class="d-flex flex-wrap gap-3 small text-body-secondary mb-3">
+          <span><i class="bi bi-person-badge me-1"></i>Validacion de identidad</span>
+          <span><i class="bi bi-vector-pen me-1"></i>Firma manuscrita</span>
+          <span><i class="bi bi-shield-lock me-1"></i>Codigo por correo</span>
+        </div>
+
+        <button
+          class="btn btn-primary w-100 py-2"
+          [disabled]="signing()"
+          (click)="startSignature()"
+        >
+          <span *ngIf="signing()" class="spinner-border spinner-border-sm me-2"></span>
+          {{ d.signature && d.signature.stage !== 'signed' ? 'Continuar mi firma' : 'Firmar ahora' }}
+          <i class="bi bi-arrow-right ms-2"></i>
+        </button>
       </ng-container>
 
       <!-- payment (mocked) -->
@@ -131,9 +147,10 @@
 
       <div *ngIf="error()" class="alert alert-danger mt-3 py-2 small mb-0">{{ error() }}</div>
 
-      <!-- Advance CTA (form stage is advanced by the sub-component; done has no CTA) -->
+      <!-- Advance CTA. `form` is advanced by the sub-component, `signature` by
+           the ceremony itself, and `done` has nothing left to do. -->
       <button
-        *ngIf="stage() !== 'form' && stage() !== 'done'"
+        *ngIf="stage() === 'documents' || stage() === 'payment'"
         class="btn btn-primary w-100 mt-4 py-2"
         [disabled]="advancing()"
         (click)="advance()"
@@ -141,7 +158,6 @@
         <span *ngIf="advancing()" class="spinner-border spinner-border-sm me-2"></span>
         <ng-container [ngSwitch]="stage()">
           <span *ngSwitchCase="'documents'">Continuar a la firma</span>
-          <span *ngSwitchCase="'signature'">Firmar (simulado)</span>
           <span *ngSwitchCase="'payment'">Pagar {{ formatCOP(d.process.amount) }} (simulado)</span>
         </ng-container>
         <i class="bi bi-arrow-right ms-2"></i>

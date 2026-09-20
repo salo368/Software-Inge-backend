@@ -513,3 +513,135 @@ h1, h2, h3, h4, h5, h6,
   from { background-position: 200% 0; }
   to   { background-position: -200% 0; }
 }
+
+/* ---------- Firma: vista previa del documento ---------- */
+.pdf-wrap {
+  position: relative;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #fff;
+}
+.pdf-wrap canvas {
+  display: block;
+  width: 100%;
+}
+.sig-box {
+  position: absolute;
+  aspect-ratio: 3 / 1;
+  border: 2px dashed var(--brand);
+  background: rgba(124, 58, 237, 0.08);
+  border-radius: 6px;
+  color: var(--brand-dark);
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+}
+
+/* ---------- Firma: canvas de dibujo ---------- */
+.sig-pad {
+  display: block;
+  width: 100%;
+  border: 1.5px dashed #ddd6fe;
+  border-radius: var(--radius-md);
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+/* ---------- Firma: input OTP ---------- */
+.otp-input {
+  font-size: 1.8rem;
+  letter-spacing: 0.9rem;
+  text-align: center;
+  font-weight: 800;
+  max-width: 300px;
+  margin-inline: auto;
+}
+
+/* ---------- Firma: captura con camara ---------- */
+.cam-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #0b0a1d;
+}
+.cam-wrap.document { aspect-ratio: 4 / 3; }
+.cam-wrap.face {
+  aspect-ratio: 3 / 4;
+  max-width: 400px;
+  margin-inline: auto;
+}
+.cam-wrap video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cam-wrap video.mirror { transform: scaleX(-1); }
+.cam-guide {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 3px dashed rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 0 9999px rgba(11, 10, 29, 0.55);
+  pointer-events: none;
+}
+.cam-guide.document {
+  width: 82%;
+  aspect-ratio: 1.586; /* ISO ID-1: the shot always comes out landscape */
+  border-radius: 12px;
+}
+.cam-guide.face {
+  height: 76%;
+  aspect-ratio: 3 / 4;
+  border-radius: 50%;
+}
+.cam-shot {
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bs-border-color);
+  box-shadow: var(--shadow-sm);
+}
+.cam-shot.face { max-height: 380px; }
+.cam-error {
+  background: #faf9fe;
+  border: 1.5px dashed var(--bs-border-color);
+  border-radius: var(--radius-md);
+  color: var(--bs-secondary-color);
+}
+
+/* ---------- Firma: selector de documento ---------- */
+.doc-chip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.6rem 0.4rem;
+  border: 1.5px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: #fff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.doc-chip i { font-size: 1.15rem; }
+.doc-chip.active {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: #faf9fe;
+}
+.doc-chip.done {
+  border-color: #34d399;
+  color: #059669;
+  background: #ecfdf5;
+}
+.doc-chip.done.active { box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.35); }

@@ -11,6 +11,7 @@ import {
   ProcessStage,
   STAGE_ORDER,
 } from '../core/processes.service';
+import { SignaturesService } from '../core/signatures.service';
 import { ProcessDocumentsComponent } from './process/process-documents.component';
 import { ProcessFormComponent } from './process/process-form.component';
 
@@ -45,6 +46,7 @@ export class ProcessComponent implements OnInit {
   private router = inject(Router);
   private processesApi = inject(ProcessesService);
   private banksApi = inject(BanksService);
+  private signaturesApi = inject(SignaturesService);
 
   readonly STEPS = STEPS;
   readonly formatCOP = formatCOP;
@@ -53,6 +55,7 @@ export class ProcessComponent implements OnInit {
   bank = signal<Bank | null>(null);
   loading = signal(true);
   advancing = signal(false);
+  signing = signal(false);
   error = signal<string | null>(null);
 
   readonly stage = computed<ProcessStage>(() => this.detail()?.process.stage ?? 'form');
@@ -125,12 +128,41 @@ export class ProcessComponent implements OnInit {
     this.advance();
   }
 
+  /** Opens (or resumes) the signature ceremony and hands the user over to it. */
+  startSignature(): void {
+    const d = this.detail();
+    if (!d || this.signing()) return;
+
+    const pending = d.signature;
+    if (pending && pending.stage !== 'signed') {
+      void this.router.navigate(['/firmar', pending.token]);
+      return;
+    }
+
+    this.signing.set(true);
+    this.error.set(null);
+    this.signaturesApi.create(d.process.id).subscribe({
+      next: (r) => {
+        this.signing.set(false);
+        void this.router.navigate(['/firmar', r.signature.token]);
+      },
+      error: (err) => {
+        this.signing.set(false);
+        this.error.set(this.friendlyError(err?.error?.error));
+      },
+    });
+  }
+
   private friendlyError(code: string | undefined): string {
     switch (code) {
       case 'form_required':
         return 'Completa el formulario antes de continuar.';
       case 'declaracion_renta_required':
         return 'Debes cargar la declaracion de renta antes de continuar.';
+      case 'signature_required':
+        return 'Debes firmar la orden de inversion antes de continuar.';
+      case 'process_not_in_signature_stage':
+        return 'Este proceso ya no esta en la etapa de firma.';
       default:
         return 'No pudimos continuar. Intenta de nuevo en unos segundos.';
     }

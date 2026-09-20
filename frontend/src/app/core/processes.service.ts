@@ -24,9 +24,17 @@ export interface ProcessRow {
   created_at: string;
 }
 
+export interface ProcessSignature {
+  token: string;
+  stage: 'review' | 'identity' | 'drawing' | 'otp' | 'signed';
+  signed_at: string | null;
+  doc_hash: string | null;
+}
+
 export interface ProcessDetail {
   process: ProcessRow;
   files: FileRow[];
+  signature: ProcessSignature | null;
 }
 
 @Injectable({ providedIn: 'root' })
