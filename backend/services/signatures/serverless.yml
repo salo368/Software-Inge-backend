@@ -68,5 +68,8 @@ package:
     - 'utils/**'
     - '!**/__pycache__/**'
     - '!**/*.pyc'
+    # Colocated tests live next to each handler.py; keep them out of the zip.
+    - '!**/test.py'
+    - '!**/conftest.py'
 
 functions: ${file(./functions.js):build}

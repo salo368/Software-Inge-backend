@@ -79,11 +79,18 @@ antes de crear archivos.
  - `backend/data/` — datos estáticos, semillas, catálogos.
  - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
 7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`.
- Carpeta obligatoriamente `snake_case`. Contenido:
+ Carpeta obligatoriamente `snake_case`. Contenido **obligatorio** (tres archivos):
  - `handler.py` con `def handler(event, context)`.
  - `function.yml` **sin `name` ni `handler`**; solo lleva lo especifico
  (events, memorySize override, timeout override, environment, layers,
  description).
+ - `test.py` con al menos tres casos pytest (happy path, validacion de entrada,
+ falla de dominio). Corre en el job `tests` del pipeline por bloque (§Tests
+ abajo). Si un `test.py` falla, ningun bloque se despliega. Los tests NO
+ llaman a AWS/BD reales: monkeypatch `Users.*`, `Processes.*`, `presign_upload`,
+ `send_email`, etc. Importan el handler con la fixture `load_handler(__file__)`
+ provista por `backend/conftest.py`. El `test.py` se excluye del zip via
+ `- '!**/test.py'` en `package.patterns` del `serverless.yml` del bloque.
 8. **Auto-registro de Lambdas**: cada bloque tiene un `functions.js` de 3
  lineas que delega en el helper compartido:
  ```js
@@ -145,10 +152,16 @@ antes de crear archivos.
 - Abrir PR (a cualquier base) → **0 workflows**.
 - Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
 - Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
-- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `plan → validate → deploy →
- summary`. El job `validate` corre pytest, `lint-migrations`, `node --test`
- sobre los helpers JS y `serverless-compose package`. Si falla, `deploy` no
- se ejecuta y AWS queda intacto.
+- `Deploy DEV` y `Deploy PRO` tienen la misma forma: `plan → validate → tests
+ → deploy → summary`. `plan` y `validate` corren una sola vez. `tests` y
+ `deploy` son matrix por bloque (`plan.outputs.blocks`); `tests` corre en
+ paralelo, `deploy` secuencial (`max-parallel: 1`, migrations primero).
+ - `validate` corre `lint-migrations`, `node --test` sobre los helpers JS,
+ `serverless-compose package` y el pytest cross-cutting de `backend/tests/`.
+ - `tests` corre `pytest <services|platform>/<block>` en un shard por bloque
+ para levantar los `test.py` colocalizados de cada Lambda del bloque.
+ - Si `validate` o cualquier shard de `tests` falla, `deploy` no se ejecuta
+ y AWS queda intacto.
 - Para iterar en dev **sin gastar Actions**: hacer `sls deploy --stage dev`
  directamente desde local con credenciales AWS locales. Solo mergear a `main`
  cuando este todo validado — ese es el unico gasto real de Actions.
@@ -199,12 +212,36 @@ antes de crear archivos.
 
 Ejemplo: bloque `auth` (services), Lambda `refresh_token` HTTP POST.
 El bloque ya existe con su `serverless.yml` y `functions.js`; solo hay que
-crear la carpeta de la Lambda.
+crear la carpeta de la Lambda con sus **tres** archivos obligatorios.
 
 `backend/services/auth/src/handlers/refresh_token/handler.py`:
 ```python
 def handler(event, context):
  return {"statusCode": 200, "body": ""}
+```
+
+`backend/services/auth/src/handlers/refresh_token/test.py`:
+```python
+# Tres casos de piso: happy path, validacion, falla de dominio.
+import json
+from unittest.mock import MagicMock
+
+def test_refresh_token_happy_path(load_handler, monkeypatch):
+ h = load_handler(__file__)
+ # monkeypatch.setattr(h, "SomeDep", MagicMock(...))
+ resp = h.handler({"body": json.dumps({"refresh_token": "valid"})}, None)
+ assert resp["statusCode"] == 200
+
+def test_refresh_token_missing_body_returns_400(load_handler):
+ h = load_handler(__file__)
+ resp = h.handler({"body": None}, None)
+ assert resp["statusCode"] == 400
+
+def test_refresh_token_expired_returns_401(load_handler, monkeypatch):
+ h = load_handler(__file__)
+ # simular dependencia que rechaza el token
+ resp = h.handler({"body": json.dumps({"refresh_token": "expired"})}, None)
+ assert resp["statusCode"] == 401
 ```
 
 `backend/services/auth/src/handlers/refresh_token/function.yml`:

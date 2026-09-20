@@ -39,6 +39,9 @@ package:
     - '!node_modules/**'
     - '!.pytest_cache/**'
     - '!tests/**'
+    # Colocated tests live next to each handler.py; keep them out of the zip.
+    - '!**/test.py'
+    - '!**/conftest.py'
     - 'src/**'
     - 'utils/**'
     - 'sql/**'
