@@ -197,15 +197,18 @@ backend/{services,platform}/<name>/
     ├── handlers/           ← API Lambdas (HTTP via API Gateway)
     │   └── <function>/
     │       ├── handler.py
-    │       └── function.yml
+    │       ├── function.yml
+    │       └── test.py          ← pruebas unitarias colocalizadas (§13.1)
     ├── scheduled/          ← Lambdas por schedule (EventBridge cron/rate)
     │   └── <function>/
     │       ├── handler.py
-    │       └── function.yml
+    │       ├── function.yml
+    │       └── test.py
     └── workers/            ← Worker Lambdas (SQS / SNS / Streams / async invoke)
         └── <function>/
             ├── handler.py
-            └── function.yml
+            ├── function.yml
+            └── test.py
 ```
 
 ### Reglas de las tres subcarpetas de `src/`
@@ -241,12 +244,16 @@ Reglas:
 ## 8. Cada Lambda vive en su propia carpeta
 
 Dentro de `handlers/`, `scheduled/` o `workers/`, cada Lambda es **una carpeta con
-exactamente dos archivos**:
+exactamente tres archivos obligatorios**:
 
 - `handler.py` — código Python (define la función `handler(event, context)`).
 - `function.yml` — configuración **específica** de esa función (events, memory,
   timeout override, environment, layers, etc.). **NO lleva `name` ni `handler`**;
   ambos se autogeneran (§8.1).
+- `test.py` — pruebas unitarias **colocalizadas** para esa Lambda (ver §13.1).
+  Corren en el job `tests` del pipeline por bloque; si el `test.py` falla, el
+  deploy del bloque no se ejecuta. `test.py` se excluye del zip via
+  `package.patterns` en el `serverless.yml` de cada bloque.
 
 Si una Lambda necesita más de un archivo, esos archivos van dentro de la misma carpeta
 de la Lambda, no fuera.
@@ -462,17 +469,73 @@ def handler(event, context):
 
 ## 13. Tests
 
-Los tests viven en `backend/tests/`, espejando la estructura de servicios:
+Hay **dos ubicaciones** de tests, con propósitos distintos y ambas obligatorias:
+
+### 13.1 Colocalizados: `test.py` al lado de cada `handler.py`
+
+Cada Lambda **DEBE** tener un `test.py` en su propia carpeta (ver §8). Contrato:
+
+- Es un archivo pytest normal, con al menos **tres casos** de piso (no techo):
+  1. **Happy path** — evento válido → status esperado + payload esperado.
+  2. **Validación de entrada** — evento con campos faltantes/inválidos → 400.
+  3. **Falla de dominio** — dependencia que responde "no" (usuario no existe,
+     token invalido, stage incorrecto, etc.) → status correcto y sin fuga de
+     stack.
+- **No** hace llamadas reales a AWS ni a la BD. Usa `monkeypatch` para
+  reemplazar `Users.get_by_email`, `Processes.create`, `presign_upload`,
+  `send_email`, etc. antes de invocar `handler(event, context)`.
+- Importa el handler con la fixture `load_handler(__file__)` provista por
+  [`backend/conftest.py`](../backend/conftest.py). Esa fixture carga el
+  `handler.py` hermano bajo un nombre de módulo único para evitar colisiones
+  cuando 20+ archivos se llaman igual.
+- El `conftest.py` de `backend/` **stubbea `boto3` antes de que se importe
+  cualquier handler**, para que `libs/core/db.py` (que llama a
+  `boto3.client("ssm").get_parameters_by_path` en top-level) no explote al
+  importar el módulo bajo prueba.
+
+Plantilla mínima:
+
+```python
+# backend/services/auth/src/handlers/login/test.py
+import json
+from unittest.mock import MagicMock
+
+def _event(body): return {"body": json.dumps(body)}
+
+def test_login_happy_path(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    monkeypatch.setattr(h, "Users", MagicMock(
+        get_by_email=MagicMock(return_value=MagicMock(password_hash="x", public_dict=lambda: {"id": "u"}))
+    ))
+    monkeypatch.setattr(h, "verify_password", MagicMock(return_value=True))
+    monkeypatch.setattr(h, "issue_token", MagicMock(return_value=("tok", ...)))
+    resp = h.handler(_event({"email": "a@b.co", "password": "x"}), None)
+    assert resp["statusCode"] == 200
+```
+
+Estos `test.py` corren en el job `tests` del pipeline (§15), un shard por
+bloque, en paralelo. Si el shard de un bloque rompe, **ninguno** se despliega
+(`fail-fast: true`).
+
+**Exclusión del zip**: el `serverless.yml` de cada bloque incluye
+`- '!**/test.py'` y `- '!**/conftest.py'` en `package.patterns`. Sin eso, el
+`test.py` se subiría a la Lambda y aumentaría el tamaño del zip para nada.
+
+### 13.2 Cross-cutting: `backend/tests/`
+
+Para tests que **no pertenecen a una Lambda específica** (parsers, helpers de
+build, generadores compartidos):
 
 ```
 backend/tests/
-├── test_access_login.py
-├── test_signature_create_signature.py
+├── test_migrations_parser.py    ← unit test del parser SQL
+├── build-functions.test.js       ← unit test del helper de auto-registro
 └── ...
 ```
 
-Cada test es del tipo pytest (`test_*.py`, funciones `test_*`). El CI corre
-`pytest tests -ra` **dentro de `backend/`** en cada PR.
+Cada test es del tipo pytest (`test_*.py`, funciones `test_*`) o Node
+(`*.test.js` via `node --test`). El CI corre `pytest tests -ra` **dentro de
+`backend/`** en el job `validate` (una sola vez, no por bloque).
 
 ## 14. Bloques de despliegue
 
@@ -573,9 +636,16 @@ Consecuencias practicas:
 - **Los PRs no gastan CI**. La branch protection de `main` no exige status
   checks (los quitamos junto con `ci.yml`); solo exige "require PR" para forzar
   revision humana. `develop` no exige ni PR (admite push directo).
-- **Todos los checks del ex-`ci.yml`** (pytest, lint-migrations, `serverless-compose
-  package`) corren ahora en el job `validate` dentro de `Deploy DEV` y `Deploy PRO`.
-  Si `validate` falla, `plan` y `deploy` no se ejecutan y AWS queda intacto.
+- **Todos los checks del ex-`ci.yml`** (pytest cross-cutting, lint-migrations,
+  `serverless-compose package`) corren en el job `validate` dentro de `Deploy DEV` y
+  `Deploy PRO`. Los `test.py` colocalizados de cada Lambda corren en el job
+  `tests`, un shard por bloque en paralelo. Si `validate` o `tests` fallan,
+  `deploy` no se ejecuta y AWS queda intacto.
+- **Forma canónica del pipeline**: `plan → validate → tests → deploy →
+  summary`. `plan` y `validate` corren una sola vez; `tests` y `deploy` son
+  matrix por bloque (matrix por `plan.outputs.blocks`), con `tests` en
+  paralelo y `deploy` secuencial (`max-parallel: 1`). `summary` siempre corre
+  y imprime el resultado de cada stage.
 - **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
   a `develop`, hacer `sls deploy --stage dev` directamente desde local con
   credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`

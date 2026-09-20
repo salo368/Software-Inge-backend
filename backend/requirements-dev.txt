@@ -2,3 +2,11 @@ pytest==8.3.3
 pytest-html==4.1.1
 boto3==1.35.36
 requests==2.32.3
+# Runtime deps mirrored here so the colocated `test.py` next to each Lambda
+# can `import` the handler under test without pulling from Lambda layers.
+# Keep in sync with each service's requirements.txt.
+sqlalchemy==2.0.34
+pg8000==1.31.2
+bcrypt==4.2.0
+reportlab==4.2.5
+pypdf==5.1.0
