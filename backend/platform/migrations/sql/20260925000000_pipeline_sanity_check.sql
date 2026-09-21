@@ -1,0 +1,13 @@
+-- Pipeline sanity-check migration.
+--
+-- Idempotent no-op SQL that exists only to verify:
+--   * plan-deploy classifies backend/platform/migrations/sql/*.sql as
+--     infra-content, forcing run_migrations=true and transversal=true
+--   * migrations/apply lambda picks up the new file and records it in
+--     schema_migrations
+--   * every service gets fan-out redeployed
+--
+-- SELECT 1 is a canonical no-op that returns a row without changing
+-- anything. Safe to keep in the repo indefinitely; re-running would be
+-- prevented anyway by the schema_migrations idempotency guard.
+SELECT 1;
