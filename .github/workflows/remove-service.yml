@@ -1,0 +1,123 @@
+name: Remove Service (manual)
+
+# Manual escape hatch to `sls remove` a single service stack. Used when a
+# stack ends up in an unrecoverable state (mismatched route parametric
+# names, mismatched Cognito UserPool logical IDs, orphan S3 buckets, ...)
+# and CloudFormation can no longer roll forward via a normal deploy.
+#
+# NEVER run this against pro without explicit confirmation. The workflow
+# is behind workflow_dispatch and the environment gate on the caller.
+#
+# Contract:
+#   * `service` : folder name under backend/services/<service>/
+#   * `stage`   : 'dev' or 'pro' (guarded)
+#   * `empty_buckets`: when true, empties S3 buckets owned by the stack
+#     BEFORE `sls remove`, because CloudFormation refuses to delete a
+#     non-empty bucket. Set 'true' when the stack owns its own bucket
+#     (e.g. signatures) and you're OK losing the objects.
+#
+# The workflow just wraps `serverless-compose <svc>:remove`; it does NOT
+# touch shared infra (RDS, SSM parameters, Cognito). If those need to go
+# too, delete them by hand and adjust the migration plan.
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service folder under backend/services/"
+        type: string
+        required: true
+      stage:
+        description: "Deployment stage"
+        type: choice
+        options: [dev, pro]
+        default: dev
+        required: true
+      empty_buckets:
+        description: "Empty stack-owned S3 buckets before removal"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  remove:
+    name: Remove ${{ inputs.service }} (${{ inputs.stage }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.stage }}
+    steps:
+      - name: Confirm intent
+        run: |
+          echo "About to remove stack cdts-${{ inputs.stage }}-${{ inputs.service }}"
+          if [ "${{ inputs.stage }}" = "pro" ]; then
+            echo "::warning::You are removing a PRODUCTION stack. Reconsider."
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      # Buckets owned by the stack block `sls remove` when non-empty.
+      # We list every bucket whose logical resource name is `*Bucket` and
+      # empty them. Safe because this only runs on dispatch.
+      - name: Empty stack-owned buckets
+        if: inputs.empty_buckets
+        run: |
+          stack="cdts-${{ inputs.stage }}-${{ inputs.service }}"
+          buckets=$(aws cloudformation list-stack-resources \
+            --stack-name "$stack" \
+            --query "StackResourceSummaries[?ResourceType=='AWS::S3::Bucket'].PhysicalResourceId" \
+            --output text || true)
+          if [ -z "$buckets" ]; then
+            echo "No S3 buckets found in stack $stack."
+            exit 0
+          fi
+          for b in $buckets; do
+            echo "Emptying s3://$b ..."
+            aws s3 rm "s3://$b" --recursive || true
+            # Delete versions/delete-markers too, in case versioning was on.
+            aws s3api list-object-versions --bucket "$b" \
+              --query '{Objects: Versions[].{Key:Key,VersionId:VersionId}}' \
+              --output json 2>/dev/null \
+              | jq -c 'select(.Objects != null and (.Objects|length) > 0)' \
+              | while read -r payload; do
+                  aws s3api delete-objects --bucket "$b" --delete "$payload" || true
+                done
+            aws s3api list-object-versions --bucket "$b" \
+              --query '{Objects: DeleteMarkers[].{Key:Key,VersionId:VersionId}}' \
+              --output json 2>/dev/null \
+              | jq -c 'select(.Objects != null and (.Objects|length) > 0)' \
+              | while read -r payload; do
+                  aws s3api delete-objects --bucket "$b" --delete "$payload" || true
+                done
+          done
+
+      - name: Remove service "${{ inputs.service }}"
+        working-directory: backend
+        run: |
+          npx serverless-compose "${{ inputs.service }}:remove" --stage ${{ inputs.stage }} --verbose
