@@ -167,30 +167,48 @@ antes de crear archivos.
 - Abrir PR (a cualquier base) → **0 workflows**.
 - Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
 - Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
-- Forma canonica (agrupado por bloque via reusable workflow):
- - `Deploy DEV`: `plan → validate → migrations (package)? → packages[block] → summary`.
- - `Deploy PRO`: mismo shape, pero cada package saltea `integration` (`stage: pro`).
-- `plan` y `validate` corren una sola vez. Despues el pipeline se abre en una
- fila por bloque; cada fila es una llamada a
- `.github/workflows/block-package.yml`, que internamente corre
- `test → deploy → integration` (integration solo cuando `stage == 'dev'`).
- GitHub UI lo renderiza como un grupo expandible por bloque.
- - `migrations` corre como package solitario y actua de gate: los demas
- packages tienen `needs: [migrations]` (con `if: always()` para saltearlo
- cuando no esta en el plan).
- - `packages` es matrix por `plan.outputs.blocks_others` (todo menos
- migrations) con `fail-fast: false` y sin `max-parallel`: cada bloque
- tiene su propio stack CloudFormation, corren completamente en paralelo.
- - Dentro de un package los jobs son secuenciales: `deploy` needs `test`,
- `integration` needs `deploy`. Si `test` rompe, no se deploya ese bloque
- (pero los demas siguen).
+- Modelo mental: SERVICIOS vs INFRAESTRUCTURA.
+ - Servicios (`backend/services/<X>/`): dominios de negocio, cada uno con
+ test.py + integration.py + handlers. Se "empaquetan" (validate → test →
+ deploy → integration).
+ - Infraestructura (`backend/platform/<X>/`, hoy `migrations` y `assets`):
+ transversal a todos los servicios, NO son "packages". No tienen test
+ suite propio. Son deploy-only y corren ANTES de los servicios.
+- Forma canonica (Deploy DEV): `plan → validate → infrastructure? → services[matrix] → summary`.
+ Deploy PRO tiene el mismo shape, con `stage: pro` que hace que los service
+ packages salteen su step `integration`.
+- `plan-deploy.sh` categoriza el diff y emite:
+ - `services_to_deploy`, `services_count`
+ - `run_migrations`, `run_assets`, `run_infrastructure`
+ - `transversal` (true si algo fuera de `services/` cambio dentro de `backend/`)
+ - `total_count` (services + infra steps)
+ Regla clave: **cualquier cambio transversal fuerza redeploy de TODOS los
+ servicios**, porque lo que se movio es compartido. Cambios contenido-only
+ a infra (`platform/migrations/sql/*.sql`, `platform/assets/files/*`) solo
+ corren ese step de infra, sin tocar servicios.
+- `validate` (global, una vez) corre `lint-migrations`, `node --test`, y el
+ pytest cross-cutting de `backend/tests/`. Si falla, ni infraestructura ni
+ servicios arrancan.
+- `infrastructure` es un solo job con sub-steps secuenciales:
+ `migrations · deploy → migrations · apply → assets · deploy → assets · sync`.
+ Cada uno guardado por su `run_*` flag. Solo corre si el plan lo pidio; si
+ falla, aborta (no queremos desplegar codigo contra un schema no aplicado).
+- `services` es matrix (`plan.outputs.services_to_deploy`) con
+ `fail-fast: false` y sin `max-parallel`: cada servicio tiene su propio
+ stack CloudFormation, corren completamente en paralelo. Cada celda es una
+ llamada a `.github/workflows/service-package.yml` que internamente hace
+ `validate → test → deploy → integration` (integration solo en dev).
+ GitHub UI lo renderiza como un grupo expandible por servicio.
+ - Dentro de un service package, las 4 etapas son secuenciales:
+ `test` needs `validate`; `deploy` needs `test`; `integration` needs
+ `deploy`. Si algo se corta, lo posterior se marca `skipped`.
  - `integration` (solo dev) tiene `continue-on-error: true`: un fallo NO
- revierte AWS ni marca el workflow en rojo. Cada package sube
- `integration-status-<block>` que el `summary` agrega con iconos
- (:white_check_mark: / :fast_forward: / :x:), y el detalle queda en el
- artifact `pytest-integration-dev-<block>`. Si el bloque no tiene
- `integration.py`, el job se saltea con `::notice::` y aparece
- `skipped` en el summary.
+ revierte AWS ni marca el workflow en rojo. Cada service package sube
+ `service-status-<service>.json` (un blob con el outcome de las 4
+ etapas). El summary lo descarga y arma una tabla por servicio con
+ columna "stopped at" para ver donde se corto.
+ - Si el servicio no tiene `integration.py`, el job corre pero el step de
+ pytest se saltea con `::notice::` y aparece como "no int.py" en el summary.
 - Los `integration.py` son **estrictamente block-local** (§13.3): no pueden
  llamar endpoints HTTP de otro bloque. Para autenticar usar
  `create_test_user_directly()` (SQL directo); para catalogos usar `SELECT`.

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       block:
-        description: "Block to force (empty = auto-detect; '__all__' = all blocks)"
+        description: "Manual override: empty=auto-detect, __all__=full deploy, or a service/infra name."
         required: false
         default: ""
 
@@ -17,20 +17,24 @@ concurrency:
   group: deploy-pro
   cancel-in-progress: false
 
+# Same shape as deploy-dev.yml. Only difference: `stage: pro` on service
+# packages, which makes the reusable skip the `integration` job. See
+# docs/repo-structure.md §15.
+
 jobs:
-  # Same shape as deploy-dev.yml but with stage=pro (the reusable
-  # block-package skips its `integration` job for that stage). See
-  # docs/repo-structure.md §15 for the pipeline flow.
   plan:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      blocks: ${{ steps.plan.outputs.blocks }}
-      blocks_others: ${{ steps.plan.outputs.blocks_others }}
-      count: ${{ steps.plan.outputs.count }}
-      others_count: ${{ steps.plan.outputs.others_count }}
-      has_migrations: ${{ steps.plan.outputs.has_migrations }}
+      services_to_deploy: ${{ steps.plan.outputs.services_to_deploy }}
+      services_count: ${{ steps.plan.outputs.services_count }}
+      infra_steps: ${{ steps.plan.outputs.infra_steps }}
+      run_migrations: ${{ steps.plan.outputs.run_migrations }}
+      run_assets: ${{ steps.plan.outputs.run_assets }}
+      run_infrastructure: ${{ steps.plan.outputs.run_infrastructure }}
+      transversal: ${{ steps.plan.outputs.transversal }}
+      total_count: ${{ steps.plan.outputs.total_count }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,7 +51,7 @@ jobs:
   validate:
     name: Validate
     needs: plan
-    if: needs.plan.outputs.count != '0'
+    if: needs.plan.outputs.total_count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -91,16 +95,7 @@ jobs:
             echo "::notice::No JS tests found; skip."
           fi
 
-      - name: Validate serverless-compose (package)
-        working-directory: backend
-        run: |
-          if grep -qE "^  [A-Za-z0-9_-]+:" serverless-compose.yml; then
-            npx serverless-compose package --stage pro
-          else
-            echo "::notice::No services registered; skip package."
-          fi
-
-      - name: Run cross-cutting pytest (backend/tests)
+      - name: Cross-cutting pytest (backend/tests)
         working-directory: backend
         run: |
           if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then
@@ -117,54 +112,214 @@ jobs:
           path: backend/pytest-report.xml
           retention-days: 7
 
-  migrations:
-    name: migrations
+  infrastructure:
+    name: Infrastructure
     needs: [plan, validate]
-    if: needs.plan.outputs.has_migrations == 'true'
-    uses: ./.github/workflows/block-package.yml
-    secrets: inherit
-    with:
-      block: migrations
-      stage: pro
+    if: needs.plan.outputs.run_infrastructure == 'true' && needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: pro
+      url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  packages:
-    name: ${{ matrix.block }}
-    needs: [plan, validate, migrations]
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: (migrations) Deploy stack
+        id: migrations_deploy
+        if: needs.plan.outputs.run_migrations == 'true'
+        working-directory: backend
+        run: npx serverless-compose "migrations:deploy" --stage pro --verbose
+
+      - name: (migrations) Apply schema
+        id: migrations_apply
+        if: needs.plan.outputs.run_migrations == 'true' && steps.migrations_deploy.outcome == 'success'
+        run: |
+          aws lambda invoke \
+            --function-name cdts-pro-migrations-apply \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            --query 'LogResult' --output text \
+            /tmp/response.json | base64 -d
+          echo ""
+          echo "== Response =="
+          cat /tmp/response.json
+          echo ""
+          if grep -q '"errorType"' /tmp/response.json; then
+            echo "::error::migrations-apply Lambda returned an error. See logs above."
+            exit 1
+          fi
+
+      - name: (assets) Deploy stack
+        id: assets_deploy
+        if: needs.plan.outputs.run_assets == 'true'
+        working-directory: backend
+        run: npx serverless-compose "assets:deploy" --stage pro --verbose
+
+      - name: (assets) Sync files to S3
+        id: assets_sync
+        if: needs.plan.outputs.run_assets == 'true' && steps.assets_deploy.outcome == 'success'
+        env:
+          STAGE: pro
+        run: bash scripts/ci/deploy-assets.sh
+
+      - name: Record infrastructure status
+        if: always()
+        run: |
+          mkdir -p /tmp/status
+          cat > /tmp/status/infrastructure.json <<EOF
+          {
+            "migrations_planned": "${{ needs.plan.outputs.run_migrations }}",
+            "migrations_deploy": "${{ steps.migrations_deploy.outcome }}",
+            "migrations_apply":  "${{ steps.migrations_apply.outcome }}",
+            "assets_planned": "${{ needs.plan.outputs.run_assets }}",
+            "assets_deploy": "${{ steps.assets_deploy.outcome }}",
+            "assets_sync":   "${{ steps.assets_sync.outcome }}"
+          }
+          EOF
+
+      - name: Upload infrastructure status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-status
+          path: /tmp/status/infrastructure.json
+          retention-days: 7
+
+  services:
+    name: ${{ matrix.service }}
+    needs: [plan, validate, infrastructure]
     if: >
       always() &&
-      needs.plan.outputs.others_count != '0' &&
+      needs.plan.outputs.services_count != '0' &&
       needs.validate.result == 'success' &&
-      (needs.migrations.result == 'success' || needs.migrations.result == 'skipped')
+      (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
-        block: ${{ fromJson(needs.plan.outputs.blocks_others) }}
-    uses: ./.github/workflows/block-package.yml
+        service: ${{ fromJson(needs.plan.outputs.services_to_deploy) }}
+    uses: ./.github/workflows/service-package.yml
     secrets: inherit
     with:
-      block: ${{ matrix.block }}
+      service: ${{ matrix.service }}
       stage: pro
 
   summary:
     name: Deploy summary
-    needs: [plan, validate, migrations, packages]
+    needs: [plan, validate, infrastructure, services]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Print summary
+      - name: Download all status artifacts
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-status*"
+          path: /tmp/status-in
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Render summary
         run: |
+          ico() {
+            case "$1" in
+              success)  echo "✅" ;;
+              failure)  echo "❌" ;;
+              cancelled) echo "🛑" ;;
+              skipped)  echo "⏭️" ;;
+              "")       echo "—" ;;
+              *)        echo "$1" ;;
+            esac
+          }
+
           {
-            echo "### Deploy PRO summary"
+            echo "## Deploy PRO"
             echo ""
-            echo "Plan:            **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
-            echo '```json'
-            echo '${{ needs.plan.outputs.blocks }}'
-            echo '```'
-            echo "Validate:        **${{ needs.validate.result }}**"
-            echo "Migrations gate: **${{ needs.migrations.result }}**"
-            echo "Packages:        **${{ needs.packages.result }}**"
+            echo "**Plan**"
             echo ""
-            echo "> Each block's package runs test -> deploy in sequence."
-            echo "> Packages run in parallel across blocks."
-            echo "> Integration tests are intentionally NOT run in production."
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Services to deploy | \`${{ needs.plan.outputs.services_to_deploy }}\` |"
+            echo "| Run migrations     | ${{ needs.plan.outputs.run_migrations }} |"
+            echo "| Run assets         | ${{ needs.plan.outputs.run_assets }} |"
+            echo "| Transversal change | ${{ needs.plan.outputs.transversal }} |"
+            echo ""
+            echo "**Stage results**"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Validate       | $(ico '${{ needs.validate.result }}') ${{ needs.validate.result }} |"
+            echo "| Infrastructure | $(ico '${{ needs.infrastructure.result }}') ${{ needs.infrastructure.result }} |"
+            echo "| Services       | $(ico '${{ needs.services.result }}') ${{ needs.services.result }} |"
+            echo ""
+
+            if [ -f /tmp/status-in/infrastructure.json ]; then
+              echo "**Infrastructure detail**"
+              echo ""
+              echo "| Step | Planned | Outcome |"
+              echo "|---|---|---|"
+              m_plan=$(jq -r '.migrations_planned' /tmp/status-in/infrastructure.json)
+              m_dep=$(jq -r '.migrations_deploy' /tmp/status-in/infrastructure.json)
+              m_apl=$(jq -r '.migrations_apply' /tmp/status-in/infrastructure.json)
+              a_plan=$(jq -r '.assets_planned' /tmp/status-in/infrastructure.json)
+              a_dep=$(jq -r '.assets_deploy' /tmp/status-in/infrastructure.json)
+              a_syn=$(jq -r '.assets_sync' /tmp/status-in/infrastructure.json)
+              echo "| migrations · deploy | ${m_plan} | $(ico "${m_dep}") ${m_dep} |"
+              echo "| migrations · apply  | ${m_plan} | $(ico "${m_apl}") ${m_apl} |"
+              echo "| assets · deploy     | ${a_plan} | $(ico "${a_dep}") ${a_dep} |"
+              echo "| assets · sync       | ${a_plan} | $(ico "${a_syn}") ${a_syn} |"
+              echo ""
+            fi
+
+            services_found=$(ls /tmp/status-in/*.json 2>/dev/null | grep -v infrastructure || true)
+            if [ -n "${services_found}" ]; then
+              echo "**Per-service detail**"
+              echo ""
+              echo "| Service | Validate | Test | Deploy | Stopped at |"
+              echo "|---|---|---|---|---|"
+              for f in ${services_found}; do
+                svc=$(jq -r '.service' "$f")
+                v=$(jq -r '.validate' "$f")
+                t=$(jq -r '.test' "$f")
+                d=$(jq -r '.deploy' "$f")
+
+                stopped="—"
+                if   [ "${v}" != "success" ]; then stopped="validate"
+                elif [ "${t}" != "success" ]; then stopped="test"
+                elif [ "${d}" != "success" ]; then stopped="deploy"
+                else stopped="completed"
+                fi
+
+                echo "| \`${svc}\` | $(ico "${v}") | $(ico "${t}") | $(ico "${d}") | ${stopped} |"
+              done
+              echo ""
+            fi
+
+            echo "> Legend: ✅ success · ❌ failure · ⏭️ skipped · 🛑 cancelled · — not scheduled"
+            echo ">"
+            echo "> Integration is intentionally NOT run in production (no test users in the pro DB)."
           } >> "$GITHUB_STEP_SUMMARY"

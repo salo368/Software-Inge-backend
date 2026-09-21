@@ -1,0 +1,308 @@
+name: Service Package
+
+# Reusable per-service pipeline: validate -> test -> deploy -> integration.
+#
+# Called ONCE PER SERVICE from deploy-dev.yml / deploy-pro.yml. Each caller
+# matrix cell resolves to one invocation of this workflow; GitHub UI renders
+# each invocation as an expandable group in the run visualization, so each
+# service (auth, banks, files, ...) shows up as its own chain of four
+# clearly-named boxes instead of scattered matrix rows.
+#
+# IMPORTANT: this workflow only knows about SERVICES (backend/services/<X>).
+# Infrastructure blocks (migrations, assets) are NOT services; they run as
+# a separate `infrastructure` job in the caller BEFORE any service package
+# starts (see deploy-dev.yml). If infrastructure ran, the caller matrix
+# was already expanded to ALL services because that only happens on
+# transversal changes.
+#
+# Contract with the caller:
+#   * `service` is the folder name under backend/services/<service>/.
+#   * `stage` is 'dev' or 'pro'. The `integration` job only runs when
+#     stage=='dev' -- production must not have throwaway integration
+#     users in its DB.
+#   * AWS credentials come from `secrets: inherit` on the caller. Each job
+#     that needs them declares `environment: ${{ inputs.stage }}` so the
+#     env-scoped secrets resolve at that point.
+#
+# Every job emits its result into `outputs`; a final `record_status` job
+# collects them into a single JSON artifact (`service-status-<service>`)
+# that the caller's `summary` job downloads and renders into a table.
+
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: "Service folder name under backend/services/."
+        type: string
+        required: true
+      stage:
+        description: "'dev' or 'pro'. Integration is skipped when 'pro'."
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1) validate: cheap dry-run of the service's serverless config. Catches
+  #    YAML errors, missing handlers, wrong `functions.js` autogen output,
+  #    etc. Fast (~30-45s) so unit tests don't waste time when the config
+  #    is broken.
+  # --------------------------------------------------------------------------
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Package service (dry-run)
+        working-directory: backend
+        run: |
+          if [ ! -f serverless-compose.yml ] || ! grep -qE "^  ${{ inputs.service }}:" serverless-compose.yml; then
+            echo "::error::Service '${{ inputs.service }}' is not registered in serverless-compose.yml"
+            exit 1
+          fi
+          npx serverless-compose "${{ inputs.service }}:package" --stage ${{ inputs.stage }}
+
+  # --------------------------------------------------------------------------
+  # 2) test: colocated unit tests (test.py) for every Lambda in the service.
+  #    Blocks the rest of the package on failure.
+  # --------------------------------------------------------------------------
+  test:
+    name: Test
+    needs: validate
+    if: needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run colocated unit tests
+        working-directory: backend
+        env:
+          # Neutralises AWS/DB bootstrapping inside libs/core/db.py (see
+          # backend/conftest.py). Must be 'test' here, NOT ${{ inputs.stage }},
+          # because unit tests never touch real infra.
+          STAGE: test
+        run: |
+          shopt -s nullglob
+          hits=(services/${{ inputs.service }}/src/*/*/test.py)
+          if [ ${#hits[@]} -eq 0 ]; then
+            echo "::warning::No colocated test.py under services/${{ inputs.service }}/src/. Every Lambda must ship a test.py (see docs/repo-structure.md §13.1)."
+            exit 0
+          fi
+          python -m pytest services/${{ inputs.service }} \
+            -ra \
+            --junitxml=pytest-${{ inputs.service }}.xml
+
+      - name: Upload pytest report
+        if: always() && hashFiles(format('backend/pytest-{0}.xml', inputs.service)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ inputs.stage }}-${{ inputs.service }}
+          path: backend/pytest-${{ inputs.service }}.xml
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 3) deploy: serverless deploy for this service. Requires validate + test.
+  # --------------------------------------------------------------------------
+  deploy:
+    name: Deploy
+    needs: [validate, test]
+    if: needs.validate.result == 'success' && needs.test.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.stage }}
+      url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy service "${{ inputs.service }}"
+        working-directory: backend
+        run: |
+          npx serverless-compose "${{ inputs.service }}:deploy" --stage ${{ inputs.stage }} --verbose
+
+  # --------------------------------------------------------------------------
+  # 4) integration: colocated integration.py tests against real deployed
+  #    infra. Dev only. Non-blocking (continue-on-error) so a failure never
+  #    rolls back the deploy that already succeeded.
+  # --------------------------------------------------------------------------
+  integration:
+    name: Integration
+    needs: [validate, test, deploy]
+    if: inputs.stage == 'dev' && needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    environment:
+      name: dev
+    env:
+      # GH-hosted runners are NOT EC2, so probing IMDS for creds/region
+      # hangs for the full retry budget. Force env-var creds.
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_MAX_ATTEMPTS: "2"
+    outputs:
+      pytest_outcome: ${{ steps.pytest.outcome }}
+      files_present: ${{ steps.detect.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # integration.py is OPTIONAL (§13.3); a service with none skips cleanly.
+      - name: Detect integration.py files
+        id: detect
+        working-directory: backend
+        run: |
+          shopt -s nullglob
+          hits=(services/${{ inputs.service }}/src/*/*/integration.py)
+          echo "count=${#hits[@]}" >> "$GITHUB_OUTPUT"
+          if [ ${#hits[@]} -eq 0 ]; then
+            echo "::notice::No integration.py under services/${{ inputs.service }}/src/. Skipping (optional; see docs/repo-structure.md §13.3)."
+          fi
+
+      - name: Run integration tests
+        id: pytest
+        if: steps.detect.outputs.count != '0'
+        working-directory: backend
+        env:
+          STAGE: ${{ inputs.stage }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          FILES_BUCKET: cdts-${{ inputs.stage }}-files
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python -m pytest services/${{ inputs.service }} \
+            --integration \
+            -m integration \
+            -v -s -ra --tb=short \
+            --junitxml=pytest-integration-${{ inputs.service }}.xml
+
+      - name: Upload integration pytest report
+        if: always() && hashFiles(format('backend/pytest-integration-{0}.xml', inputs.service)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-integration-${{ inputs.stage }}-${{ inputs.service }}
+          path: backend/pytest-integration-${{ inputs.service }}.xml
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 5) record_status: single-artifact aggregator. Always runs, no matter
+  #    which stage stopped the chain. Writes a JSON blob that the caller's
+  #    summary job downloads to render a per-service, per-stage table:
+  #
+  #       validate | test | deploy | integration | note
+  #    ---+---------+------+--------+-------------+----------------------
+  #    auth  ✓     |  ✓   |   ✓    |     ✓       | 3 int tests passed
+  #    banks ✓     |  ✗   |   —    |     —       | stopped at test
+  #    ...
+  # --------------------------------------------------------------------------
+  record_status:
+    name: Status
+    needs: [validate, test, deploy, integration]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compose status JSON
+        run: |
+          mkdir -p /tmp/status
+          # Integration is continue-on-error: its job.result stays 'success'
+          # even if pytest failed. So we mirror steps.pytest.outcome via
+          # the job output `pytest_outcome`, which is "" when the step was
+          # never scheduled (e.g., deploy failed => integration.if=false =>
+          # integration is 'skipped' => outputs unset).
+          cat > "/tmp/status/${{ inputs.service }}.json" <<EOF
+          {
+            "service": "${{ inputs.service }}",
+            "stage": "${{ inputs.stage }}",
+            "validate": "${{ needs.validate.result }}",
+            "test": "${{ needs.test.result }}",
+            "deploy": "${{ needs.deploy.result }}",
+            "integration_job": "${{ needs.integration.result }}",
+            "integration_outcome": "${{ needs.integration.outputs.pytest_outcome }}",
+            "integration_files_present": "${{ needs.integration.outputs.files_present }}"
+          }
+          EOF
+          echo "----- /tmp/status/${{ inputs.service }}.json -----"
+          cat "/tmp/status/${{ inputs.service }}.json"
+
+      - name: Upload service status
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-status-${{ inputs.service }}
+          path: /tmp/status/${{ inputs.service }}.json
+          retention-days: 7

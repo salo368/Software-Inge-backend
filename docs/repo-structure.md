@@ -708,21 +708,45 @@ Ejemplos concretos:
 
 ### 14.3 Orden de despliegue
 
-Cuando el plan incluye varios bloques, el flujo es:
+El modelo mental separa **servicios** (dominios de negocio bajo
+`backend/services/<X>/`) de **infraestructura** (bloques bajo
+`backend/platform/`, hoy `migrations` y `assets`). Los servicios se
+"empaquetan" (validate → test → deploy → integration); la
+infraestructura solo se deploya (no tiene test suite propio, es
+transversal).
 
-1. **`migrations` primero** (si aplica). Corre como package solitario y
-   sirve de gate: todos los demás packages tienen `needs: [migrations]`.
-   Así el esquema queda al día antes de que nadie deploye código nuevo
-   contra él.
-2. **Resto de bloques en paralelo**, uno por cada matrix cell del job
-   `packages`. Cada bloque tiene su propio stack CloudFormation, no hay
-   lock compartido, y correrlos en paralelo baja un full-backend deploy
-   de ~15 min a ~5 min.
+Flujo:
 
-Dentro de un mismo package las etapas (`test → deploy → integration`)
-son estrictamente secuenciales: si `test` rompe, `deploy` no arranca;
-si `deploy` rompe, `integration` no arranca (pero eso no bloquea a
-otros packages porque `fail-fast: false` en el caller).
+1. **`plan-deploy.sh`** categoriza cada archivo del diff:
+   - Cambio en `services/<X>/**` → despliega solo el servicio X.
+   - Cambio en `platform/<infra>/<content-dir>/**` (ej.
+     `platform/migrations/sql/*.sql`, `platform/assets/files/*`) → corre
+     solo ese step de infra, sin tocar servicios.
+   - **Cualquier otro cambio dentro de `backend/`** (código de infra,
+     `libs/`, `layers/`, `serverless-compose.yml`, `requirements-*.txt`,
+     `pytest.ini`, `tests/`, `config/`, `data/`, etc.) → `transversal =
+     true` → despliega **TODOS** los servicios además del step de infra
+     correspondiente. Regla: si se movió algo compartido, cualquier
+     servicio puede depender de eso y hay que volver a certificar todos.
+2. **`infrastructure`** (si el plan lo pidió) corre ANTES que los
+   servicios, secuencialmente dentro del mismo job:
+   `migrations · deploy → migrations · apply → assets · deploy →
+   assets · sync`. Cada sub-step está guardado por su propio flag
+   (`run_migrations`, `run_assets`) y salta silenciosamente si no
+   aplica.
+3. **`services`** corre como matrix en paralelo, una celda por
+   servicio en `services_to_deploy`. Cada celda es una llamada al
+   reusable `.github/workflows/service-package.yml` que ejecuta
+   internamente `validate → test → deploy → integration`. Cada servicio
+   tiene su propio stack CloudFormation, correrlos en paralelo baja un
+   full-backend deploy de ~15 min a ~5 min.
+
+Dentro de un service package las 4 etapas son estrictamente
+secuenciales: si `validate` rompe, `test` no arranca; si `test` rompe,
+`deploy` no arranca; si `deploy` rompe, `integration` no arranca (pero
+eso no bloquea a otros servicios porque `fail-fast: false` en el
+caller). El summary muestra exactamente en qué etapa se cortó cada
+servicio.
 
 ### 14.4 Override manual
 
@@ -762,48 +786,54 @@ Consecuencias practicas:
 - **Los PRs no gastan CI**. La branch protection de `main` no exige status
   checks (los quitamos junto con `ci.yml`); solo exige "require PR" para forzar
   revision humana. `develop` no exige ni PR (admite push directo).
-- **Todos los checks del ex-`ci.yml`** (pytest cross-cutting, lint-migrations,
-  `serverless-compose package`) corren en el job `validate` dentro de `Deploy DEV` y
-  `Deploy PRO`. Los `test.py` colocalizados de cada Lambda corren **dentro
-  del package de su bloque** (§13.1). Si `validate` falla, ningún package
-  arranca y AWS queda intacto.
-- **Forma canónica del pipeline (agrupado por bloque)**:
-  - **Deploy DEV**: `plan → validate → migrations (package)? → packages[block] → summary`.
-  - **Deploy PRO**: mismo shape, pero cada package saltea el step de
-    integration (`stage: pro`; no queremos usuarios de prueba en
-    producción).
+- **Checks cross-cutting** (SQL lint, `node --test`, pytest cross-cutting
+  de `backend/tests/`) corren en el job global `validate`, una sola vez.
+  La **validación por servicio** (`serverless-compose <svc>:package`)
+  vive DENTRO del service package, como la primera de las 4 etapas.
+  Si `validate` global falla, ni infraestructura ni servicios arrancan
+  y AWS queda intacto.
+- **Forma canónica del pipeline (servicios vs infraestructura)**:
+  - **Deploy DEV**: `plan → validate → infrastructure? → services[matrix] → summary`.
+  - **Deploy PRO**: mismo shape, pero cada service package saltea el
+    step de `integration` (`stage: pro`; no queremos usuarios de prueba
+    en producción).
 
-  `plan` y `validate` corren una sola vez. Después, el pipeline se abre
-  en una fila por bloque, y cada fila es una **llamada al reusable
-  workflow** `.github/workflows/block-package.yml` que ejecuta
-  internamente `test → deploy → integration` en secuencia. GitHub UI
-  renderiza cada llamada como un grupo expandible, así que la matriz
-  visual queda:
+  `plan` y `validate` corren una sola vez. Después el pipeline se abre
+  así:
 
   ```
-  plan → validate → migrations                (test → deploy [→ integration])
-                  → auth      \
-                  → banks      \ ─ packages   (test → deploy [→ integration])
-                  → files      /   (parallel across blocks)
-                  → processes /
-                  → ...
-                  → summary
+  plan → validate → infrastructure?               (only if transversal
+                       │                            OR infra content change)
+                       ├── migrations · deploy    (sequential steps
+                       ├── migrations · apply      inside one job)
+                       ├── assets · deploy
+                       └── assets · sync
+                    ↓
+                    services (matrix, parallel across services)
+                       ├── auth   → validate → test → deploy → integration
+                       ├── banks  → validate → test → deploy → integration
+                       ├── files  → validate → test → deploy → integration
+                       └── ...
+                    ↓
+                    summary
   ```
 
   Reglas del layout:
-  - **`migrations` es un gate**: package solitario, todos los demás
-    packages tienen `needs: [migrations]` (con `if: always() && (...)`
-    para saltearlo cuando no está en el plan).
-  - **`packages` matrix** con `fail-fast: false` y sin `max-parallel`:
-    cada bloque tiene su propio stack, corren completamente en paralelo.
-  - **Dentro de un package** los jobs son secuenciales: `deploy` needs
-    `test`, `integration` needs `deploy`.
+  - **Infraestructura** es un solo job con sub-steps secuenciales
+    guardados por `run_migrations` / `run_assets` del plan. Solo corre
+    si el plan lo pidió. Un fallo aborta el job (por diseño: si el
+    esquema no aplicó, no queremos desplegar código nuevo contra él).
+  - **`services` matrix** con `fail-fast: false` y sin `max-parallel`:
+    corren completamente en paralelo. Cada celda es una llamada al
+    reusable `.github/workflows/service-package.yml`.
+  - **Dentro de un service package** las 4 etapas son secuenciales:
+    `test` needs `validate`; `deploy` needs `test`; `integration` needs
+    `deploy`. Si algo se corta, todo lo posterior se marca `skipped`.
   - **El job `integration`** (§13.3) tiene `continue-on-error: true` y
     solo corre cuando `stage == 'dev'`. Un fallo NO revierte AWS ni
-    marca el workflow en rojo — cada package sube un artifact
-    `integration-status-<block>` que el `summary` agrega con iconos
-    (:white_check_mark: passed / :fast_forward: sin `integration.py` /
-    :x: failed).
+    marca el workflow en rojo — el resultado por servicio queda en el
+    `summary` (tabla con las 4 etapas + columna "stopped at") y en el
+    artifact `pytest-integration-dev-<service>`.
 - **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
   a `develop`, hacer `sls deploy --stage dev` directamente desde local con
   credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`
