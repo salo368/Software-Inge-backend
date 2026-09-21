@@ -17,15 +17,21 @@
 #
 # Decision tree per changed file:
 #   - backend/services/<X>/**                  -> mark service X as changed
-#   - backend/platform/migrations/sql/**       -> run migrations (content-only)
-#   - backend/platform/migrations/**  (code)   -> run migrations + transversal
-#   - backend/platform/assets/files/**         -> run assets       (content-only)
-#   - backend/platform/assets/**      (code)   -> run assets     + transversal
+#   - backend/platform/migrations/**           -> run migrations + transversal
+#   - backend/platform/assets/**               -> run assets     + transversal
 #   - anything else inside backend/            -> transversal
 #   - outside backend/                         -> ignored
 #
-# When transversal is true, services_to_deploy expands to ALL services --
-# whatever moved is shared code and any service could depend on it.
+# Cardinal rule: ANY infra execution forces a full redeploy of every
+# service. Migrations change the DB schema and assets change references
+# baked into templates/emails; deploying only a subset would leave the
+# fleet split between old and new expectations. So both content changes
+# (new SQL file, new asset) AND code changes to the infra block set
+# transversal=true. The distinction between infra-content / infra-code is
+# kept only for the log line so operators see what kind of change caused
+# the fan-out.
+#
+# When transversal is true, services_to_deploy expands to ALL services.
 #
 # Outputs on $GITHUB_OUTPUT:
 #   services_to_deploy   JSON array of service names to (re)deploy
@@ -158,22 +164,24 @@ run_assets="false"
 transversal="false"
 
 apply_infra_content() {
-  # Content-only touches to a single infra block run just that step, do
-  # NOT force transversal.
+  # Content-only touch to an infra block (new SQL file, new asset) runs
+  # that infra step AND forces transversal per the cardinal rule.
   case "$1" in
     migrations) run_migrations="true" ;;
     assets)     run_assets="true" ;;
-    *)          log "::warning::unknown infra '$1', ignoring content-only hit" ;;
+    *)          log "::warning::unknown infra '$1', ignoring content-only hit"; return ;;
   esac
+  transversal="true"
 }
 
 apply_infra_code() {
-  # Code/config touches to any infra block run that step AND force
-  # transversal (something shared moved).
+  # Code/config touch to an infra block. Same effect as content: runs the
+  # infra step AND forces transversal. Kept as a separate function so the
+  # log line above distinguishes the two.
   case "$1" in
     migrations) run_migrations="true" ;;
     assets)     run_assets="true" ;;
-    *)          log "::warning::unknown infra '$1'" ;;
+    *)          log "::warning::unknown infra '$1'"; return ;;
   esac
   transversal="true"
 }
@@ -214,11 +222,14 @@ else
       outside)           : ;;
     esac
   done <<<"${CHANGED_FILES}"
+fi
 
-  if [[ "${transversal}" == "true" ]]; then
-    log "== transversal change detected -> forcing redeploy of ALL services"
-    services_hit=("${ALL_SERVICES[@]}")
-  fi
+# Cardinal rule enforcement. Applies to auto-detect AND to manual overrides
+# that touched infra (e.g. `MANUAL_BLOCK=migrations`), so a manual infra
+# run cannot leave the fleet mid-deploy.
+if [[ "${transversal}" == "true" ]]; then
+  log "== transversal change detected -> forcing redeploy of ALL services"
+  services_hit=("${ALL_SERVICES[@]}")
 fi
 
 # Dedupe + sort services alphabetically. Deploy order across services does
