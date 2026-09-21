@@ -25,6 +25,13 @@ provider:
     # endpoint enforces `X-Service-Key`; everything else in signatures
     # is either sign_id-scoped or fully public).
     SSM_SIGNATURES_SERVICE_KEY: /cdts/${sls:stage}/signatures/service-key
+    # This block's own HTTP API base URL. Populated at deploy time by
+    # the AWS::SSM::Parameter resource at the bottom of this file. The
+    # bridge reads it to build callback_url for signatures.create. If
+    # the param is missing (first-ever deploy), the bridge silently
+    # opens ceremonies with callback_url=null and the frontend polls
+    # to detect signing -- both paths are supported.
+    SSM_PROCESSES_API_URL: /cdts/${sls:stage}/processes-api/url
 
   iam:
     role:
@@ -38,6 +45,7 @@ provider:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/service-key
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/processes-api/url
         # SecureString param above is KMS-encrypted; SSM decrypts on read
         # but only if we can invoke Decrypt. Same rationale as the other
         # blocks; scoping is enforced by the ssm:GetParameter Resource.
@@ -86,3 +94,21 @@ package:
     - '!**/conftest.py'
 
 functions: ${file(./functions.js):build}
+
+resources:
+  Resources:
+    # Publishes this stack's HTTP API base URL into SSM so
+    # utils/signature_bridge.py can read it at runtime and build the
+    # callback_url passed to signatures.create. Refreshed on every
+    # deploy; first deploy on a brand-new stage creates it.
+    ProcessesApiUrlParam:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /cdts/${sls:stage}/processes-api/url
+        Type: String
+        Description: >
+          Base URL of the processes HTTP API. Read by
+          utils/signature_bridge.py to build the callback URL for
+          signatures.create. Auto-managed; do not edit manually.
+        Value:
+          Fn::Sub: https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
