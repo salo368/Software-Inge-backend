@@ -132,3 +132,6 @@ redespliega **todo**. Detalles y reglas: [`docs/repo-structure.md`](./docs/repo-
 
 La policy IAM y los usuarios que usa GitHub Actions estan documentados en
 [`scripts/iam/README.md`](./scripts/iam/README.md).
+
+<!-- pipeline test 5/5: only-outside-backend change; nothing should deploy. -->
+
