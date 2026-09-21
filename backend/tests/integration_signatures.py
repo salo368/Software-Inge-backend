@@ -384,35 +384,48 @@ def upload_evidence(
 
 
 def validate_id_side(ctx: CeremonyContext, side: str) -> dict:
-    """POST /signatures/{sign_id}/validate-id/{side}. Returns the
-    parsed response body (200) or raises with the error payload."""
+    """POST /signatures/{sign_id}/evidence/id-{side}. Returns the
+    parsed response body (200) or raises with the error payload.
+
+    Note the route uses hyphen (`id-front`, `id-back`) not slash.
+    Response shape from the deployed handler is
+    `{sign_id, stage, detected_lines}` -- no boolean `validated` key.
+    Callers should verify success via the DB (id_{side}_validated_at
+    IS NOT NULL) which is the source of truth.
+    """
     base = signatures_api()
     r = requests.post(
-        f"{base}/signatures/{ctx.sign_id}/validate-id/{side}",
+        f"{base}/signatures/{ctx.sign_id}/evidence/id-{side}",
         timeout=60,
     )
-    assert r.status_code == 200, f"validate-id/{side} -> {r.status_code} {r.text}"
+    assert r.status_code == 200, f"evidence/id-{side} -> {r.status_code} {r.text}"
     return r.json()
 
 
 def validate_face(ctx: CeremonyContext) -> dict:
+    """POST /signatures/{sign_id}/evidence/face. Response shape from
+    the deployed handler is `{sign_id, stage}`. Callers should verify
+    success via the DB (`face_validated_at IS NOT NULL`)."""
     base = signatures_api()
     r = requests.post(
-        f"{base}/signatures/{ctx.sign_id}/validate-face", timeout=60
+        f"{base}/signatures/{ctx.sign_id}/evidence/face", timeout=60
     )
-    assert r.status_code == 200, f"validate-face -> {r.status_code} {r.text}"
+    assert r.status_code == 200, f"evidence/face -> {r.status_code} {r.text}"
     return r.json()
 
 
 def register_signature_drawing(ctx: CeremonyContext) -> dict:
-    """After the drawn signature PNG is uploaded, this endpoint marks
+    """POST /signatures/{sign_id}/evidence/signature.
+
+    After the drawn signature PNG is uploaded, this endpoint marks
     the ceremony's `signature_key` and advances stage when the 4
-    evidences are ready. `signature` drawings don't need Rekognition."""
+    evidences are ready. `signature` drawings don't need Rekognition.
+    """
     base = signatures_api()
     r = requests.post(
-        f"{base}/signatures/{ctx.sign_id}/register-signature", timeout=30
+        f"{base}/signatures/{ctx.sign_id}/evidence/signature", timeout=30
     )
-    assert r.status_code == 200, f"register-signature -> {r.status_code} {r.text}"
+    assert r.status_code == 200, f"evidence/signature -> {r.status_code} {r.text}"
     return r.json()
 
 
