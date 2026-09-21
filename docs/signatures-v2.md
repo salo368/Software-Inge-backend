@@ -338,13 +338,13 @@ EOF
 
 # 3) Subilo a SSM. Cambiá {STAGE} a dev o pro.
 aws ssm put-parameter \
-    --name  "/cdts/{STAGE}/mock-ca/root/cert" \
+    --name  "/cdts/{STAGE}/mock-ca/root/cert-pem" \
     --type  SecureString \
     --value "$(cat root.crt)" \
     --description "Mock CA root certificate for signatures (v2)."
 
 aws ssm put-parameter \
-    --name  "/cdts/{STAGE}/mock-ca/root/key" \
+    --name  "/cdts/{STAGE}/mock-ca/root/private-key-pem" \
     --type  SecureString \
     --value "$(cat root.key)" \
     --description "Mock CA root private key. Do not extract."
@@ -421,8 +421,8 @@ Resumen consolidado. Todos bajo el prefijo `/cdts/{stage}/`.
 | `/cdts/{stage}/smtp/host`, `.../port`, `.../user`, `.../password`, `.../from` | Mixed | Config SMTP para OTP. | Preexistente. |
 | `/cdts/{stage}/frontend/url` | String | Base URL del microfrontend Angular. Usado por `create` para armar `sign_url`. | El pipeline del frontend lo publica. |
 | `/cdts/{stage}/signatures/service-key` | SecureString | M2M para `create`. | §8.3 |
-| `/cdts/{stage}/mock-ca/root/cert` | SecureString | Root CA PEM. | §8.2 |
-| `/cdts/{stage}/mock-ca/root/key` | SecureString | Root CA private key PEM. | §8.2 |
+| `/cdts/{stage}/mock-ca/root/cert-pem` | SecureString | Root CA PEM. | §8.2 |
+| `/cdts/{stage}/mock-ca/root/private-key-pem` | SecureString | Root CA private key PEM. | §8.2 |
 | `/cdts/{stage}/processes-api/url` | String | Base URL del API de `processes` (para el callback). Opcional. | §8.4 |
 
 Los IAM statements del stack de `signatures` (y del stack de `processes`)
@@ -658,8 +658,8 @@ Comprobaciones rápidas:
 ```bash
 # Los tres deberían existir y tener valores no vacíos.
 aws ssm get-parameter --name /cdts/dev/signatures/service-key --with-decryption --query "Parameter.Value"
-aws ssm get-parameter --name /cdts/dev/mock-ca/root/cert      --with-decryption --query "Parameter.Value" | head -3
-aws ssm get-parameter --name /cdts/dev/mock-ca/root/key       --with-decryption --query "Parameter.Value" | head -3
+aws ssm get-parameter --name /cdts/dev/mock-ca/root/cert-pem        --with-decryption --query "Parameter.Value" | head -3
+aws ssm get-parameter --name /cdts/dev/mock-ca/root/private-key-pem --with-decryption --query "Parameter.Value" | head -3
 aws ssm get-parameter --name /cdts/dev/processes-api/url                        --query "Parameter.Value"
 ```
 
