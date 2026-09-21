@@ -1,0 +1,9 @@
+description: >
+  Registers the drawn signature canvas already uploaded to signatures'
+  bucket. No biometric validation, just format + size sanity checks.
+timeout: 10
+memorySize: 256
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/evidence/signature

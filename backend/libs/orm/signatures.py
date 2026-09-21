@@ -49,11 +49,11 @@ STAGES = (
     "expired",
     "failed",
 )
-EVIDENCE_TYPES = ("cedula_front", "cedula_back", "face", "signature")
+EVIDENCE_TYPES = ("id_front", "id_back", "face", "signature")
 # Evidence types that need explicit validation before counting as ready.
 # `signature` (the drawn canvas PNG) is not biometrically validated; it
 # just needs to be uploaded.
-VALIDATED_EVIDENCES = ("cedula_front", "cedula_back", "face")
+VALIDATED_EVIDENCES = ("id_front", "id_back", "face")
 
 OTP_TTL = timedelta(minutes=10)
 MAX_OTP_ATTEMPTS = 5
@@ -88,15 +88,15 @@ class Signatures(Base):
     cert_serial: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     stage: Mapped[str] = mapped_column(String(20), default="created")
     # Evidence keys (relative to the signatures bucket).
-    cedula_front_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    cedula_back_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    id_front_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    id_back_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     face_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     signature_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Rekognition validation timestamps.
-    cedula_front_validated_at: Mapped[Optional[datetime]] = mapped_column(
+    id_front_validated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    cedula_back_validated_at: Mapped[Optional[datetime]] = mapped_column(
+    id_back_validated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     face_validated_at: Mapped[Optional[datetime]] = mapped_column(
@@ -168,8 +168,8 @@ class Signatures(Base):
         """True when the 3 biometric evidences are validated AND the drawn
         signature is uploaded. Gate for advancing to `consent`."""
         return (
-            self.cedula_front_validated_at is not None
-            and self.cedula_back_validated_at is not None
+            self.id_front_validated_at is not None
+            and self.id_back_validated_at is not None
             and self.face_validated_at is not None
             and self.signature_key is not None
         )

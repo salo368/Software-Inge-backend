@@ -1,5 +1,5 @@
 description: >
-  Issues a presigned PUT URL for evidence uploads (cedula/face/signature
+  Issues a presigned PUT URL for evidence uploads (id/face/signature
   drawing) directly to signatures' bucket. Auth by sign_id; TTL 5 min.
 timeout: 10
 events:
