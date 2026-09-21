@@ -95,20 +95,27 @@ package:
 
 functions: ${file(./functions.js):build}
 
-resources:
-  Resources:
-    # Publishes this stack's HTTP API base URL into SSM so
-    # utils/signature_bridge.py can read it at runtime and build the
-    # callback_url passed to signatures.create. Refreshed on every
-    # deploy; first deploy on a brand-new stage creates it.
-    ProcessesApiUrlParam:
-      Type: AWS::SSM::Parameter
-      Properties:
-        Name: /cdts/${sls:stage}/processes-api/url
-        Type: String
-        Description: >
-          Base URL of the processes HTTP API. Read by
-          utils/signature_bridge.py to build the callback URL for
-          signatures.create. Auto-managed; do not edit manually.
-        Value:
-          Fn::Sub: https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com
+# The processes HTTP API base URL is expected at
+#   /cdts/${sls:stage}/processes-api/url  (String, plain)
+# and is read at runtime by utils/signature_bridge.py to build the
+# callback_url handed to signatures.create. We deliberately do NOT
+# create it from this stack:
+#
+#   * the CI deploy role only has the IAM it needs for Lambda + IAM
+#     roles + HTTP API; granting ssm:PutParameter to CloudFormation
+#     would broaden the blast radius unnecessarily.
+#   * the URL contains the CloudFormation-generated HttpApi id, so it
+#     is stack-scoped -- it lives naturally in SSM as a piece of
+#     stack output metadata.
+#
+# One-time bootstrap after the first deploy (or after a stack recreate):
+#
+#   aws ssm put-parameter \
+#       --name  /cdts/dev/processes-api/url \
+#       --type  String \
+#       --value "https://<api-id>.execute-api.us-east-1.amazonaws.com"
+#
+# The `<api-id>` comes from the "HttpApiUrl" output of this stack.
+# Until the param exists, ceremonies open with callback_url=null and
+# the frontend polls to detect signing -- both paths still work.
+# Fase 7 (docs) covers this step in detail.
