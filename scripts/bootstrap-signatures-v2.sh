@@ -43,6 +43,20 @@
 
 set -euo pipefail
 
+# `aws_ssm` wraps `aws ssm ...` calls so that MSYS/git-bash on Windows
+# does NOT rewrite SSM parameter names such as "/cdts/dev/mock-ca/root/cert"
+# into Windows paths ("C:/Program Files/Git/cdts/dev/..."), which the
+# AWS API rejects with "Parameter name must be a fully qualified name".
+#
+# We deliberately do NOT export MSYS_NO_PATHCONV=1 globally, because
+# `mktemp -d` returns unix-style paths ("/tmp/cdts-mock-ca-XXX") which
+# openssl (native Windows binary) can only consume once MSYS
+# re-writes them to Windows form. Turning conversion off globally
+# breaks openssl.
+aws_ssm() {
+  MSYS_NO_PATHCONV=1 aws ssm "$@"
+}
+
 # --------------------------------------------------------------------------- #
 # Args + preflight
 # --------------------------------------------------------------------------- #
@@ -84,7 +98,7 @@ echo
 # Helpers
 # --------------------------------------------------------------------------- #
 param_exists() {
-  aws ssm get-parameter --name "$1" --region "$REGION" >/dev/null 2>&1
+  aws_ssm get-parameter --name "$1" --region "$REGION" >/dev/null 2>&1
 }
 
 confirm_overwrite() {
@@ -106,7 +120,7 @@ put_secure_string() {
     fi
     extra+=(--overwrite)
   fi
-  aws ssm put-parameter \
+  aws_ssm put-parameter \
     --region "$REGION" \
     --name "$1" \
     --type SecureString \
@@ -126,7 +140,7 @@ put_plain_string() {
     fi
     extra+=(--overwrite)
   fi
-  aws ssm put-parameter \
+  aws_ssm put-parameter \
     --region "$REGION" \
     --name "$1" \
     --type String \
@@ -276,7 +290,7 @@ echo " Sanity check (no values printed, only ARNs + last-modified):"
 echo "==============================================================="
 for p in "$CA_PARAM_CERT" "$CA_PARAM_KEY" "$SVC_KEY_PARAM" "$API_URL_PARAM"; do
   if param_exists "$p"; then
-    aws ssm get-parameter --name "$p" --region "$REGION" \
+    aws_ssm get-parameter --name "$p" --region "$REGION" \
       --query "Parameter.{Name: Name, Type: Type, Version: Version, LastModified: LastModifiedDate}" \
       --output table
   else
