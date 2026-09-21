@@ -45,7 +45,9 @@ def _face(
     eyes_open: bool = True,
     eyes_conf: float = 95.0,
 ) -> dict:
-    """Shape mirrors Rekognition FaceDetails entries with Attributes=DEFAULT."""
+    """Shape mirrors Rekognition FaceDetails entries with Attributes=EYES_OPEN
+    (see utils/evidence.detect_faces -- EyesOpen is not returned by the
+    DEFAULT attribute bundle, so we request it explicitly)."""
     return {
         "Confidence": confidence,
         "EyesOpen": {"Value": eyes_open, "Confidence": eyes_conf},
