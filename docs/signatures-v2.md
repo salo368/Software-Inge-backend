@@ -409,6 +409,57 @@ Si te lo saltás, `signature_bridge` abre ceremonies con `callback_url=null` y
 el frontend hace polling contra `signatures.get`. El sistema funciona
 end-to-end en ambos modos.
 
+### 8.5 Bootstrap del debug OTP HMAC key (dev-only, opt-in)
+
+Este parámetro habilita la disclosure controlada del plaintext OTP en
+`POST /signatures/{sign_id}/otp` para que los `integration.py` de la suite
+puedan ejercitar el flujo completo `request_otp → verify_otp → sign` sin
+intervención humana.
+
+**Modelo de seguridad**:
+
+- La feature está **desactivada por presencia**: si el SSM param no existe,
+  `_load_debug_otp_key` retorna `None` y el handler nunca disclosa OTPs.
+  En producción no se provisiona → dead code.
+- Provisto el param, la disclosure requiere que el caller mande el header
+  `X-Debug-OTP-Signature: <hex(hmac_sha256(debug_key, sign_id))>`. La
+  comparación es constant-time y el HMAC está **atado a `sign_id`**, así
+  que interceptar el header para una ceremony no permite disclosar OTPs
+  de otras.
+- El plaintext OTP disclosado NO aparece en CloudWatch logs. Solo se
+  logea la decisión de disclosar (nivel INFO) con los primeros 6 chars
+  del sign_id.
+
+**Cómo provisionarlo**:
+
+```bash
+# Automático: el script bootstrap-signatures-v2.sh crea el key en step 4.
+bash scripts/bootstrap-signatures-v2.sh --stage dev
+
+# Manual (equivalente):
+DEBUG_KEY=$(openssl rand -hex 32)
+aws ssm put-parameter \
+    --name  "/cdts/dev/signatures/debug-otp-key" \
+    --type  SecureString \
+    --value "$DEBUG_KEY" \
+    --description "HMAC key for automated integration-test OTP disclosure. DO NOT provision in production."
+unset DEBUG_KEY
+```
+
+**Rotación**: idéntica a service-key (`put-parameter --overwrite`). Los
+integration tests bajan el valor en cada corrida — no hay caché externo.
+
+**Desactivar la feature** (por ejemplo antes de una demo pública):
+
+```bash
+aws ssm delete-parameter --name /cdts/dev/signatures/debug-otp-key
+```
+
+Al removerlo, el próximo cold start del lambda ya retornará `None` desde
+`_load_debug_otp_key`. En warm containers el caché puede sobrevivir por
+minutos hasta que el runtime recicla — si necesitás corte inmediato,
+publicá una nueva versión del código con el env var vacío.
+
 ---
 
 ## 9. Parámetros SSM requeridos por `signatures`
@@ -424,6 +475,7 @@ Resumen consolidado. Todos bajo el prefijo `/cdts/{stage}/`.
 | `/cdts/{stage}/mock-ca/root/cert-pem` | SecureString | Root CA PEM. | §8.2 |
 | `/cdts/{stage}/mock-ca/root/private-key-pem` | SecureString | Root CA private key PEM. | §8.2 |
 | `/cdts/{stage}/processes-api/url` | String | Base URL del API de `processes` (para el callback). Opcional. | §8.4 |
+| `/cdts/dev/signatures/debug-otp-key` | SecureString | HMAC key para automation de integration tests. **Dev-only**, provisionado por `bootstrap-signatures-v2.sh` Step 4. Si el param no existe, `request_otp` nunca disclosa OTPs — la feature está desactivada por presencia (fail-safe). | §8.5 |
 
 Los IAM statements del stack de `signatures` (y del stack de `processes`)
 permiten `ssm:GetParameter` + `kms:Decrypt` **solo** sobre los paths listados.
