@@ -30,13 +30,13 @@ provider:
     # evidences, signed PDFs, and evidence packages all live here under
     # transactions/{sign_id}/.
     SIGNATURES_BUCKET: cdts-${sls:stage}-signatures
-    # Legacy: the v1 handlers (still living under src/handlers/{create,get,
-    # upload_url,validate,request_otp,confirm}) read FILES_BUCKET at module
-    # top level. They are already broken at the ORM layer since fase 2, but
-    # keeping this var avoids cold-start KeyError until fases 4b-f delete
-    # those handlers outright. REMOVE this line when the v1 folders are
-    # gone.
-    FILES_BUCKET: cdts-${sls:stage}-files
+    # verify_otp uses this to gate the async invoke of the internal 'sign'
+    # Lambda. Kept 'false' until fase 4e deploys that Lambda; then flip to
+    # 'true' in the same PR so verify_otp actually kicks off the signing
+    # job. Leaving it off is safe: verify_otp still returns 200 and moves
+    # the ceremony to 'signing', it just doesn't invoke anything and logs
+    # a WARNING for the operator.
+    SIGN_LAMBDA_READY: "false"
 
   iam:
     role:
@@ -78,14 +78,6 @@ provider:
             - s3:DeleteObject
           Resource:
             - arn:aws:s3:::cdts-${sls:stage}-signatures/*
-        # Legacy: v1 handlers still read/write on the files bucket. Removed
-        # once fases 4b-f delete the v1 handler folders.
-        - Effect: Allow
-          Action:
-            - s3:GetObject
-            - s3:PutObject
-          Resource:
-            - arn:aws:s3:::cdts-${sls:stage}-files/*
         # Rekognition for identity evidence validation (ID front/back
         # and face). Uses the S3-object variant so Rekognition reads the
         # object directly instead of us shuttling bytes.
