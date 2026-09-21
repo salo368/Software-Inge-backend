@@ -1,16 +1,54 @@
 #!/usr/bin/env bash
-# Computes which blocks to deploy based on the git diff.
-# Blocks: backend/services/<X>/ and backend/platform/<X>/.
-# See docs/repo-structure.md.
+# Computes what the pipeline should do based on the git diff.
+#
+# Mental model (see docs/repo-structure.md §14, §15):
+#
+#   * services  = business domains under backend/services/<X>/. Each one
+#                 has its own package: validate -> test -> deploy ->
+#                 integration. Multiple services deploy in parallel.
+#
+#   * infra     = cross-cutting infrastructure under backend/platform/
+#                 (currently `migrations` and `assets`). NOT services --
+#                 they don't own handlers with test.py / integration.py.
+#                 They are deploy-only steps. If any of them runs, it is
+#                 because SOMETHING transversal changed, which by rule
+#                 forces a redeploy of every service (transversal = shared
+#                 code, config or infra that any service could depend on).
+#
+# Decision tree per changed file:
+#   - backend/services/<X>/**                  -> mark service X as changed
+#   - backend/platform/migrations/sql/**       -> run migrations (content-only)
+#   - backend/platform/migrations/**  (code)   -> run migrations + transversal
+#   - backend/platform/assets/files/**         -> run assets       (content-only)
+#   - backend/platform/assets/**      (code)   -> run assets     + transversal
+#   - anything else inside backend/            -> transversal
+#   - outside backend/                         -> ignored
+#
+# When transversal is true, services_to_deploy expands to ALL services --
+# whatever moved is shared code and any service could depend on it.
+#
+# Outputs on $GITHUB_OUTPUT:
+#   services_to_deploy   JSON array of service names to (re)deploy
+#   services_count       length of services_to_deploy
+#   run_migrations       "true"|"false"
+#   run_assets           "true"|"false"
+#   run_infrastructure   "true" if run_migrations OR run_assets
+#   transversal          "true" if any non-service change forced full fan-out
+#   total_count          services_count + (1 per infra step that runs)
+#                        Zero means the workflow has nothing to do.
+#
+# Legacy outputs `blocks` and `count` are still emitted for one release so
+# any external tooling checking them keeps working; they mirror the old
+# behaviour (union of services + infra, migrations first).
 
 set -euo pipefail
 
 log() { echo "$@" >&2; }
 
-# Per platform block, list of subdirs treated as "content-only".
-# Changes ONLY inside these subdirs deploy just the block; anything else in the
-# platform block is treated as backend-global (deploys the entire backend).
-declare -A PLATFORM_CONTENT_DIRS=(
+# Per-infra-block, list of subdirs that are content-only (do NOT force
+# transversal). Anything under a platform block that is NOT in this list
+# is treated as code/config for the infra block and forces transversal.
+declare -A INFRA_CONTENT_DIRS=(
   ["migrations"]="sql"
   ["assets"]="files"
 )
@@ -52,162 +90,205 @@ else
   CHANGED_FILES="$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")"
 fi
 
-# Discover blocks
-ALL_BLOCKS=()
+# ---------------------------------------------------------------------------
+# Discover services and infra blocks from the tree.
+# ---------------------------------------------------------------------------
+ALL_SERVICES=()
 if [[ -d backend/services ]]; then
   while IFS= read -r -d '' d; do
-    ALL_BLOCKS+=("$(basename "${d}")")
+    ALL_SERVICES+=("$(basename "${d}")")
   done < <(find backend/services -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
+
+ALL_INFRA=()
 if [[ -d backend/platform ]]; then
   while IFS= read -r -d '' d; do
-    ALL_BLOCKS+=("$(basename "${d}")")
+    ALL_INFRA+=("$(basename "${d}")")
   done < <(find backend/platform -mindepth 1 -maxdepth 1 -type d -print0 2>/dev/null | sort -z)
 fi
 
-log "== discovered blocks: ${ALL_BLOCKS[*]:-<none>}"
+log "== services discovered: ${ALL_SERVICES[*]:-<none>}"
+log "== infra discovered:    ${ALL_INFRA[*]:-<none>}"
 
-# Order: migrations first so the schema is ready, then the rest alphabetically.
-order_blocks() {
-  local sorted
-  sorted="$(sort -u)"
-  local out=()
-  if echo "${sorted}" | grep -qx 'migrations'; then out+=("migrations"); fi
-  while IFS= read -r b; do
-    [[ -z "${b}" || "${b}" == "migrations" ]] && continue
-    out+=("${b}")
-  done <<<"${sorted}"
-  printf '%s\n' "${out[@]}"
-}
-
+# ---------------------------------------------------------------------------
+# Classify one changed file. Emits one of:
+#   service:<name>            file lives under backend/services/<name>/
+#   infra-content:<name>      file is content-only for infra <name>
+#   infra-code:<name>         file is code/config for infra <name>
+#                             (forces transversal)
+#   backend-global            file is inside backend/ but not tied to any
+#                             block (forces transversal)
+#   outside                   file is outside backend/ (ignored)
+# ---------------------------------------------------------------------------
 classify_change() {
   local f="$1"
+
   if [[ "${f}" =~ ^backend/services/([^/]+)/ ]]; then
-    echo "block:${BASH_REMATCH[1]}"; return
+    echo "service:${BASH_REMATCH[1]}"; return
   fi
+
   if [[ "${f}" =~ ^backend/platform/([^/]+)/(.*)$ ]]; then
-    local block="${BASH_REMATCH[1]}"
+    local iblock="${BASH_REMATCH[1]}"
     local sub="${BASH_REMATCH[2]}"
-    local content_dirs="${PLATFORM_CONTENT_DIRS[$block]:-}"
+    local content_dirs="${INFRA_CONTENT_DIRS[$iblock]:-}"
     if [[ -n "${content_dirs}" ]]; then
       IFS=',' read -ra dirs <<< "${content_dirs}"
       for cd in "${dirs[@]}"; do
         if [[ "${sub}" == "${cd}/"* || "${sub}" == "${cd}" ]]; then
-          echo "block:${block}"; return
+          echo "infra-content:${iblock}"; return
         fi
       done
     fi
-    # Code/config change inside a platform block -> full backend redeploy.
-    echo "backend-global"; return
+    echo "infra-code:${iblock}"; return
   fi
+
   if [[ "${f}" =~ ^backend/ ]]; then
     echo "backend-global"; return
   fi
+
   echo "outside"
 }
 
-selected=()
+# ---------------------------------------------------------------------------
+# Aggregate the classifications into the four outputs.
+# ---------------------------------------------------------------------------
+services_hit=()
+run_migrations="false"
+run_assets="false"
+transversal="false"
+
+apply_infra_content() {
+  # Content-only touches to a single infra block run just that step, do
+  # NOT force transversal.
+  case "$1" in
+    migrations) run_migrations="true" ;;
+    assets)     run_assets="true" ;;
+    *)          log "::warning::unknown infra '$1', ignoring content-only hit" ;;
+  esac
+}
+
+apply_infra_code() {
+  # Code/config touches to any infra block run that step AND force
+  # transversal (something shared moved).
+  case "$1" in
+    migrations) run_migrations="true" ;;
+    assets)     run_assets="true" ;;
+    *)          log "::warning::unknown infra '$1'" ;;
+  esac
+  transversal="true"
+}
 
 if [[ -n "${MANUAL_BLOCK:-}" ]]; then
+  # Manual override from workflow_dispatch. Interpretation:
+  #   __all__            -> everything (all services + every infra step, transversal)
+  #   <service-name>     -> only that service
+  #   <infra-name>       -> only that infra step (no service redeploy)
   if [[ "${MANUAL_BLOCK}" == "__all__" ]]; then
-    selected=("${ALL_BLOCKS[@]}")
+    services_hit=("${ALL_SERVICES[@]}")
+    for i in "${ALL_INFRA[@]:-}"; do apply_infra_code "${i}"; done
+  elif [[ " ${ALL_SERVICES[*]} " =~ " ${MANUAL_BLOCK} " ]]; then
+    services_hit=("${MANUAL_BLOCK}")
+  elif [[ " ${ALL_INFRA[*]} " =~ " ${MANUAL_BLOCK} " ]]; then
+    apply_infra_content "${MANUAL_BLOCK}"
   else
-    if [[ ! " ${ALL_BLOCKS[*]} " =~ " ${MANUAL_BLOCK} " ]]; then
-      log "::error::MANUAL_BLOCK='${MANUAL_BLOCK}' not found in ${ALL_BLOCKS[*]:-<none>}"
-      exit 1
-    fi
-    selected=("${MANUAL_BLOCK}")
+    log "::error::MANUAL_BLOCK='${MANUAL_BLOCK}' is neither a service (${ALL_SERVICES[*]}) nor an infra (${ALL_INFRA[*]}) nor '__all__'"
+    exit 1
   fi
 elif [[ "${CHANGED_FILES}" == "__FORCE_ALL__" ]]; then
-  selected=("${ALL_BLOCKS[@]}")
+  services_hit=("${ALL_SERVICES[@]}")
+  for i in "${ALL_INFRA[@]:-}"; do apply_infra_code "${i}"; done
 elif [[ -z "${CHANGED_FILES}" ]]; then
   log "== no changes, nothing to deploy"
 else
   log "== changed files:"
   echo "${CHANGED_FILES}" | sed 's/^/   /' >&2
 
-  has_backend_global=0
-  block_hits=()
   while IFS= read -r f; do
     [[ -z "${f}" ]] && continue
     kind="$(classify_change "${f}")"
     case "${kind}" in
-      backend-global)   has_backend_global=1 ;;
-      block:*)          block_hits+=("${kind#block:}") ;;
-      outside)          : ;;
+      service:*)         services_hit+=("${kind#service:}") ;;
+      infra-content:*)   apply_infra_content "${kind#infra-content:}" ;;
+      infra-code:*)      apply_infra_code   "${kind#infra-code:}"   ;;
+      backend-global)    transversal="true" ;;
+      outside)           : ;;
     esac
   done <<<"${CHANGED_FILES}"
 
-  if [[ ${has_backend_global} -eq 1 ]]; then
-    log "== backend global change -> full backend deploy"
-    selected=("${ALL_BLOCKS[@]}")
-  elif [[ ${#block_hits[@]} -gt 0 ]]; then
-    for b in "${block_hits[@]}"; do
-      if [[ " ${ALL_BLOCKS[*]} " =~ " ${b} " ]]; then
-        selected+=("${b}")
-      else
-        log "::warning::block '${b}' in diff but not in tree, ignoring"
-      fi
-    done
-  fi
-
-  if [[ ${#selected[@]} -eq 0 ]]; then
-    log "== only non-deployable changes, nothing to deploy"
+  if [[ "${transversal}" == "true" ]]; then
+    log "== transversal change detected -> forcing redeploy of ALL services"
+    services_hit=("${ALL_SERVICES[@]}")
   fi
 fi
 
-ordered=()
-if [[ ${#selected[@]} -gt 0 ]]; then
-  while IFS= read -r b; do
-    ordered+=("${b}")
-  done < <(printf '%s\n' "${selected[@]}" | order_blocks)
+# Dedupe + sort services alphabetically. Deploy order across services does
+# not matter (each has its own CloudFormation stack, run in parallel).
+services=()
+if [[ ${#services_hit[@]} -gt 0 ]]; then
+  while IFS= read -r s; do
+    [[ -n "${s}" ]] && services+=("${s}")
+  done < <(printf '%s\n' "${services_hit[@]}" | sort -u)
 fi
 
-log "== plan (${#ordered[@]} block(s)):"
-if [[ ${#ordered[@]} -eq 0 ]]; then
-  log "   <none>"
-  json="[]"
-else
-  for b in "${ordered[@]}"; do
-    log "   - ${b}"
+# ---------------------------------------------------------------------------
+# Serialize outputs.
+# ---------------------------------------------------------------------------
+services_json="[]"
+if [[ ${#services[@]} -gt 0 ]]; then
+  services_json="["
+  for i in "${!services[@]}"; do
+    [[ $i -gt 0 ]] && services_json+=","
+    services_json+="\"${services[$i]}\""
   done
-  json="["
-  for i in "${!ordered[@]}"; do
-    [[ $i -gt 0 ]] && json+=","
-    json+="\"${ordered[$i]}\""
-  done
-  json+="]"
+  services_json+="]"
 fi
 
-# Second list, everything except migrations. Used by the caller workflows to
-# fan out the parallel per-block "package" matrix; migrations is its own
-# gate ahead of the matrix so the schema is guaranteed to be current before
-# any other block deploys. `has_migrations` is a boolean the caller uses to
-# decide whether to run the migrations gate at all.
-has_migrations="false"
-others=()
-for b in "${ordered[@]:-}"; do
-  if [[ "${b}" == "migrations" ]]; then
-    has_migrations="true"
-  else
-    others+=("${b}")
-  fi
-done
+run_infrastructure="false"
+[[ "${run_migrations}" == "true" || "${run_assets}" == "true" ]] && run_infrastructure="true"
 
-if [[ ${#others[@]} -eq 0 ]]; then
-  others_json="[]"
-else
-  others_json="["
-  for i in "${!others[@]}"; do
-    [[ $i -gt 0 ]] && others_json+=","
-    others_json+="\"${others[$i]}\""
+# infra_steps: ordered list of infra blocks to run inside the infrastructure
+# job (migrations first, then assets). Used by the caller for its logging
+# and by the infrastructure job's own summary.
+infra_ordered=()
+[[ "${run_migrations}" == "true" ]] && infra_ordered+=("migrations")
+[[ "${run_assets}" == "true"     ]] && infra_ordered+=("assets")
+
+infra_json="[]"
+if [[ ${#infra_ordered[@]} -gt 0 ]]; then
+  infra_json="["
+  for i in "${!infra_ordered[@]}"; do
+    [[ $i -gt 0 ]] && infra_json+=","
+    infra_json+="\"${infra_ordered[$i]}\""
   done
-  others_json+="]"
+  infra_json+="]"
 fi
 
-log "== blocks=${json}"
-log "== blocks_others=${others_json}"
-log "== has_migrations=${has_migrations}"
+total_count=$(( ${#services[@]} + ${#infra_ordered[@]} ))
+
+# Legacy outputs (blocks / count / blocks_others / others_count / has_migrations)
+# kept so downstream tooling doesn't break during the transition. Prefer the
+# new outputs above.
+legacy_ordered=()
+[[ "${run_migrations}" == "true" ]] && legacy_ordered+=("migrations")
+[[ "${run_assets}"     == "true" ]] && legacy_ordered+=("assets")
+for s in "${services[@]:-}"; do legacy_ordered+=("${s}"); done
+
+legacy_json="[]"
+if [[ ${#legacy_ordered[@]} -gt 0 ]]; then
+  legacy_json="["
+  for i in "${!legacy_ordered[@]}"; do
+    [[ $i -gt 0 ]] && legacy_json+=","
+    legacy_json+="\"${legacy_ordered[$i]}\""
+  done
+  legacy_json+="]"
+fi
+
+log "== plan:"
+log "     services_to_deploy = ${services_json}"
+log "     run_migrations     = ${run_migrations}"
+log "     run_assets         = ${run_assets}"
+log "     transversal        = ${transversal}"
+log "     total_count        = ${total_count}"
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   log "== DRY_RUN active, skipping GITHUB_OUTPUT"
@@ -216,10 +297,16 @@ fi
 
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
-    echo "blocks=${json}"
-    echo "count=${#ordered[@]}"
-    echo "blocks_others=${others_json}"
-    echo "others_count=${#others[@]}"
-    echo "has_migrations=${has_migrations}"
+    echo "services_to_deploy=${services_json}"
+    echo "services_count=${#services[@]}"
+    echo "infra_steps=${infra_json}"
+    echo "run_migrations=${run_migrations}"
+    echo "run_assets=${run_assets}"
+    echo "run_infrastructure=${run_infrastructure}"
+    echo "transversal=${transversal}"
+    echo "total_count=${total_count}"
+    # Legacy / compatibility outputs.
+    echo "blocks=${legacy_json}"
+    echo "count=${total_count}"
   } >>"${GITHUB_OUTPUT}"
 fi
