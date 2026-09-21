@@ -31,11 +31,12 @@ on:
         description: "'dev' or 'pro'. Integration is skipped when 'pro'."
         type: string
         required: true
-    secrets:
-      AWS_ACCESS_KEY_ID:
-        required: true
-      AWS_SECRET_ACCESS_KEY:
-        required: true
+    # NOTE: intentionally NO explicit `secrets:` block. AWS creds live on
+    # the dev/pro environment (not at repo level), so declaring them here
+    # as `required: true` would fail workflow_call validation BEFORE any
+    # job enters its `environment:` gate. With `secrets: inherit` on the
+    # caller side, secret resolution is deferred until each job actually
+    # enters its environment, which is exactly what we want.
 
 permissions:
   contents: read
