@@ -212,6 +212,18 @@ class Signatures(Base):
     def get_by_sign_id(cls, sign_id: str):
         return db_session.session.get(cls, sign_id)
 
+    @classmethod
+    def get_by_cert_serial(cls, cert_serial: str):
+        """Used by the public /verify endpoint to enrich the PAdES
+        verification result with the ceremony context (consent,
+        timestamps, ...). Returns None if no ceremony issued the given
+        cert serial (either the PDF was signed by a different mock CA
+        or the row has been purged)."""
+        if not cert_serial:
+            return None
+        stmt = select(cls).where(cls.cert_serial == cert_serial)
+        return db_session.session.scalars(stmt).first()
+
     # ------------------------------------------------------------------
     # Mutations
     # ------------------------------------------------------------------
