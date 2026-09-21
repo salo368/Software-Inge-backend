@@ -70,9 +70,9 @@ def test_validate_id_front_fails_on_empty_image():
 
 
 def test_validate_id_front_requires_uploaded_evidence():
-    """Calling validate without first uploading the image returns 409
-    (no evidence to validate). This proves the handler consults the
-    row before calling Rekognition."""
+    """Calling validate without first uploading the image returns 404
+    evidence_missing. Proves the handler consults S3 (via
+    resolve_evidence_key) before calling Rekognition."""
     import requests
     from tests.integration_signatures import signatures_api
 
@@ -82,8 +82,7 @@ def test_validate_id_front_requires_uploaded_evidence():
             f"{signatures_api()}/signatures/{ctx.sign_id}/evidence/id-front",
             timeout=30,
         )
-        # 409 (stage not allowed) OR 400 (no evidence). Both are correct
-        # signals the handler bailed BEFORE hitting Rekognition.
-        assert resp.status_code in (400, 409), resp.text
+        assert resp.status_code == 404, resp.text
+        assert resp.json()["error"] == "evidence_missing"
     finally:
         ctx.close()
