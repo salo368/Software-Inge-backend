@@ -516,7 +516,8 @@ def main() -> None:
     r = _die_on_bad(
         _post(
             f"{urls['signatures']}/signatures/{sign_id}/consent",
-            json_body={"terms_version": "v1"},
+            # Must match one of consent/handler.py::_KNOWN_TERMS_VERSIONS.
+            json_body={"terms_version": "v1.0"},
         ),
         "consent",
     )

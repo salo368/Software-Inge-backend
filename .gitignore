@@ -33,6 +33,13 @@ backend/platform/*/libs/
 .aws/
 *.pem
 access.csv
+
+# scripts/e2e-signature.py drops runtime artifacts at the repo root
+# so bash `echo > e2e-otp.txt` from a separate Shell invocation lands
+# at the same path python resolves via --otp-file (git-bash MSYS
+# rewrites `/tmp/...` differently per invocation, hence repo-local).
+e2e-otp.txt
+e2e-signature.log
 credentials.csv
 .env
 .env.*
