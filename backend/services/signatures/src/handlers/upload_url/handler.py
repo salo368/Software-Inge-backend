@@ -4,18 +4,18 @@ file directly to signatures' own S3 bucket.
 Four evidence types are accepted, each with a fixed key under
 `transactions/{sign_id}/` and a whitelist of content-types:
 
-  * cedula_front       identity document, front  (image/jpeg, image/png)
-  * cedula_back        identity document, back   (image/jpeg, image/png)
+  * id_front           identity document, front  (image/jpeg, image/png)
+  * id_back            identity document, back   (image/jpeg, image/png)
   * face               selfie                    (image/jpeg, image/png)
   * signature_drawing  drawn autograph, canvas   (image/png)
 
 Rationale for direct-to-S3 uploads (instead of streaming through the
 lambda):
-  * cedula and selfie files are 1-5 MB; API Gateway caps at 6 MB per
+  * ID and selfie files are 1-5 MB; API Gateway caps at 6 MB per
     request and Lambda invocation payloads at 6 MB, so a two-step
     presign + PUT is cheaper and more reliable.
-  * The lambda never touches the bytes; validation runs asynchronously
-    by other lambdas (`validate_cedula_front`, etc.) that read from S3.
+  * The lambda never touches the bytes; validation runs afterwards by
+    other lambdas (`validate_id_front`, etc.) that read from S3.
 
 Terminal stages reject uploads. Consented / mid-flow stages allow
 re-uploading (a bad selfie can be retried without restarting the whole
@@ -45,10 +45,10 @@ _PRESIGN_TTL_SECONDS = 60 * 5
 # evidence_type -> (S3 key prefix under transactions/{sign_id}/,
 #                   allowed content-types).
 _EVIDENCE_MAP = {
-    "cedula_front":      ("cedula/front", {"image/jpeg", "image/png"}),
-    "cedula_back":       ("cedula/back",  {"image/jpeg", "image/png"}),
-    "face":              ("face",         {"image/jpeg", "image/png"}),
-    "signature_drawing": ("signature",    {"image/png"}),
+    "id_front":          ("id/front",  {"image/jpeg", "image/png"}),
+    "id_back":           ("id/back",   {"image/jpeg", "image/png"}),
+    "face":              ("face",      {"image/jpeg", "image/png"}),
+    "signature_drawing": ("signature", {"image/png"}),
 }
 
 _EXT_FROM_CONTENT_TYPE = {
@@ -59,14 +59,11 @@ _EXT_FROM_CONTENT_TYPE = {
 # Stages that allow evidence uploads. Terminal stages (signed, expired,
 # failed) are caught earlier by `ensure_stage_allows`; anything not
 # listed here means "you're past the evidence phase, stop uploading".
-_ALLOWED_STAGES = (
-    "created",
-    "cedula_front_validated",
-    "cedula_back_validated",
-    "face_validated",
-    "signature_registered",
-    "consented",
-)
+# The stages the ORM actually models -- see STAGES in libs/orm/signatures.py.
+# Terminal states are caught earlier by `ensure_stage_allows`; `otp` and
+# `signing` are excluded so re-uploading cannot silently invalidate an
+# already-issued challenge.
+_ALLOWED_STAGES = ("created", "identity", "consent")
 
 
 @handle_exceptions

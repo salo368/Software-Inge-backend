@@ -1,0 +1,9 @@
+description: >
+  Validates the ID document front photo already uploaded to signatures'
+  bucket. Runs Rekognition DetectText for legibility and stamps evidence.
+timeout: 29
+memorySize: 512
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/evidence/id-front

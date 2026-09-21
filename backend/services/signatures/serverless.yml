@@ -86,7 +86,7 @@ provider:
             - s3:PutObject
           Resource:
             - arn:aws:s3:::cdts-${sls:stage}-files/*
-        # Rekognition for identity evidence validation (cedula front/back
+        # Rekognition for identity evidence validation (ID front/back
         # and face). Uses the S3-object variant so Rekognition reads the
         # object directly instead of us shuttling bytes.
         - Effect: Allow

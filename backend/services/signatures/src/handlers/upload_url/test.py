@@ -49,7 +49,7 @@ class TestPreconditions:
     def test_unknown_sign_id_returns_404(self, load_handler, monkeypatch):
         h = load_handler(__file__)
         _wire(h, monkeypatch, row=None)
-        resp = h.handler(_event("nope", {"evidence_type": "cedula_front"}), None)
+        resp = h.handler(_event("nope", {"evidence_type": "id_front"}), None)
         assert resp["statusCode"] == 404
 
     def test_terminal_stage_signed_returns_410(self, load_handler, monkeypatch):
@@ -66,10 +66,10 @@ class TestPreconditions:
         assert resp["statusCode"] == 410
 
     def test_stage_not_in_allowed_returns_409(self, load_handler, monkeypatch):
-        """`otp_pending` is between consent and OTP verification; you
-        should NOT be reuploading evidences at that point."""
+        """`otp` sits between consent and OTP verification; you should
+        NOT be reuploading evidences at that point."""
         h = load_handler(__file__)
-        _wire(h, monkeypatch, row=_fake_row(stage="otp_pending"))
+        _wire(h, monkeypatch, row=_fake_row(stage="otp"))
         resp = h.handler(_event("sign_abc", {"evidence_type": "face"}), None)
         assert resp["statusCode"] == 409
 
@@ -107,13 +107,13 @@ class TestBodyValidation:
         assert resp["statusCode"] == 400
         assert json.loads(resp["body"]) == {"error": "invalid_content_type"}
 
-    def test_cedula_rejects_non_image(self, load_handler, monkeypatch):
+    def test_id_rejects_non_image(self, load_handler, monkeypatch):
         h = load_handler(__file__)
         _wire(h, monkeypatch, row=_fake_row())
         resp = h.handler(
             _event(
                 "sign_abc",
-                {"evidence_type": "cedula_front", "content_type": "application/pdf"},
+                {"evidence_type": "id_front", "content_type": "application/pdf"},
             ),
             None,
         )
@@ -124,33 +124,33 @@ class TestBodyValidation:
 # Happy path -- keys and URL
 # ---------------------------------------------------------------------------
 class TestHappyPath:
-    def test_cedula_front_jpg_key(self, load_handler, monkeypatch):
+    def test_id_front_jpg_key(self, load_handler, monkeypatch):
         h = load_handler(__file__)
         s3 = _wire(h, monkeypatch, row=_fake_row())
         resp = h.handler(
             _event(
                 "sign_abc",
-                {"evidence_type": "cedula_front", "content_type": "image/jpeg"},
+                {"evidence_type": "id_front", "content_type": "image/jpeg"},
             ),
             None,
         )
         assert resp["statusCode"] == 200
         payload = json.loads(resp["body"])
-        assert payload["key"] == "transactions/sign_abc/cedula/front.jpg"
+        assert payload["key"] == "transactions/sign_abc/id/front.jpg"
         assert payload["upload_url"] == "https://s3.presigned/put"
         assert payload["expires_in"] == 300
 
-    def test_cedula_back_png_key(self, load_handler, monkeypatch):
+    def test_id_back_png_key(self, load_handler, monkeypatch):
         h = load_handler(__file__)
         _wire(h, monkeypatch, row=_fake_row())
         resp = h.handler(
             _event(
                 "sign_abc",
-                {"evidence_type": "cedula_back", "content_type": "image/png"},
+                {"evidence_type": "id_back", "content_type": "image/png"},
             ),
             None,
         )
-        assert json.loads(resp["body"])["key"] == "transactions/sign_abc/cedula/back.png"
+        assert json.loads(resp["body"])["key"] == "transactions/sign_abc/id/back.png"
 
     def test_face_default_content_type_jpg(self, load_handler, monkeypatch):
         h = load_handler(__file__)
