@@ -16,13 +16,17 @@ prevents accidental hits against real infra from a plain local `pytest`.
 """
 from __future__ import annotations
 
+import hashlib
 import os
+import secrets
 import time
 import uuid
 from contextlib import contextmanager
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from typing import Any, Iterator
 
+import bcrypt
 import boto3
 import botocore.config
 import pg8000.native
@@ -274,8 +278,15 @@ def wait_for(condition, timeout_s: float = 20.0, interval_s: float = 1.0):
 # ---------------------------------------------------------------------------
 def signup_and_login(*, full_name: str = "Integration Bot") -> dict:
     """Creates a throwaway user via /auth/register and returns
-    {email, password, user_id, token}. The caller MUST cleanup the user in a
-    finally block via `cleanup_user(email)`."""
+    {email, password, user_id, token}. The caller MUST clean up the user in
+    a finally block via `cleanup_user(email)`.
+
+    Use this ONLY inside auth's own integration.py -- it exercises the
+    /auth/register endpoint, which by definition belongs to the auth block.
+    Any OTHER block that needs a bearer token to test its own endpoints
+    MUST use `create_test_user_directly()` below: crossing block boundaries
+    from an integration test defeats the point of per-block packaging
+    (see docs/repo-structure.md §13.3)."""
     email = unique_email()
     password = "hunter22aa"
     base = api_base("auth")
@@ -292,6 +303,47 @@ def signup_and_login(*, full_name: str = "Integration Bot") -> dict:
         "user_id": body["user"]["id"],
         "token": body["token"],
     }
+
+
+def create_test_user_directly(*, full_name: str = "Integration Bot") -> dict:
+    """Inserts a throwaway user + bearer_token row DIRECTLY in Postgres,
+    without touching /auth/register. Returns {email, user_id, token}.
+
+    This is what non-auth blocks (files, processes, signatures, forms)
+    should use when they need an authenticated caller to test their own
+    endpoints. Bypassing /auth/register keeps the integration for block X
+    from silently depending on block Y being freshly deployed in the same
+    pipeline run.
+
+    The token is generated + hashed the same way `libs.utils.auth.issue_token`
+    does at runtime (secrets.token_urlsafe -> sha256 -> stored hash), so
+    the value we return in `token` is a real, working bearer that
+    `require_auth` will accept.
+
+    Caller MUST clean up in finally via `cleanup_user(email)`."""
+    email = unique_email()
+    user_id = uuid.uuid4()
+    # bcrypt-hashed placeholder; the tests never log in, they just present
+    # the pre-issued bearer directly.
+    pw_hash = bcrypt.hashpw(b"unused-for-direct-users", bcrypt.gensalt(4)).decode()
+    plain_token = secrets.token_urlsafe(32)
+    token_hash = hashlib.sha256(plain_token.encode()).hexdigest()
+    token_id = uuid.uuid4()
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(hours=1)
+
+    with db_conn() as c:
+        c.run(
+            "INSERT INTO users (id, email, password_hash, full_name, created_at) "
+            "VALUES (:id, :email, :ph, :name, :now)",
+            id=user_id, email=email, ph=pw_hash, name=full_name, now=now,
+        )
+        c.run(
+            "INSERT INTO bearer_tokens (id, user_id, token_hash, expires_at, created_at) "
+            "VALUES (:tid, :uid, :th, :exp, :now)",
+            tid=token_id, uid=user_id, th=token_hash, exp=expires_at, now=now,
+        )
+    return {"email": email, "user_id": str(user_id), "token": plain_token}
 
 
 def bearer(token: str) -> dict[str, str]:

@@ -18,13 +18,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Same shape as deploy-dev.yml but with stage=pro (the reusable
+  # block-package skips its `integration` job for that stage). See
+  # docs/repo-structure.md §15 for the pipeline flow.
   plan:
     name: Plan
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       blocks: ${{ steps.plan.outputs.blocks }}
+      blocks_others: ${{ steps.plan.outputs.blocks_others }}
       count: ${{ steps.plan.outputs.count }}
+      others_count: ${{ steps.plan.outputs.others_count }}
+      has_migrations: ${{ steps.plan.outputs.has_migrations }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,10 +100,6 @@ jobs:
             echo "::notice::No services registered; skip package."
           fi
 
-      # Cross-cutting pytest suite (backend/tests/*): parsers, JS-helper unit
-      # tests, and other things that are not tied to a single Lambda. The
-      # per-Lambda `test.py` files run in the `tests` job below, one shard
-      # per block, so a failure surfaces against the specific block.
       - name: Run cross-cutting pytest (backend/tests)
         working-directory: backend
         run: |
@@ -115,156 +117,37 @@ jobs:
           path: backend/pytest-report.xml
           retention-days: 7
 
-  tests:
-    name: Tests ${{ matrix.block }} (pro)
+  migrations:
+    name: migrations
     needs: [plan, validate]
-    if: needs.plan.outputs.count != '0'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    if: needs.plan.outputs.has_migrations == 'true'
+    uses: ./.github/workflows/block-package.yml
+    secrets: inherit
+    with:
+      block: migrations
+      stage: pro
+
+  packages:
+    name: ${{ matrix.block }}
+    needs: [plan, validate, migrations]
+    if: >
+      always() &&
+      needs.plan.outputs.others_count != '0' &&
+      needs.validate.result == 'success' &&
+      (needs.migrations.result == 'success' || needs.migrations.result == 'skipped')
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
-        block: ${{ fromJson(needs.plan.outputs.blocks) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: backend/.python-version
-          cache: pip
-          cache-dependency-path: backend/requirements-dev.txt
-
-      - name: Install Python dependencies
-        working-directory: backend
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
-
-      # Discover the tree once so we can point pytest at whichever of
-      # services/<block> or platform/<block> actually contains this block.
-      # `plan.outputs.blocks` mixes both kinds and doesn't tag them.
-      - name: Resolve block path
-        id: path
-        working-directory: backend
-        run: |
-          if [ -d "services/${{ matrix.block }}" ]; then
-            echo "dir=services/${{ matrix.block }}" >> "$GITHUB_OUTPUT"
-          elif [ -d "platform/${{ matrix.block }}" ]; then
-            echo "dir=platform/${{ matrix.block }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::block '${{ matrix.block }}' not found under services/ or platform/"
-            exit 1
-          fi
-
-      - name: Run colocated Lambda tests for "${{ matrix.block }}"
-        working-directory: backend
-        env:
-          # Neutralizes AWS/DB bootstrapping inside libs/core/db.py (see
-          # backend/conftest.py).
-          STAGE: test
-        run: |
-          shopt -s nullglob
-          hits=(${{ steps.path.outputs.dir }}/src/*/*/test.py)
-          if [ ${#hits[@]} -eq 0 ]; then
-            echo "::warning::No colocated test.py found under ${{ steps.path.outputs.dir }}/src/. Every Lambda must ship a test.py (see docs/repo-structure.md §8)."
-            exit 0
-          fi
-          python -m pytest ${{ steps.path.outputs.dir }} \
-            -ra \
-            --junitxml=pytest-${{ matrix.block }}.xml
-
-      - name: Upload pytest report
-        if: always() && hashFiles(format('backend/pytest-{0}.xml', matrix.block)) != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: pytest-pro-${{ matrix.block }}
-          path: backend/pytest-${{ matrix.block }}.xml
-          retention-days: 7
-
-  deploy:
-    name: Deploy ${{ matrix.block }} (pro)
-    needs: [plan, validate, tests]
-    if: needs.plan.outputs.count != '0'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: true
-      max-parallel: 1
-      matrix:
-        block: ${{ fromJson(needs.plan.outputs.blocks) }}
-    environment:
-      name: pro
-      url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: backend/.nvmrc
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version-file: backend/.python-version
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Verify AWS identity
-        run: aws sts get-caller-identity
-
-      - name: Install Node dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Deploy block "${{ matrix.block }}"
-        working-directory: backend
-        run: |
-          if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
-            echo "::notice::No services registered; nothing to deploy."
-            exit 0
-          fi
-          npx serverless-compose "${{ matrix.block }}:deploy" --stage pro --verbose
-
-      - name: Apply migrations (if block == migrations)
-        if: matrix.block == 'migrations'
-        run: |
-          aws lambda invoke \
-            --function-name cdts-pro-migrations-apply \
-            --payload '{}' \
-            --cli-binary-format raw-in-base64-out \
-            --log-type Tail \
-            --query 'LogResult' --output text \
-            /tmp/response.json | base64 -d
-          echo ""
-          echo "== Response =="
-          cat /tmp/response.json
-          echo ""
-          if grep -q '"errorType"' /tmp/response.json; then
-            echo "::error::Lambda returned an error. See logs above."
-            exit 1
-          fi
-
-      - name: Sync assets to S3 (if block == assets)
-        if: matrix.block == 'assets'
-        env:
-          STAGE: pro
-        run: bash scripts/ci/deploy-assets.sh
+        block: ${{ fromJson(needs.plan.outputs.blocks_others) }}
+    uses: ./.github/workflows/block-package.yml
+    secrets: inherit
+    with:
+      block: ${{ matrix.block }}
+      stage: pro
 
   summary:
     name: Deploy summary
-    needs: [plan, validate, tests, deploy]
+    needs: [plan, validate, migrations, packages]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -273,11 +156,15 @@ jobs:
           {
             echo "### Deploy PRO summary"
             echo ""
-            echo "Plan:      **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
+            echo "Plan:            **${{ needs.plan.result }}** (blocks: ${{ needs.plan.outputs.count }})"
             echo '```json'
             echo '${{ needs.plan.outputs.blocks }}'
             echo '```'
-            echo "Validate:  **${{ needs.validate.result }}**"
-            echo "Tests:     **${{ needs.tests.result }}**"
-            echo "Deploy:    **${{ needs.deploy.result }}**"
+            echo "Validate:        **${{ needs.validate.result }}**"
+            echo "Migrations gate: **${{ needs.migrations.result }}**"
+            echo "Packages:        **${{ needs.packages.result }}**"
+            echo ""
+            echo "> Each block's package runs test -> deploy in sequence."
+            echo "> Packages run in parallel across blocks."
+            echo "> Integration tests are intentionally NOT run in production."
           } >> "$GITHUB_STEP_SUMMARY"

@@ -610,17 +610,44 @@ def test_register_persists_user_in_db():
         cleanup_user(email)  # ¡siempre!
 ```
 
-Estos `integration.py` corren en el job `integration` del pipeline
-(§15), **solo en Deploy DEV**, matrix por bloque, `continue-on-error:
-true` y `needs: [deploy]`. Es decir:
+Estos `integration.py` corren **dentro del "package" de su bloque** en
+el pipeline (§15), **solo en Deploy DEV**. Un package es una llamada al
+reusable workflow `.github/workflows/block-package.yml` que ejecuta en
+orden `test → deploy → integration`. Es decir:
 
+- El job `integration` tiene `continue-on-error: true` y `needs:
+  [deploy]` dentro del mismo package.
 - Un fallo NO revierte AWS: el deploy ya sucedió.
 - El workflow termina en verde con warnings; los detalles quedan en
   annotations y en el artifact `pytest-integration-dev-<block>`.
 - El resumen final (`summary`) muestra por bloque el estado
-  (:white_check_mark: / :fast_forward: skipped / :x:).
+  (:white_check_mark: / :fast_forward: skipped / :x:), leyéndolo desde
+  el artifact `integration-status-<block>` que cada package sube.
 - Deploy PRO **no** corre integration (no queremos usuarios de prueba
-  en producción).
+  en producción); el reusable saltea el job cuando `stage: pro`.
+
+**Regla dura: los `integration.py` son BLOCK-LOCAL.** El test para el
+bloque X **no puede** invocar endpoints HTTP de otro bloque Y. Si Y
+cambió en el mismo PR y su package aún no terminó, esa dependencia
+introduce carreras inaceptables entre packages en paralelo (y peor: en
+un PR que solo toca X, el package de Y ni siquiera correría, y el test
+estaría dependiendo silenciosamente del deploy previo). Reglas
+concretas:
+
+- Para autenticar el caller, NO llames a `POST /auth/register` desde,
+  digamos, files/integration.py. Usa
+  `create_test_user_directly()` de `integration_helpers.py`: inserta
+  usuario + bearer token vía SQL directo, exactamente con el mismo
+  algoritmo que `libs.utils.auth.issue_token`. El token devuelto pasa
+  por `require_auth` sin problemas.
+- Para datos de catálogo (`banks`, listas estáticas), léelos con `SELECT`
+  directo a Postgres. Un `SELECT id FROM banks WHERE is_active LIMIT 1`
+  es una lectura al esquema, NO una llamada a la API de otro bloque.
+- Para datos de otros dominios (`processes`, `forms`, ...), insertar
+  directamente vía SQL siguiendo el schema real (ver
+  `platform/migrations/sql/`).
+- `signup_and_login()` sigue existiendo en helpers, pero **solo** para
+  los `integration.py` DEL PROPIO bloque auth.
 
 **Exclusión del zip**: cada `serverless.yml` incluye
 `- '!**/integration.py'` en `package.patterns` para no subirlo a
@@ -681,11 +708,21 @@ Ejemplos concretos:
 
 ### 14.3 Orden de despliegue
 
-Cuando el plan incluye varios bloques, se despliegan **secuencialmente** con
-`max-parallel: 1`, en este orden:
+Cuando el plan incluye varios bloques, el flujo es:
 
-1. `migrations` primero (si aplica). Asegura que el esquema este al dia.
-2. Resto de los bloques en orden alfabetico.
+1. **`migrations` primero** (si aplica). Corre como package solitario y
+   sirve de gate: todos los demás packages tienen `needs: [migrations]`.
+   Así el esquema queda al día antes de que nadie deploye código nuevo
+   contra él.
+2. **Resto de bloques en paralelo**, uno por cada matrix cell del job
+   `packages`. Cada bloque tiene su propio stack CloudFormation, no hay
+   lock compartido, y correrlos en paralelo baja un full-backend deploy
+   de ~15 min a ~5 min.
+
+Dentro de un mismo package las etapas (`test → deploy → integration`)
+son estrictamente secuenciales: si `test` rompe, `deploy` no arranca;
+si `deploy` rompe, `integration` no arranca (pero eso no bloquea a
+otros packages porque `fail-fast: false` en el caller).
 
 ### 14.4 Override manual
 
@@ -727,26 +764,46 @@ Consecuencias practicas:
   revision humana. `develop` no exige ni PR (admite push directo).
 - **Todos los checks del ex-`ci.yml`** (pytest cross-cutting, lint-migrations,
   `serverless-compose package`) corren en el job `validate` dentro de `Deploy DEV` y
-  `Deploy PRO`. Los `test.py` colocalizados de cada Lambda corren en el job
-  `tests`, un shard por bloque en paralelo. Si `validate` o `tests` fallan,
-  `deploy` no se ejecuta y AWS queda intacto.
-- **Forma canónica del pipeline**:
-  - **Deploy DEV**: `plan → validate → tests → deploy → integration → summary`.
-  - **Deploy PRO**: `plan → validate → tests → deploy → summary` (SIN
-    `integration`; no queremos usuarios de prueba en producción).
+  `Deploy PRO`. Los `test.py` colocalizados de cada Lambda corren **dentro
+  del package de su bloque** (§13.1). Si `validate` falla, ningún package
+  arranca y AWS queda intacto.
+- **Forma canónica del pipeline (agrupado por bloque)**:
+  - **Deploy DEV**: `plan → validate → migrations (package)? → packages[block] → summary`.
+  - **Deploy PRO**: mismo shape, pero cada package saltea el step de
+    integration (`stage: pro`; no queremos usuarios de prueba en
+    producción).
 
-  `plan` y `validate` corren una sola vez; `tests`, `deploy` e
-  `integration` son matrix por bloque (matrix por
-  `plan.outputs.blocks`), con `tests` e `integration` en paralelo y
-  `deploy` secuencial (`max-parallel: 1`).
+  `plan` y `validate` corren una sola vez. Después, el pipeline se abre
+  en una fila por bloque, y cada fila es una **llamada al reusable
+  workflow** `.github/workflows/block-package.yml` que ejecuta
+  internamente `test → deploy → integration` en secuencia. GitHub UI
+  renderiza cada llamada como un grupo expandible, así que la matriz
+  visual queda:
 
-  El job `integration` (§13.3) tiene `continue-on-error: true` y
-  `needs: [plan, deploy]`: corre solo si el deploy salió bien y su
-  fallo NO revierte AWS ni marca el workflow en rojo — el resultado
-  detallado por bloque queda en el `summary` (:white_check_mark:
-  passed / :fast_forward: sin `integration.py` / :x: failed) y en el
-  artifact `pytest-integration-dev-<block>`. `summary` siempre corre y
-  espera a todos los jobs (`if: always()`).
+  ```
+  plan → validate → migrations                (test → deploy [→ integration])
+                  → auth      \
+                  → banks      \ ─ packages   (test → deploy [→ integration])
+                  → files      /   (parallel across blocks)
+                  → processes /
+                  → ...
+                  → summary
+  ```
+
+  Reglas del layout:
+  - **`migrations` es un gate**: package solitario, todos los demás
+    packages tienen `needs: [migrations]` (con `if: always() && (...)`
+    para saltearlo cuando no está en el plan).
+  - **`packages` matrix** con `fail-fast: false` y sin `max-parallel`:
+    cada bloque tiene su propio stack, corren completamente en paralelo.
+  - **Dentro de un package** los jobs son secuenciales: `deploy` needs
+    `test`, `integration` needs `deploy`.
+  - **El job `integration`** (§13.3) tiene `continue-on-error: true` y
+    solo corre cuando `stage == 'dev'`. Un fallo NO revierte AWS ni
+    marca el workflow en rojo — cada package sube un artifact
+    `integration-status-<block>` que el `summary` agrega con iconos
+    (:white_check_mark: passed / :fast_forward: sin `integration.py` /
+    :x: failed).
 - **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
   a `develop`, hacer `sls deploy --stage dev` directamente desde local con
   credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`
