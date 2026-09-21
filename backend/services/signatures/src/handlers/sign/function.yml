@@ -1,0 +1,6 @@
+description: >
+  Internal signing worker. Fetches source PDF + drawing, stamps and
+  PAdES-B signs, uploads outputs, fires callback. Invoked async by
+  verify_otp; no HTTP event -- IAM invoke only.
+timeout: 300
+memorySize: 2048
