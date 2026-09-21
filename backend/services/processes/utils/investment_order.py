@@ -1,10 +1,18 @@
-"""Renders the investment order the client signs.
+"""Renders the investment-order PDF the client signs.
 
-Layout is hand-placed rather than built with Platypus flowables: the signature
-box has to land on an exact spot so the stamping step can drop the drawn
-signature onto it, and SIGNATURE_POS below is the contract between the two.
-Coordinates here are PDF-style (origin bottom-left); SIGNATURE_POS is
-percentage from the top-left because that is what the browser preview uses.
+Owned by `processes` (this is CDT-specific business logic; the
+`signatures` service is deliberately generic and knows nothing about
+orders, banks or terms). The output is a single-page PDF; `processes`
+uploads it to `files`, gets a presigned URL back, then hands that URL
++ `SIGNATURE_LOCATION` to `signatures.create` to open the ceremony.
+
+Layout is hand-placed rather than built with Platypus flowables: the
+signature box has to land on an exact spot so the drawing stamp step in
+the signatures service can drop the signer's drawing onto it, and
+`SIGNATURE_LOCATION` below is the contract between the two.
+Coordinates inside this module are PDF-style (origin bottom-left);
+`SIGNATURE_LOCATION` is percentage from the top-left because that is
+what the frontend preview and the signatures service both use.
 """
 from __future__ import annotations
 
@@ -12,7 +20,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 
-from reportlab.lib.colors import HexColor, Color
+from reportlab.lib.colors import Color, HexColor
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas as pdf_canvas
 
@@ -31,12 +39,20 @@ POSITIVE = HexColor("#059669")
 POSITIVE_TINT = HexColor("#ecfdf5")
 WHITE = HexColor("#ffffff")
 
-# Where the drawn signature gets stamped, as % of the page from the top-left.
-# Must match the signature rule drawn in `_signature_block`.
-SIGNATURE_PAGE = 1
-SIGNATURE_X_PCT = 9.0
-SIGNATURE_Y_PCT = 87.5
-SIGNATURE_WIDTH_PCT = 28.0
+# Where the drawn signature gets stamped, as percentages of the page
+# from the top-left. This is the SAME shape the signatures service
+# expects in its `signature_location` field, so `processes` can pass
+# it straight through when calling `POST /signatures`.
+#
+# Match with `_signature_block` below: if you move the on-page rule,
+# also move this dict (otherwise the drawing lands somewhere else than
+# the printed underline).
+SIGNATURE_LOCATION: dict = {
+    "page": 1,
+    "x_pct": 9.0,
+    "y_pct": 87.5,
+    "width_pct": 28.0,
+}
 
 ROW_H = 19
 
@@ -190,9 +206,9 @@ def _legal(c, y: float, lines: list[str]) -> float:
 
 
 def _signature_block(c, holder_name: str, document: str) -> None:
-    rule_y = PAGE_H * (1 - SIGNATURE_Y_PCT / 100)
-    rule_x = PAGE_W * SIGNATURE_X_PCT / 100
-    rule_w = PAGE_W * SIGNATURE_WIDTH_PCT / 100
+    rule_y = PAGE_H * (1 - SIGNATURE_LOCATION["y_pct"] / 100)
+    rule_x = PAGE_W * SIGNATURE_LOCATION["x_pct"] / 100
+    rule_w = PAGE_W * SIGNATURE_LOCATION["width_pct"] / 100
 
     c.setStrokeColor(INK)
     c.setLineWidth(0.8)
