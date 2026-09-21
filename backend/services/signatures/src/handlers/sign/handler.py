@@ -277,23 +277,21 @@ def _run_pipeline(row: Signatures) -> None:
     except Exception as e:
         raise SigningError("stamp_failed", str(e)) from e
 
-    # (6) PAdES-B sign. The visible signature field is placed at a tiny
-    # invisible box in the bottom-left corner so the drawn signature
-    # (already stamped above) is the visual affordance without pyhanko's
-    # default "Digitally signed by X" text overlapping it.
-    invisible_location = {
-        "page": row.signature_location["page"],
-        "x_pct": 0.0,
-        "y_pct": 99.9,
-        "width_pct": 0.01,
-        "height_pct": 0.01,
-    }
+    # (6) PAdES-B sign. Signature widget is INVISIBLE (signature_location
+    # =None) because the signer's drawn autograph was already stamped
+    # onto the page in step 5 -- that IS the visual affordance. A
+    # visible pyhanko widget would either (a) overlap the drawing with
+    # its default "Digitally signed by X" text or (b) explode with
+    # `Fraction(0, 0)` if we tried to shrink it to a corner (pyhanko's
+    # appearance renderer can't cope with degenerate boxes).
+    # Adobe Reader / pdfsig / etc. still show the signature panel and
+    # can verify the PAdES chain -- visibility is orthogonal to signing.
     try:
         signed_pdf = sign_pdf_pades_b(
             pdf_bytes=stamped_pdf,
             cert_pem=cert_pem,
             private_key_pem=private_key_pem,
-            signature_location=invisible_location,
+            signature_location=None,
         )
     except Exception as e:
         raise SigningError("pades_signing_failed", str(e)) from e

@@ -10,10 +10,11 @@
 # What it does, in order:
 #
 #   1. Mock CA root certificate + private key (SecureString):
-#          /cdts/{STAGE}/mock-ca/root/cert
-#          /cdts/{STAGE}/mock-ca/root/key
+#          /cdts/{STAGE}/mock-ca/root/cert-pem
+#          /cdts/{STAGE}/mock-ca/root/private-key-pem
 #      Generated on-the-fly with openssl in a temp dir; files are
-#      shredded at the end.
+#      shredded at the end. The `-pem` suffix is required by
+#      utils/mock_ca.py -- do not shorten.
 #
 #   2. Signatures service key (SecureString):
 #          /cdts/{STAGE}/signatures/service-key
@@ -44,7 +45,7 @@
 set -euo pipefail
 
 # `aws_ssm` wraps `aws ssm ...` calls so that MSYS/git-bash on Windows
-# does NOT rewrite SSM parameter names such as "/cdts/dev/mock-ca/root/cert"
+# does NOT rewrite SSM parameter names such as "/cdts/dev/mock-ca/root/cert-pem"
 # into Windows paths ("C:/Program Files/Git/cdts/dev/..."), which the
 # AWS API rejects with "Parameter name must be a fully qualified name".
 #
@@ -155,8 +156,13 @@ put_plain_string() {
 # Step 1: mock CA root cert + key
 # --------------------------------------------------------------------------- #
 echo "--- Step 1: mock CA root cert + key ------------------------------------"
-CA_PARAM_CERT="/cdts/$STAGE/mock-ca/root/cert"
-CA_PARAM_KEY="/cdts/$STAGE/mock-ca/root/key"
+# NAMING NOTE: parameters end in `-pem` because utils/mock_ca.py and the
+# IAM policy in services/signatures/serverless.yml both hard-code those
+# suffixes. Do NOT rename to shorter forms unless you also update the
+# lambda code, the IAM Resource ARNs, and every unit test that pins
+# these strings.
+CA_PARAM_CERT="/cdts/$STAGE/mock-ca/root/cert-pem"
+CA_PARAM_KEY="/cdts/$STAGE/mock-ca/root/private-key-pem"
 
 TMPDIR="$(mktemp -d -t cdts-mock-ca-XXXXXX)"
 trap 'rm -rf "$TMPDIR"' EXIT

@@ -332,12 +332,12 @@ def sign_pdf_pades_b(
     pdf_bytes: bytes,
     cert_pem: bytes,
     private_key_pem: bytes,
-    signature_location: dict,
+    signature_location: Optional[dict],
     *,
     reason: str = "Digital signature via CDTs Mock CA",
     location: Optional[str] = None,
 ) -> bytes:
-    """Signs `pdf_bytes` with a visible PAdES-B baseline signature.
+    """Signs `pdf_bytes` with a PAdES-B baseline signature.
 
     Arguments:
         pdf_bytes: the PDF to sign, as bytes.
@@ -346,6 +346,13 @@ def sign_pdf_pades_b(
             Percentages are measured from the TOP-LEFT of the page (UI
             convention). Coordinates are converted to PDF-native
             bottom-left for pyhanko.
+            Pass **None** to produce an INVISIBLE signature (no widget
+            appearance in the PDF UI). Common when the caller has
+            already stamped a visual affordance -- e.g. the signer's
+            drawn autograph -- onto the PDF and just wants to attach
+            the cryptographic signature on top. PAdES-B is fully valid
+            without a visible widget; Adobe Reader still shows the
+            signature panel.
         reason: PDF signature reason field. Free text.
         location: PDF signature location field. Optional.
 
@@ -355,18 +362,28 @@ def sign_pdf_pades_b(
     if not pdf_bytes:
         raise ValueError("pdf_bytes is required")
 
-    page_zero_indexed, box = _resolve_signature_box(pdf_bytes, signature_location)
     signer = _build_signer(cert_pem, private_key_pem)
-
     w = IncrementalPdfFileWriter(BytesIO(pdf_bytes))
-    append_signature_field(
-        w,
-        sig_field_spec=SigFieldSpec(
+
+    # Invisible signature: create the field WITHOUT an on_page/box pair.
+    # Pyhanko interprets that as a signature dictionary with no widget
+    # annotation, which is the PDF spec's way of saying "signed but no
+    # visible mark". Trying to fake it with a microscopic box
+    # (~0.01% x 0.01%) triggers pyhanko's aspect-ratio Fraction to hit
+    # 0/0 during the appearance-render pass and blow up with
+    # `Fraction(0, 0)`.
+    if signature_location is None:
+        spec = SigFieldSpec(sig_field_name=SIG_FIELD_NAME)
+    else:
+        page_zero_indexed, box = _resolve_signature_box(
+            pdf_bytes, signature_location
+        )
+        spec = SigFieldSpec(
             sig_field_name=SIG_FIELD_NAME,
             on_page=page_zero_indexed,
             box=box,
-        ),
-    )
+        )
+    append_signature_field(w, sig_field_spec=spec)
     pdf_signer = PdfSigner(
         signature_meta=PdfSignatureMetadata(
             field_name=SIG_FIELD_NAME,
