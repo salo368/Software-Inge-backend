@@ -1,0 +1,10 @@
+description: >
+  Public PAdES verification endpoint. Downloads any PDF via URL and
+  reports document integrity, signature validity and trust chain vs
+  our mock CA root. Enriches with ceremony context when possible.
+timeout: 29
+memorySize: 512
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/verify
