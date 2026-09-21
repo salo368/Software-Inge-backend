@@ -43,11 +43,22 @@ from utils.investment_order import SIGNATURE_LOCATION, build_investment_order
 
 FILES_BUCKET = os.environ["FILES_BUCKET"]
 SSM_SIGNATURES_SERVICE_KEY = os.environ["SSM_SIGNATURES_SERVICE_KEY"]
+# SSM path that stores the base URL of THIS block's HTTP API (e.g.
+# https://<api-id>.execute-api.us-east-1.amazonaws.com). Optional: if
+# unset OR the SSM lookup fails at runtime, ceremonies open without a
+# callback_url and the frontend must poll to detect signing. Fase 6b
+# uses it to build `<base>/processes/signature-callback`.
+SSM_PROCESSES_API_URL = os.environ.get("SSM_PROCESSES_API_URL", "").strip()
 
 # Presigned GET URL TTL. Signatures.create downloads the PDF within
 # seconds of receiving the URL; 10 minutes covers cold starts + retries
 # without leaving a long-lived leak.
 _PRESIGNED_TTL_S = 600
+
+# Path suffix appended to the base API URL to reach the callback
+# endpoint. Must match the `httpApi.path` in
+# services/processes/src/handlers/signature_callback/function.yml.
+_CALLBACK_PATH = "/processes/signature-callback"
 
 
 class SignatureBridgeError(Exception):
@@ -64,6 +75,7 @@ class SignatureBridgeError(Exception):
 # container. Same pattern as signatures/utils/auth.py.
 # ---------------------------------------------------------------------------
 _service_key_cache: Optional[str] = None
+_processes_api_url_cache: Optional[str] = None
 
 
 def _load_service_key() -> str:
@@ -83,10 +95,48 @@ def _load_service_key() -> str:
     return _service_key_cache
 
 
+def _load_callback_url() -> Optional[str]:
+    """Builds the full callback URL from the SSM-stored base + fixed
+    path suffix. Returns None (never raises) when the SSM param is not
+    configured or unreachable; the caller treats that as "open the
+    ceremony without a callback, frontend will poll".
+
+    Cached per warm container. `""` is stored in the cache as a
+    sentinel for "checked once, not configured" so repeated cold
+    invocations don't hit SSM again.
+    """
+    global _processes_api_url_cache
+    if _processes_api_url_cache is not None:
+        return _processes_api_url_cache or None
+    if not SSM_PROCESSES_API_URL:
+        _processes_api_url_cache = ""
+        return None
+    try:
+        resp = boto3.client("ssm").get_parameter(Name=SSM_PROCESSES_API_URL)
+        base = resp["Parameter"]["Value"].rstrip("/")
+        _processes_api_url_cache = f"{base}{_CALLBACK_PATH}"
+    except Exception as e:
+        Logger.log(
+            "WARNING",
+            f"signature_bridge: could not load processes API URL "
+            f"({SSM_PROCESSES_API_URL}): {e}; ceremonies will open "
+            f"without a callback",
+        )
+        _processes_api_url_cache = ""
+        return None
+    return _processes_api_url_cache
+
+
 def _reset_service_key_cache_for_tests() -> None:
     """Test hook: forces the next `_load_service_key` call to re-fetch."""
     global _service_key_cache
     _service_key_cache = None
+
+
+def _reset_callback_url_cache_for_tests() -> None:
+    """Test hook: forces the next `_load_callback_url` call to re-fetch."""
+    global _processes_api_url_cache
+    _processes_api_url_cache = None
 
 
 # ---------------------------------------------------------------------------
@@ -150,10 +200,11 @@ def _invoke_signatures_create(
                 "signer_email": signer_email,
                 "signer_name": signer_name,
                 "service_caller": "processes",
-                # Fase 6b will wire a callback_url pointing at
-                # processes.signature_callback. Left null for now so we
-                # can deploy this step independently.
-                "callback_url": None,
+                # Optional: when SSM_PROCESSES_API_URL is set, we tell
+                # signatures where to POST the "ceremony done" webhook.
+                # If it's missing, the frontend must poll -- either
+                # way, the ceremony works end-to-end.
+                "callback_url": _load_callback_url(),
             }
         ),
     }

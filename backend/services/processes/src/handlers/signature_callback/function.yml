@@ -1,0 +1,10 @@
+description: >
+  Webhook receiver for signatures. Public HTTPS endpoint; auth is done
+  by re-reading the ceremony state from signatures (payload is
+  untrusted, we treat it as a wakeup signal).
+timeout: 15
+memorySize: 256
+events:
+  - httpApi:
+      method: POST
+      path: /processes/signature-callback

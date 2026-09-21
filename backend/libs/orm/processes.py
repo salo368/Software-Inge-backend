@@ -63,6 +63,17 @@ class Processes(Base):
         return db_session.session.get(cls, process_id)
 
     @classmethod
+    def get_by_sign_id(cls, sign_id: str):
+        """Reverse lookup used by processes.signature_callback to route
+        a signatures webhook back to its owning process. Returns None
+        when no process bound that sign_id (stale callback, hostile
+        caller, or ceremony from a different environment)."""
+        if not sign_id:
+            return None
+        stmt = select(cls).where(cls.sign_id == sign_id).limit(1)
+        return db_session.session.scalars(stmt).first()
+
+    @classmethod
     def list_by_user(cls, user_id: UUID):
         stmt = select(cls).where(cls.user_id == user_id).order_by(cls.created_at.desc())
         return list(db_session.session.execute(stmt).scalars().all())
@@ -74,12 +85,27 @@ class Processes(Base):
         db_session.session.flush()
         return row
 
+    def mark_signed_at(self, signed_at: datetime) -> None:
+        """Stamps `signed_at` from the signatures ceremony's authoritative
+        timestamp. Called by processes.signature_callback. Idempotent:
+        repeated callbacks (signatures retries the webhook on transient
+        errors) don't overwrite the value once set."""
+        if self.signed_at is None:
+            self.signed_at = signed_at
+            db_session.session.flush()
+
     def advance_to(self, next_stage: str) -> None:
         if next_stage not in STAGES:
             raise ValueError(f"invalid stage {next_stage!r}")
         self.stage = next_stage
         now = _utcnow()
-        if next_stage == "payment":
+        if next_stage == "payment" and self.signed_at is None:
+            # Fallback: the signatures callback normally stamps signed_at
+            # with the ceremony's real signed timestamp before the user
+            # ever clicks advance. If the callback never arrived
+            # (network hiccup, webhook rejected upstream), the manual
+            # advance still records a best-effort signing time so the
+            # audit log doesn't show a null.
             self.signed_at = now
         elif next_stage == "done":
             self.paid_at = now

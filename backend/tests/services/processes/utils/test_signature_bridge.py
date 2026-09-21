@@ -58,8 +58,10 @@ from utils import signature_bridge  # noqa: E402
 @pytest.fixture(autouse=True)
 def _reset_cache():
     signature_bridge._reset_service_key_cache_for_tests()
+    signature_bridge._reset_callback_url_cache_for_tests()
     yield
     signature_bridge._reset_service_key_cache_for_tests()
+    signature_bridge._reset_callback_url_cache_for_tests()
 
 
 def _stub_ssm(monkeypatch, *, service_key="s3cr3t"):
@@ -92,9 +94,38 @@ def _wire(
     s3_put_raises: Exception | None = None,
     presign_url: str = "https://s3.test/x?sig=abc",
     service_key: str = "s3cr3t",
+    api_url_base: str | None = "https://api.test",
+    api_url_raises: Exception | None = None,
+    ssm_processes_api_url_env: str | None = "/cdts/test/processes-api/url",
 ):
     ssm = MagicMock()
-    ssm.get_parameter.return_value = {"Parameter": {"Value": service_key}}
+
+    # SSM.get_parameter is called for two DIFFERENT params depending on
+    # what the bridge needs: the service key and (optionally) the
+    # processes API URL. Dispatch by Name so tests can control each
+    # independently.
+    def _get_parameter(Name, WithDecryption=False, **_):  # noqa: N803
+        if Name == "/cdts/test/signatures/service-key":
+            return {"Parameter": {"Value": service_key}}
+        if Name == "/cdts/test/processes-api/url":
+            if api_url_raises is not None:
+                raise api_url_raises
+            if api_url_base is None:
+                raise KeyError("api url not primed")
+            return {"Parameter": {"Value": api_url_base}}
+        raise AssertionError(f"unexpected ssm.get_parameter call: {Name!r}")
+
+    ssm.get_parameter.side_effect = _get_parameter
+
+    # Toggle whether the bridge module SEES the processes API URL env
+    # var. Setting to None simulates "not configured at deploy time".
+    if ssm_processes_api_url_env is None:
+        monkeypatch.setattr(signature_bridge, "SSM_PROCESSES_API_URL", "")
+    else:
+        monkeypatch.setattr(
+            signature_bridge, "SSM_PROCESSES_API_URL", ssm_processes_api_url_env
+        )
+
     s3 = _stub_s3(monkeypatch, put_raises=s3_put_raises, presign_url=presign_url)
 
     def _boto3_client(service_name, *args, **kwargs):
@@ -254,8 +285,6 @@ class TestHappyPath:
         assert body["signer_email"] == "Ada@Example.com"
         assert body["signer_name"] == "Ada Lovelace"
         assert body["service_caller"] == "processes"
-        # Callback is deliberately null until Fase 6b lands.
-        assert body["callback_url"] is None
         # SIGNATURE_LOCATION comes from investment_order.py; verify it's
         # a dict shaped like the signatures contract.
         loc = body["signature_location"]
@@ -270,8 +299,98 @@ class TestHappyPath:
         signature_bridge.open_ceremony_for_process(
             proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
         )
-        # Only ONE SSM roundtrip regardless of how many ceremonies open.
-        assert stubs["ssm"].get_parameter.call_count == 1
+        # Two SSM roundtrips per warm container across an unlimited
+        # number of ceremonies: one for the service key, one for the
+        # processes API URL. Both cached at module scope.
+        assert stubs["ssm"].get_parameter.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# callback_url discovery (fase 6b wiring)
+# ---------------------------------------------------------------------------
+class TestCallbackUrl:
+    def test_callback_url_built_from_ssm_base(self, monkeypatch):
+        stubs = _wire(
+            monkeypatch,
+            invoke_return=_stock_signatures_response(),
+            api_url_base="https://api.dev.example.com",
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        args, _ = stubs["invoke"].call_args
+        body = json.loads(args[1]["body"])
+        assert (
+            body["callback_url"]
+            == "https://api.dev.example.com/processes/signature-callback"
+        )
+
+    def test_trailing_slash_on_base_is_stripped(self, monkeypatch):
+        stubs = _wire(
+            monkeypatch,
+            invoke_return=_stock_signatures_response(),
+            api_url_base="https://api.dev.example.com/",
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        args, _ = stubs["invoke"].call_args
+        body = json.loads(args[1]["body"])
+        assert (
+            body["callback_url"]
+            == "https://api.dev.example.com/processes/signature-callback"
+        )
+
+    def test_env_unset_means_null_callback(self, monkeypatch):
+        """First-ever deploy before the ProcessesApiUrlParam resource
+        has been created: SSM_PROCESSES_API_URL env is empty. Ceremony
+        still opens; frontend has to poll."""
+        stubs = _wire(
+            monkeypatch,
+            invoke_return=_stock_signatures_response(),
+            ssm_processes_api_url_env=None,
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        args, _ = stubs["invoke"].call_args
+        body = json.loads(args[1]["body"])
+        assert body["callback_url"] is None
+
+    def test_ssm_lookup_failure_means_null_callback(self, monkeypatch):
+        """SSM param path is configured but the param doesn't exist yet
+        (or IAM missed a permission). We don't raise -- opening
+        ceremonies is more important than getting the webhook."""
+        stubs = _wire(
+            monkeypatch,
+            invoke_return=_stock_signatures_response(),
+            api_url_raises=RuntimeError("ParameterNotFound"),
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        args, _ = stubs["invoke"].call_args
+        body = json.loads(args[1]["body"])
+        assert body["callback_url"] is None
+
+    def test_callback_url_is_cached(self, monkeypatch):
+        """Both the successful lookup AND the "not configured" outcome
+        are cached, so a warm container hits SSM at most once per
+        param across its lifetime."""
+        stubs = _wire(
+            monkeypatch,
+            invoke_return=_stock_signatures_response(),
+            api_url_base="https://api.dev.example.com",
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        signature_bridge.open_ceremony_for_process(
+            proc=_fake_process(), user=_fake_user(), bank=_fake_bank()
+        )
+        # Same total (2) as when opening a single ceremony -- neither
+        # the service key nor the API URL was re-fetched.
+        assert stubs["ssm"].get_parameter.call_count == 2
 
 
 # ---------------------------------------------------------------------------
