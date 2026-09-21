@@ -25,6 +25,12 @@
 #      Read from the `HttpApiId` output of stack cdts-{STAGE}-processes.
 #      Skipped if the stack doesn't exist yet.
 #
+#   4. Debug OTP HMAC key (SecureString, DEV ONLY):
+#          /cdts/dev/signatures/debug-otp-key
+#      Generated with `openssl rand -hex 32`. Enables automated
+#      integration tests to complete a ceremony without a human
+#      reading the OTP email. Skipped when STAGE != 'dev'.
+#
 # Requirements:
 #
 #   * bash (git bash on Windows works)
@@ -284,17 +290,50 @@ else
     "$API_URL" \
     "Base URL of the processes HTTP API (stage $STAGE). Read by processes/signature_bridge to build the callback URL."
 fi
+echo
+
+# --------------------------------------------------------------------------- #
+# Step 4: debug OTP HMAC key (dev-only; opt-in for integration tests)
+# --------------------------------------------------------------------------- #
+# Enables `request_otp` to disclose the plaintext OTP in the response body
+# (under `_debug_otp`) when the caller HMAC-signs sign_id with this key.
+# ONLY provision in dev: in production, leave the param absent so the
+# handler's `_load_debug_otp_key` returns None and the branch is dead.
+#
+# The key is auto-generated with `openssl rand -hex 32` and never printed.
+# Integration tests read it via `aws ssm get-parameter` at run-time using
+# an admin caller (same credential scope this script needs anyway).
+DEBUG_OTP_KEY_PARAM="/cdts/$STAGE/signatures/debug-otp-key"
+if [[ "$STAGE" == "dev" ]]; then
+  echo "--- Step 4: signatures debug OTP HMAC key (dev-only) ------------------"
+  DEBUG_OTP_KEY_VALUE="$(openssl rand -hex 32)"
+  echo "  Uploading debug OTP key to SSM ($DEBUG_OTP_KEY_PARAM)..."
+  put_secure_string \
+    "$DEBUG_OTP_KEY_PARAM" \
+    "$DEBUG_OTP_KEY_VALUE" \
+    "HMAC key for automated integration-test OTP disclosure. DO NOT provision in production."
+  unset DEBUG_OTP_KEY_VALUE
+  echo
+else
+  echo "--- Step 4: signatures debug OTP key ----------------------------------"
+  echo "  Stage is '$STAGE' (not dev); skipping. The debug OTP feature is"
+  echo "  intentionally disabled outside dev."
+  echo
+fi
 
 # --------------------------------------------------------------------------- #
 # Summary
 # --------------------------------------------------------------------------- #
-echo
 echo "==============================================================="
 echo " Done."
 echo
 echo " Sanity check (no values printed, only ARNs + last-modified):"
 echo "==============================================================="
-for p in "$CA_PARAM_CERT" "$CA_PARAM_KEY" "$SVC_KEY_PARAM" "$API_URL_PARAM"; do
+SANITY_PARAMS=("$CA_PARAM_CERT" "$CA_PARAM_KEY" "$SVC_KEY_PARAM" "$API_URL_PARAM")
+if [[ "$STAGE" == "dev" ]]; then
+  SANITY_PARAMS+=("$DEBUG_OTP_KEY_PARAM")
+fi
+for p in "${SANITY_PARAMS[@]}"; do
   if param_exists "$p"; then
     aws_ssm get-parameter --name "$p" --region "$REGION" \
       --query "Parameter.{Name: Name, Type: Type, Version: Version, LastModified: LastModifiedDate}" \
