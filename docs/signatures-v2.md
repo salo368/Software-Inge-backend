@@ -298,6 +298,16 @@ Aquí solo lo operativo.
 
 ### 8.2 Bootstrap del root CA (una vez por stage)
 
+> **Ruta recomendada:**
+> [`scripts/bootstrap-signatures-v2.sh`](../scripts/bootstrap-signatures-v2.sh)
+> hace los tres bootstraps (mock CA, service key M2M, URL del API de processes)
+> en un solo paso, con detección/idempotencia y limpieza automática de
+> artefactos locales. Corre `bash scripts/bootstrap-signatures-v2.sh dev`
+> con credenciales admin.
+>
+> Los comandos manuales de más abajo existen para: (a) ejecutar en Linux/Mac
+> sin bash portable, (b) auditar exactamente qué hace el script.
+
 Genera el par y súbelo a SSM. Usa `openssl` (cualquier versión >= 1.1). Los
 parámetros son un CA autofirmado con `basicConstraints CA:TRUE, pathlen:0` (no
 puede firmar sub-CAs, solo leaves).
