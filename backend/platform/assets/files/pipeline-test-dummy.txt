@@ -1,0 +1,9 @@
+Pipeline sanity-check asset.
+
+This file exists only to verify that adding a file under
+backend/platform/assets/files/ triggers:
+
+  * `assets` infrastructure sub-step (S3 sync)
+  * transversal fan-out (all services redeploy)
+
+Safe to delete; it is not referenced by any handler, template or email.
