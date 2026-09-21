@@ -1,44 +1,109 @@
-"""Hands out a presigned PUT for one piece of identity evidence.
+"""Issues a presigned PUT URL so the signer's browser uploads an evidence
+file directly to signatures' own S3 bucket.
 
-The key is recorded right away so a refresh mid-ceremony resumes where the
-signer left off. Evidence lives under `signatures/` rather than `processes/`
-so it does not trip the files service upload trigger.
+Four evidence types are accepted, each with a fixed key under
+`transactions/{sign_id}/` and a whitelist of content-types:
+
+  * cedula_front       identity document, front  (image/jpeg, image/png)
+  * cedula_back        identity document, back   (image/jpeg, image/png)
+  * face               selfie                    (image/jpeg, image/png)
+  * signature_drawing  drawn autograph, canvas   (image/png)
+
+Rationale for direct-to-S3 uploads (instead of streaming through the
+lambda):
+  * cedula and selfie files are 1-5 MB; API Gateway caps at 6 MB per
+    request and Lambda invocation payloads at 6 MB, so a two-step
+    presign + PUT is cheaper and more reliable.
+  * The lambda never touches the bytes; validation runs asynchronously
+    by other lambdas (`validate_cedula_front`, etc.) that read from S3.
+
+Terminal stages reject uploads. Consented / mid-flow stages allow
+re-uploading (a bad selfie can be retried without restarting the whole
+ceremony).
+
+Presign TTL is 5 minutes so a leaked URL is short-lived. The microfront
+requests a fresh URL immediately before each upload attempt.
 """
+
+from __future__ import annotations
+
 import json
 import os
 
-from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.core.s3 import presign_upload
-from libs.orm.signatures import EVIDENCE_TYPES, Signatures
+import boto3
+from botocore.config import Config
 
-BUCKET = os.environ["FILES_BUCKET"]
-EXTENSIONS = {"image/jpeg": "jpg", "image/png": "png"}
+from libs.core.responses import HandledError, generate_response, handle_exceptions
+
+from utils.auth import ensure_stage_allows, require_sign_id
+
+
+SIGNATURES_BUCKET = os.environ["SIGNATURES_BUCKET"]
+_PRESIGN_TTL_SECONDS = 60 * 5
+
+
+# evidence_type -> (S3 key prefix under transactions/{sign_id}/,
+#                   allowed content-types).
+_EVIDENCE_MAP = {
+    "cedula_front":      ("cedula/front", {"image/jpeg", "image/png"}),
+    "cedula_back":       ("cedula/back",  {"image/jpeg", "image/png"}),
+    "face":              ("face",         {"image/jpeg", "image/png"}),
+    "signature_drawing": ("signature",    {"image/png"}),
+}
+
+_EXT_FROM_CONTENT_TYPE = {
+    "image/jpeg": "jpg",
+    "image/png":  "png",
+}
+
+# Stages that allow evidence uploads. Terminal stages (signed, expired,
+# failed) are caught earlier by `ensure_stage_allows`; anything not
+# listed here means "you're past the evidence phase, stop uploading".
+_ALLOWED_STAGES = (
+    "created",
+    "cedula_front_validated",
+    "cedula_back_validated",
+    "face_validated",
+    "signature_registered",
+    "consented",
+)
 
 
 @handle_exceptions
+@require_sign_id
 def handler(event, context):
-    token = (event.get("pathParameters") or {}).get("token", "")
-    row = Signatures.get_by_token(token)
-    if row is None:
-        raise HandledError("signature_not_found", 404)
-    if row.stage == "signed":
-        raise HandledError("already_signed", 409)
+    row = event["signature"]
+    ensure_stage_allows(row, _ALLOWED_STAGES)
 
     body = json.loads(event.get("body") or "{}")
-    evidence_type = body.get("type")
+    evidence_type = body.get("evidence_type")
     content_type = body.get("content_type", "image/jpeg")
-    if evidence_type not in EVIDENCE_TYPES:
-        raise HandledError(f"type must be one of {sorted(EVIDENCE_TYPES)}", 400)
-    if content_type not in EXTENSIONS:
-        raise HandledError("content_type must be image/jpeg or image/png", 400)
 
-    key = f"signatures/{token}/{evidence_type}.{EXTENSIONS[content_type]}"
-    url = presign_upload(BUCKET, key, content_type)
-    row.attach_evidence(evidence_type, key)
+    mapping = _EVIDENCE_MAP.get(evidence_type)
+    if mapping is None:
+        raise HandledError("invalid_evidence_type", 400)
+    prefix, allowed_types = mapping
+    if content_type not in allowed_types:
+        raise HandledError("invalid_content_type", 400)
 
-    return generate_response({
-        "upload_url": url,
-        "key": key,
-        "upload_headers": {"Content-Type": content_type},
-        "stage": row.stage,
-    })
+    ext = _EXT_FROM_CONTENT_TYPE[content_type]
+    key = f"transactions/{row.sign_id}/{prefix}.{ext}"
+
+    s3 = boto3.client("s3", config=Config(signature_version="s3v4"))
+    upload_url = s3.generate_presigned_url(
+        "put_object",
+        Params={
+            "Bucket": SIGNATURES_BUCKET,
+            "Key": key,
+            "ContentType": content_type,
+        },
+        ExpiresIn=_PRESIGN_TTL_SECONDS,
+    )
+
+    return generate_response(
+        {
+            "upload_url": upload_url,
+            "key": key,
+            "expires_in": _PRESIGN_TTL_SECONDS,
+        }
+    )

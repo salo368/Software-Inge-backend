@@ -1,5 +1,9 @@
-description: Public read of a signature ceremony addressed by its token.
+description: >
+  Returns the full state of a signature ceremony to the microfront.
+  Public via sign_id (link-based auth); includes a fresh presigned GET
+  URL for the original PDF.
+timeout: 10
 events:
   - httpApi:
       method: GET
-      path: /signatures/{token}
+      path: /signatures/{sign_id}

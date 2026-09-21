@@ -1,5 +1,9 @@
-description: Presigned PUT for one piece of identity evidence of a ceremony.
+description: >
+  Issues a presigned PUT URL for evidence uploads (cedula front/back,
+  face, signature drawing) directly to signatures' bucket. Auth by
+  sign_id; presign TTL is 5 minutes.
+timeout: 10
 events:
   - httpApi:
       method: POST
-      path: /signatures/{token}/upload-url
+      path: /signatures/{sign_id}/upload-url

@@ -86,6 +86,13 @@ if not _INTEGRATION_RUN:
     os.environ.setdefault("SSM_DB_PATH", "/cdts/test/db")
     os.environ.setdefault("FILES_BUCKET", "cdts-test-files")
     os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
+    # Signatures-v2 handlers read these at module top-level.
+    os.environ.setdefault("SIGNATURES_BUCKET", "cdts-test-signatures")
+    os.environ.setdefault("SSM_FRONTEND_PATH", "/cdts/test/frontend")
+    os.environ.setdefault(
+        "SSM_SIGNATURES_SERVICE_KEY", "/cdts/test/signatures/service-key"
+    )
+    os.environ.setdefault("SSM_SMTP_PATH", "/cdts/test/smtp")
 
 # ---------------------------------------------------------------------------
 # 3) Stub `boto3` BEFORE any handler imports libs.core.db.

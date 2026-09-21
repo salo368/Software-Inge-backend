@@ -1,6 +1,9 @@
-description: Opens a signature ceremony for a process and emails the signer a link.
-# Renders the investment order and talks to an SMTP server.
-timeout: 29
+description: >
+  Opens a signature ceremony. Internal M2M endpoint (X-Service-Key).
+  Downloads a source PDF from a presigned URL, parks it under
+  transactions/{sign_id}/original.pdf, persists the ceremony row and
+  returns the sign_id + sign_url the caller must give the signer.
+timeout: 20
 events:
   - httpApi:
       method: POST
