@@ -44,6 +44,8 @@ package:
     - '!**'
     - 'src/**'
     - 'libs/**'
+    # Block-local helpers under processes/utils/ (e.g. investment_order.py).
+    - 'utils/**'
     - '!**/__pycache__/**'
     - '!**/*.pyc'
     # Colocated tests live next to each handler.py; keep them out of the zip.
