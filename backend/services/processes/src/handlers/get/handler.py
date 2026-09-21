@@ -21,7 +21,16 @@ def handler(event, context):
         raise HandledError("process_not_found", 404)
 
     files = [f.public_dict() for f in Files.list_by_process(proc.id)]
-    ceremony = Signatures.get_active_for_process(proc.id)
+
+    # Signatures redesign (fase 2+): the ceremony no longer stores a
+    # process_id foreign key -- the relationship is owned by processes
+    # via `sign_id`. `Signatures.get_active_for_process` was removed in
+    # that migration; we now look up the ceremony (if any) by the
+    # process's sign_id column populated on the documents -> signature
+    # transition (fase 6a).
+    ceremony = (
+        Signatures.get_by_sign_id(proc.sign_id) if proc.sign_id else None
+    )
     return generate_response({
         "process": proc.public_dict(),
         "files": files,
