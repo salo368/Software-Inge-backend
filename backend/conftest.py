@@ -74,11 +74,18 @@ if str(_BACKEND) not in sys.path:
 
 # ---------------------------------------------------------------------------
 # 2) Default env for anything that reads envs at import time.
+#    Only applied in unit-test mode: integration runs need the REAL stage
+#    (dev), and setting SSM_DB_PATH=/cdts/test/db here would silently
+#    redirect the SSM lookup in integration_helpers away from the real
+#    /cdts/dev/db params. We detect --integration in sys.argv (see step 3
+#    below for the same trick with boto3).
 # ---------------------------------------------------------------------------
-os.environ.setdefault("STAGE", "test")
-os.environ.setdefault("SSM_DB_PATH", "/cdts/test/db")
-os.environ.setdefault("FILES_BUCKET", "cdts-test-files")
-os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
+_INTEGRATION_RUN = "--integration" in sys.argv
+if not _INTEGRATION_RUN:
+    os.environ.setdefault("STAGE", "test")
+    os.environ.setdefault("SSM_DB_PATH", "/cdts/test/db")
+    os.environ.setdefault("FILES_BUCKET", "cdts-test-files")
+    os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
 
 # ---------------------------------------------------------------------------
 # 3) Stub `boto3` BEFORE any handler imports libs.core.db.
@@ -93,13 +100,8 @@ os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
 #    the deployed dev infra. If the fake takes over, calls like
 #    `boto3.client("cloudformation").describe_stacks(...)` return MagicMocks
 #    that silently break control flow (e.g. paginators that never terminate
-#    because MagicMock is truthy). We detect the flag from sys.argv here at
-#    module-import time because conftest module code runs before pytest has
-#    parsed --integration into config.
+#    because MagicMock is truthy). `_INTEGRATION_RUN` is set in step 2.
 # ---------------------------------------------------------------------------
-_INTEGRATION_RUN = "--integration" in sys.argv
-
-
 class _FakeAWSClient:
     def get_parameters_by_path(self, Path, WithDecryption=False):  # noqa: N803
         base = Path.rstrip("/")
