@@ -31,12 +31,11 @@ provider:
     # transactions/{sign_id}/.
     SIGNATURES_BUCKET: cdts-${sls:stage}-signatures
     # verify_otp uses this to gate the async invoke of the internal 'sign'
-    # Lambda. Kept 'false' until fase 4e deploys that Lambda; then flip to
-    # 'true' in the same PR so verify_otp actually kicks off the signing
-    # job. Leaving it off is safe: verify_otp still returns 200 and moves
-    # the ceremony to 'signing', it just doesn't invoke anything and logs
-    # a WARNING for the operator.
-    SIGN_LAMBDA_READY: "false"
+    # Lambda. Flipped to 'true' in fase 4e once `sign` is deployed. If a
+    # future refactor renames or removes `sign`, flip back to 'false' so
+    # verify_otp degrades to a WARNING log instead of returning 502 on
+    # every invocation.
+    SIGN_LAMBDA_READY: "true"
 
   iam:
     role:
