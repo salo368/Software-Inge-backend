@@ -1,7 +1,6 @@
 description: >
   Returns the full state of a signature ceremony to the microfront.
-  Public via sign_id (link-based auth); includes a fresh presigned GET
-  URL for the original PDF.
+  Public via sign_id; includes a presigned GET URL for the source PDF.
 timeout: 10
 events:
   - httpApi:
