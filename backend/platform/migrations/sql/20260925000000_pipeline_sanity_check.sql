@@ -1,3 +1,5 @@
+-- +migrate up
+--
 -- Pipeline sanity-check migration.
 --
 -- Idempotent no-op SQL that exists only to verify:
