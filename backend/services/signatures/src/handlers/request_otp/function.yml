@@ -1,5 +1,0 @@
-description: Emails the one-time code that confirms the signature.
-events:
-  - httpApi:
-      method: POST
-      path: /signatures/{token}/otp

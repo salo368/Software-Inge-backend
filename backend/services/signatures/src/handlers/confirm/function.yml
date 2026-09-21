@@ -1,8 +1,0 @@
-description: Validates the OTP, stamps the signature and closes the ceremony.
-# Downloads four objects, stamps the PDF and renders the certificate.
-timeout: 29
-memorySize: 1536
-events:
-  - httpApi:
-      method: POST
-      path: /signatures/{token}/confirm
