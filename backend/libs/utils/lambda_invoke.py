@@ -7,6 +7,8 @@ through API Gateway (e.g. `signatures.verify_otp` triggering the internal
 the retries/timeouts we want everywhere and the naming convention this
 repo already uses (`cdts-<stage>-<service>-<kebab-fn>`).
 
+# (pipeline test: touching libs/ must trigger a transversal fan-out.)
+
 Two invocation modes:
 
 * `invoke_sync(function_name, payload, timeout_s=25) -> dict`
