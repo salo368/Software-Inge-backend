@@ -71,10 +71,15 @@ def test_get_returns_v2_shape_for_fresh_ceremony():
 
         assert payload["signature_location"]["page"] == 1
         assert "uploads_state" in payload
+        # Note the ORM key for the drawn signature is 'signature'
+        # (see libs/orm/signatures.EVIDENCE_TYPES); the HTTP API
+        # accepts 'signature_drawing' as the evidence_type on
+        # POST /upload-url. The SPA has to bridge that name.
         for kind in ("id_front", "id_back", "face"):
             assert payload["uploads_state"][kind]["uploaded"] is False
             assert payload["uploads_state"][kind]["validated"] is False
-        assert payload["uploads_state"]["signature_drawing"]["uploaded"] is False
+        assert payload["uploads_state"]["signature"]["uploaded"] is False
+        assert payload["uploads_state"]["signature"]["validated"] is None
 
         assert payload["consent"]["given"] is False
         assert payload["consent"]["given_at"] is None
