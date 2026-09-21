@@ -59,7 +59,7 @@ def test_verify_otp_wrong_code_increments_attempts():
         request_otp_with_debug_disclosure(ctx)
         resp = requests.post(
             f"{signatures_api()}/signatures/{ctx.sign_id}/otp/verify",
-            json={"otp": "000000"},  # deterministic wrong value
+            json={"code": "000000"},  # deterministic wrong value
             timeout=15,
         )
         assert resp.status_code in (401, 422), resp.text
@@ -79,7 +79,7 @@ def test_verify_otp_rejects_before_request():
     try:
         resp = requests.post(
             f"{signatures_api()}/signatures/{ctx.sign_id}/otp/verify",
-            json={"otp": "123456"},
+            json={"code": "123456"},
             timeout=15,
         )
         assert resp.status_code in (400, 409), resp.text
