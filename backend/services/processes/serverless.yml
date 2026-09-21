@@ -18,6 +18,13 @@ provider:
   environment:
     STAGE: ${sls:stage}
     SSM_DB_PATH: /cdts/${sls:stage}/db
+    # `advance` uploads the rendered investment-order PDF to the files
+    # bucket and then hands a presigned GET URL to signatures.create.
+    FILES_BUCKET: cdts-${sls:stage}-files
+    # M2M shared secret used to call `signatures.create` (only that
+    # endpoint enforces `X-Service-Key`; everything else in signatures
+    # is either sign_id-scoped or fully public).
+    SSM_SIGNATURES_SERVICE_KEY: /cdts/${sls:stage}/signatures/service-key
 
   iam:
     role:
@@ -26,9 +33,34 @@ provider:
         - Effect: Allow
           Action:
             - ssm:GetParametersByPath
+            - ssm:GetParameter
           Resource:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/service-key
+        # SecureString param above is KMS-encrypted; SSM decrypts on read
+        # but only if we can invoke Decrypt. Same rationale as the other
+        # blocks; scoping is enforced by the ssm:GetParameter Resource.
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource: '*'
+        # Files bucket, only under processes/ so we can't accidentally
+        # touch other services' objects.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-files/processes/*
+        # Direct Lambda invoke of signatures.create (bypasses API
+        # Gateway; the service key still travels in the synthetic HTTP
+        # event so signatures.create's auth decorator runs unchanged).
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-create
 
 plugins:
   - serverless-python-requirements
