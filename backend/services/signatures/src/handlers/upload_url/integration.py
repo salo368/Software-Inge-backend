@@ -30,8 +30,10 @@ def test_upload_url_returns_working_presigned_put():
     try:
         body = make_synthetic_id_png("front")
         key = upload_evidence(ctx, "id_front", body, "image/png")
-        # Key convention: transactions/{sign_id}/id_front.*
-        assert key.startswith(f"transactions/{ctx.sign_id}/id_front"), key
+        # Key convention (see upload_url handler `_EVIDENCE_MAP`):
+        # id_front -> prefix `id/front`, so full key is
+        # transactions/{sign_id}/id/front.{ext}
+        assert key.startswith(f"transactions/{ctx.sign_id}/id/front"), key
         head = s3_head(signatures_bucket(), key)
         assert head is not None, f"object missing at {key!r}"
         assert head["ContentType"] in ("image/png", "binary/octet-stream")

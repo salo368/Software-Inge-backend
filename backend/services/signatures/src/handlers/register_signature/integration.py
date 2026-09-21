@@ -34,7 +34,7 @@ def test_register_signature_stamps_signature_key():
     ctx = open_ceremony(signer_name="ITest RegisterSignature")
     try:
         upload_evidence(
-            ctx, "signature", make_synthetic_signature_png(), "image/png"
+            ctx, "signature_drawing", make_synthetic_signature_png(), "image/png"
         )
         register_signature_drawing(ctx)
         row = query_one(
@@ -50,8 +50,10 @@ def test_register_signature_stamps_signature_key():
 
 
 def test_register_signature_advances_stage_when_all_evidences_ready():
-    """Advances 'created' -> 'identity' when the 3 biometric evidences
-    are validated AND the drawn signature is uploaded+registered.
+    """When the 3 biometric evidences are validated AND the drawn
+    signature is registered, `resolved_stage()` short-circuits to
+    'consent' (not 'identity'): the row is now ready for the consent
+    step. See libs/orm/signatures.resolved_stage().
 
     Only runs when a face fixture is provided; without it the ceremony
     can't reach the "all evidences ready" state.
@@ -70,22 +72,25 @@ def test_register_signature_advances_stage_when_all_evidences_ready():
         validate_face(ctx)
         # Now the drawing.
         upload_evidence(
-            ctx, "signature", make_synthetic_signature_png(), "image/png"
+            ctx, "signature_drawing", make_synthetic_signature_png(), "image/png"
         )
         resp = register_signature_drawing(ctx)
-        assert resp.get("stage") == "identity", resp
+        assert resp.get("stage") == "consent", resp
     finally:
         ctx.close()
 
 
 def test_register_signature_requires_uploaded_drawing():
-    """Calling register without first uploading the PNG returns 4xx."""
+    """Calling register without first uploading the PNG returns 404
+    evidence_missing (handler resolves the S3 key before hitting the
+    magic-byte check)."""
     ctx = open_ceremony(signer_name="ITest RegisterSignature NoUpload")
     try:
         resp = requests.post(
             f"{signatures_api()}/signatures/{ctx.sign_id}/evidence/signature",
             timeout=30,
         )
-        assert resp.status_code in (400, 409), resp.text
+        assert resp.status_code == 404, resp.text
+        assert resp.json()["error"] == "evidence_missing"
     finally:
         ctx.close()
