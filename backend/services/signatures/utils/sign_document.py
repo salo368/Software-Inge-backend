@@ -32,9 +32,9 @@ from utils.investment_order import (
 )
 
 EVIDENCE_LABELS = (
-    ("cedula_front", "Cédula — frontal"),
-    ("cedula_back", "Cédula — posterior"),
-    ("face", "Rostro del firmante"),
+    ("id_front", "ID document (front)"),
+    ("id_back", "ID document (back)"),
+    ("face", "Signer face capture"),
 )
 
 

@@ -1,0 +1,9 @@
+description: >
+  Validates the signer's selfie already uploaded to signatures' bucket.
+  Runs Rekognition DetectFaces and stamps the ceremony evidence.
+timeout: 29
+memorySize: 512
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/evidence/face
