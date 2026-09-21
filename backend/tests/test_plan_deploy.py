@@ -1,9 +1,15 @@
 """Unit tests for scripts/ci/plan-deploy.sh.
 
-Cross-cutting test that shells out to the bash script with the
-`PLAN_DEPLOY_TEST_CHANGED_FILES` hook (a newline-separated file list)
-so we exercise the actual production code path without needing a real
-git repo state.
+Cross-cutting tests split in two flavors:
+
+  1. `PLAN_DEPLOY_TEST_CHANGED_FILES` hook -- injects a newline-separated
+     file list to skip git diff altogether. Fast, covers the
+     classification / fan-out rules.
+
+  2. Real ephemeral git repos -- for tests that exercise the git-based
+     branches of the script (push with LAST_SUCCESSFUL_DEPLOY_SHA,
+     GITHUB_EVENT_BEFORE fallback, etc). Slower but the only way to
+     verify the actual `git diff` command inside the script.
 
 Cardinal rule under test: ANY infra execution forces a full redeploy
 of every service (see the top-of-file comment in plan-deploy.sh).
@@ -12,6 +18,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -229,3 +236,197 @@ class TestManualOverride:
         )
         assert r.returncode != 0
         assert "MANUAL_BLOCK" in r.stderr
+
+
+# ---------------------------------------------------------------------------
+# Push-event branch: real ephemeral git repos.
+#
+# These exercise the branch of the script that computes CHANGED_FILES via
+# `git diff BASE..HEAD` and, critically, the `LAST_SUCCESSFUL_DEPLOY_SHA`
+# fallback that saves us when a prior pipeline failed before Infrastructure
+# ran (the exact bug that caused the missed migration in the ORM change).
+# ---------------------------------------------------------------------------
+def _git(cwd: Path, *args: str) -> str:
+    r = subprocess.run(
+        ["git", *args], cwd=cwd, capture_output=True, text=True, check=True
+    )
+    return r.stdout.strip()
+
+
+def _init_repo(tmp: Path) -> None:
+    """Init a repo with the same directory layout plan-deploy scans:
+       backend/services/{auth,banks,files,forms,processes,signatures}/
+       backend/platform/{migrations,assets}/
+    """
+    _git(tmp, "init", "-q", "-b", "main")
+    _git(tmp, "config", "user.email", "test@test.local")
+    _git(tmp, "config", "user.name", "test")
+    for svc in ("auth", "banks", "files", "forms", "processes", "signatures"):
+        d = tmp / "backend" / "services" / svc
+        d.mkdir(parents=True)
+        (d / "handler.py").write_text("# placeholder\n")
+    (tmp / "backend" / "platform" / "migrations" / "sql").mkdir(parents=True)
+    (tmp / "backend" / "platform" / "assets" / "files").mkdir(parents=True)
+    _git(tmp, "add", "-A")
+    _git(tmp, "commit", "-q", "-m", "initial")
+
+
+def _run_git(
+    cwd: Path,
+    *,
+    before: str,
+    head: str = "HEAD",
+    last_successful: str | None = None,
+) -> dict[str, str]:
+    """Runs plan-deploy.sh from `cwd` as if it were a `push` event.
+
+    `before` mimics GITHUB_EVENT_BEFORE (the parent-of-push commit).
+    `last_successful` mimics LAST_SUCCESSFUL_DEPLOY_SHA emitted by the
+    Plan job's gh-run-list step.
+    """
+    bash = _which_bash()
+    if bash is None:
+        pytest.skip("bash not available")
+
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w+", delete=False, suffix=".out") as f:
+        github_output_path = f.name
+
+    env = os.environ.copy()
+    env["GITHUB_OUTPUT"] = github_output_path
+    env["GITHUB_EVENT_NAME"] = "push"
+    env["GITHUB_EVENT_BEFORE"] = before
+    if last_successful is not None:
+        env["LAST_SUCCESSFUL_DEPLOY_SHA"] = last_successful
+    else:
+        env.pop("LAST_SUCCESSFUL_DEPLOY_SHA", None)
+    env.pop("PLAN_DEPLOY_TEST_CHANGED_FILES", None)
+    env.pop("MANUAL_BLOCK", None)
+
+    # Checkout `head` if not already there.
+    if head != "HEAD":
+        _git(cwd, "checkout", "-q", head)
+
+    r = subprocess.run(
+        [bash, str(_SCRIPT)],
+        env=env,
+        cwd=str(cwd),
+        capture_output=True,
+        text=True,
+    )
+    assert r.returncode == 0, (
+        f"exit {r.returncode}\nstdout:\n{r.stdout}\nstderr:\n{r.stderr}"
+    )
+
+    outputs: dict[str, str] = {}
+    with open(github_output_path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if "=" in line:
+                k, _, v = line.partition("=")
+                outputs[k] = v
+    outputs["_stderr"] = r.stderr
+    return outputs
+
+
+class TestPushBranchWithGit:
+    """Real-git-repo tests for the push branch of plan-deploy.sh."""
+
+    def test_diff_uses_github_event_before_when_no_last_successful(
+        self, tmp_path
+    ):
+        _init_repo(tmp_path)
+        c0 = _git(tmp_path, "rev-parse", "HEAD")
+        # single service change on top of c0
+        (tmp_path / "backend" / "services" / "auth" / "handler.py").write_text(
+            "# touched\n"
+        )
+        _git(tmp_path, "commit", "-q", "-am", "touch auth")
+        out = _run_git(tmp_path, before=c0, last_successful=None)
+        assert out["services_to_deploy"] == '["auth"]'
+        assert out["transversal"] == "false"
+
+    def test_missed_migration_replay_via_last_successful(self, tmp_path):
+        """The regression case that motivated the fix.
+
+        Timeline:
+          c0 -- initial (last SUCCESSFUL deploy)
+          c1 -- adds a migration; its pipeline dies at Validate; migration
+                is NEVER applied to the DB
+          c2 -- unrelated cosmetic change
+
+        A dumb diff (c1..c2) does not see the migration file (it already
+        lives in c1's tree), so plan-deploy would say run_migrations=false
+        and the schema stays stale.
+
+        The correct diff (c0..c2) still contains the migration, so
+        run_migrations=true and Infrastructure catches up.
+        """
+        _init_repo(tmp_path)
+        c0 = _git(tmp_path, "rev-parse", "HEAD")
+
+        # c1: add a migration (pipeline for this hypothetically failed
+        # before Infrastructure).
+        (
+            tmp_path
+            / "backend"
+            / "platform"
+            / "migrations"
+            / "sql"
+            / "20260924_dummy.sql"
+        ).write_text("-- noop\n")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-q", "-m", "add migration (pipeline failed)")
+        c1 = _git(tmp_path, "rev-parse", "HEAD")
+
+        # c2: unrelated change.
+        (tmp_path / "README.md").write_text("hello\n")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-q", "-m", "unrelated readme")
+
+        # Simulate what the OLD script did (GITHUB_EVENT_BEFORE=c1, no
+        # last-successful-deploy anchor) -- migration would be MISSED.
+        broken = _run_git(tmp_path, before=c1, last_successful=None)
+        assert broken["run_migrations"] == "false", (
+            "sanity: without the anchor the migration is invisible; "
+            "this is exactly the bug the fix addresses"
+        )
+
+        # NEW behaviour: last_successful=c0 makes the diff c0..HEAD which
+        # still contains the SQL file. Infrastructure re-runs.
+        fixed = _run_git(tmp_path, before=c1, last_successful=c0)
+        assert fixed["run_migrations"] == "true"
+        assert fixed["transversal"] == "true"
+        # And full fan-out per cardinal rule.
+        for svc in (
+            "auth",
+            "banks",
+            "files",
+            "forms",
+            "processes",
+            "signatures",
+        ):
+            assert f'"{svc}"' in fixed["services_to_deploy"]
+
+    def test_last_successful_sha_unreachable_falls_back_to_before(
+        self, tmp_path
+    ):
+        """If gh returns a SHA that isn't in the local repo (repo history
+        rewritten, force-push, whatever), the script must not crash --
+        it should log a warning and fall back to GITHUB_EVENT_BEFORE."""
+        _init_repo(tmp_path)
+        c0 = _git(tmp_path, "rev-parse", "HEAD")
+        (tmp_path / "backend" / "services" / "auth" / "handler.py").write_text(
+            "# touched\n"
+        )
+        _git(tmp_path, "commit", "-q", "-am", "touch auth")
+
+        out = _run_git(
+            tmp_path,
+            before=c0,
+            last_successful="0" * 40,  # syntactically-valid but unknown
+        )
+        assert "not present locally" in out["_stderr"]
+        # Falls back to before=c0, still picks up the auth change.
+        assert out["services_to_deploy"] == '["auth"]'

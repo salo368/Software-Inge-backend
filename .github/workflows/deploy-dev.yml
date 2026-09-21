@@ -12,6 +12,9 @@ on:
 
 permissions:
   contents: read
+  # actions:read is needed by the Plan job to run `gh run list --workflow=...`
+  # so it can find the SHA of the last successful deploy.
+  actions: read
 
 concurrency:
   group: deploy-dev
@@ -65,10 +68,41 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Anchor the diff to the SHA of the last successful run of THIS
+      # workflow on this branch, not to the parent of the push. This
+      # survives failed pipelines: if a prior pipeline landed a migration
+      # but died at Validate before Infrastructure ran, its SHA is not
+      # "last successful", so a later push's diff still contains that
+      # migration file and Infrastructure will pick it up.
+      - name: Find last successful deploy SHA
+        id: last-successful
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # gh CLI is preinstalled on GH-hosted runners. Ask for the head
+          # SHA of the most recent successful run of this workflow on the
+          # current branch. Own run is excluded because its status is
+          # still 'in_progress' when this step evaluates.
+          sha="$(gh run list \
+            --workflow="${GITHUB_WORKFLOW}" \
+            --branch="${GITHUB_REF_NAME}" \
+            --status=success \
+            --limit=1 \
+            --json headSha \
+            -q '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "${sha}" ]; then
+            echo "== last successful deploy on ${GITHUB_REF_NAME}: ${sha}"
+          else
+            echo "== no previous successful deploy on ${GITHUB_REF_NAME}, will fall back to GITHUB_EVENT_BEFORE"
+          fi
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+
       - name: Compute deploy plan
         id: plan
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          LAST_SUCCESSFUL_DEPLOY_SHA: ${{ steps.last-successful.outputs.sha }}
           MANUAL_BLOCK: ${{ inputs.block }}
         run: bash scripts/ci/plan-deploy.sh
 
