@@ -1,0 +1,9 @@
+description: >
+  Issues a fresh OTP and emails it to the signer. Advances the ceremony
+  to 'otp' stage. Also allowed from 'otp' as a resend.
+timeout: 20
+memorySize: 512
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/otp

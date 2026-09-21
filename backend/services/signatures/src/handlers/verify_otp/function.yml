@@ -1,0 +1,9 @@
+description: >
+  Verifies the OTP the signer received by email. On success advances
+  the ceremony to 'signing' and fires the async 'sign' Lambda.
+timeout: 15
+memorySize: 512
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/otp/verify

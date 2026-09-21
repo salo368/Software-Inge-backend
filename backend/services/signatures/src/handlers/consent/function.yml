@@ -1,0 +1,9 @@
+description: >
+  Captures the signer's explicit consent to sign. Advances the ceremony
+  from 'identity' to 'consent'; required by Ley 527 audit trail.
+timeout: 10
+memorySize: 256
+events:
+  - httpApi:
+      method: POST
+      path: /signatures/{sign_id}/consent
