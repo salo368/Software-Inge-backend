@@ -140,15 +140,43 @@ def api_base(service: str) -> str:
 # ---------------------------------------------------------------------------
 # Postgres access
 # ---------------------------------------------------------------------------
+_REQUIRED_DB_KEYS = ("host", "port", "name", "user", "password")
+
+
 @lru_cache(maxsize=1)
 def _load_db_config() -> dict[str, str]:
+    """Reads the DB config for the current stage from SSM.
+
+    Mirrors the exact call shape libs/core/db.py uses at runtime (no
+    trailing slash on Path) but adds pagination + explicit key validation
+    so a partial response fails with a useful error instead of an opaque
+    KeyError('host') downstream in db_conn()."""
     ssm = _client("ssm")
-    resp = ssm.get_parameters_by_path(
-        Path=SSM_DB_PATH.rstrip("/") + "/",
-        WithDecryption=True,
-        Recursive=False,
-    )
-    return {p["Name"].rsplit("/", 1)[-1]: p["Value"] for p in resp["Parameters"]}
+    out: dict[str, str] = {}
+    token: str | None = None
+    for _ in range(5):  # 5 pages of MaxResults=10 == 50 params, way over budget.
+        kwargs: dict[str, Any] = {
+            "Path": SSM_DB_PATH.rstrip("/"),
+            "WithDecryption": True,
+        }
+        if token:
+            kwargs["NextToken"] = token
+        resp = ssm.get_parameters_by_path(**kwargs)
+        for p in resp.get("Parameters", []) or []:
+            out[p["Name"].rsplit("/", 1)[-1]] = p["Value"]
+        token = resp.get("NextToken")
+        if not token:
+            break
+
+    missing = [k for k in _REQUIRED_DB_KEYS if k not in out]
+    if missing:
+        raise RuntimeError(
+            f"SSM path {SSM_DB_PATH!r} returned {sorted(out.keys())!r} but "
+            f"integration tests need {list(_REQUIRED_DB_KEYS)!r}. Missing: "
+            f"{missing!r}. Check IAM (ssm:GetParametersByPath on that path) "
+            f"and that the params actually exist in the target account."
+        )
+    return out
 
 
 @contextmanager
