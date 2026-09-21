@@ -13,6 +13,6 @@ pypdf==5.1.0
 # Digital signature stack — needed so the colocated unit tests for the
 # signatures service can import `utils.mock_ca` and exercise the PAdES-B
 # roundtrip against an in-memory root CA.
-cryptography==43.0.1
+cryptography==43.0.3
 pyhanko==0.34.1
 pyhanko-certvalidator==0.30.2

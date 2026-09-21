@@ -4,6 +4,6 @@ reportlab==4.2.5
 pypdf==5.1.0
 # Digital signature stack (Mock CA + PAdES-B signing/verification).
 # `cryptography` also pulled transitively but pinned here for reproducibility.
-cryptography==43.0.1
+cryptography==43.0.3
 pyhanko==0.34.1
 pyhanko-certvalidator==0.30.2
