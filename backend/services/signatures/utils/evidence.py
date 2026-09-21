@@ -144,8 +144,17 @@ def detect_text(key: str) -> list[dict]:
 
 
 def detect_faces(key: str) -> list[dict]:
-    """Returns the list of FaceDetail entries for a selfie."""
-    resp = _rekog().detect_faces(Image=s3_ref(key), Attributes=["DEFAULT"])
+    """Returns the list of FaceDetail entries for a selfie.
+
+    We request the EYES_OPEN attribute explicitly. Rekognition's
+    `DEFAULT` bundle only returns BoundingBox, Confidence, Pose,
+    Quality and Landmarks -- NOT EyesOpen -- so
+    `validate_face._passes_heuristics` would always short-circuit
+    into `eyes_closed` because `EyesOpen.Value` would be missing
+    (None) even for wide-open eyes. Requesting the specific
+    attribute is cheaper than ALL and keeps the response small.
+    """
+    resp = _rekog().detect_faces(Image=s3_ref(key), Attributes=["EYES_OPEN"])
     return resp.get("FaceDetails", [])
 
 
