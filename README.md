@@ -19,6 +19,13 @@ enlaces absolutos hacia la SPA.
 
 **Antes de crear archivos, leer [`docs/repo-structure.md`](./docs/repo-structure.md).**
 
+Docs adicionales del backend:
+
+- [`docs/repo-structure.md`](./docs/repo-structure.md) — reglas de organización, deploy selectivo, naming.
+- [`docs/signatures-v2.md`](./docs/signatures-v2.md) — servicio `signatures` (ciclo de vida, endpoints, mock CA, bootstrap SSM, integración con `processes`).
+- [`docs/arquitectura_firma_digital_colombia_resumen.md`](./docs/arquitectura_firma_digital_colombia_resumen.md) — marco conceptual legal/criptográfico que motiva el diseño de `signatures`.
+- [`backend/platform/migrations/README.md`](./backend/platform/migrations/README.md) — reglas duras de migraciones SQL.
+
 ## Layout del repo
 
 ```

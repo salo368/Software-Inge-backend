@@ -128,11 +128,23 @@ convención** para dejar clara la intención:
 ### 5.1 `backend/services/<name>/` — DOMINIO DE NEGOCIO
 
 Cada carpeta bajo `backend/services/` es un **servicio** que representa **un solo
-dominio** (bounded context). Ejemplos: `access`, `signature`, `payments`.
+dominio** (bounded context). Servicios hoy vigentes:
 
-- Un servicio nunca importa código de otro servicio directamente.
+| Servicio | Responsabilidad | Referencia |
+|---|---|---|
+| `auth` | Registro, login, refresh, `me`. Emite bearer tokens. | — |
+| `banks` | Catálogo de bancos habilitados. | — |
+| `files` | Presigned URLs para documentos genéricos del usuario. | — |
+| `forms` | Snapshot del formulario que llena el usuario al abrir un CDT. | — |
+| `processes` | Orquestador del wizard CDT (form → documents → signature → payment → done). | — |
+| `signatures` | Servicio genérico de firma digital (agnóstico al dominio). | [`signatures-v2.md`](./signatures-v2.md) |
+
+- Un servicio nunca importa código de otro servicio directamente. `processes`
+  llama `signatures.create` por direct Lambda invoke, no por import.
 - Lo compartido va en `backend/layers/shared/` (Lambda Layer publicada por su propio
   micro-serverless).
+- Cross-service data va por presigned URL o por el patrón invoke sintético
+  (`processes/utils/signature_bridge.py` es el ejemplo canónico).
 
 ### 5.2 `backend/platform/<name>/` — INFRAESTRUCTURA RUNTIME
 
