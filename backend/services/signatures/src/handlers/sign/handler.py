@@ -325,5 +325,29 @@ def _run_pipeline(row: Signatures) -> None:
     package_key = f"transactions/{row.sign_id}/evidence-package.json"
     _put_object(package_key, package_bytes, "application/json")
 
+    # Commit BEFORE firing the callback. Rationale: the callback lambda
+    # (processes/signature_callback) implements a "zero-trust" model
+    # where it re-reads the ceremony state from the database rather
+    # than trusting the payload. If we haven't committed yet, that read
+    # runs against its own separate DB session and sees the OLD row
+    # (stage='signing') because our transaction is still open. The
+    # callback then logs "unexpected stage=signing" and skips advancing
+    # the process -- silently breaking the frontend push-notification
+    # flow (polling still recovers, so this is easy to miss).
+    #
+    # Committing here means:
+    #   * The signed.pdf / evidence-package.json S3 puts already
+    #     happened (idempotent PUTs, safe to reissue if we later fail).
+    #   * The row's stage='signed' + hash_signed + cert_serial are
+    #     durable before we let anyone else observe the row.
+    #   * The outer commit in `handler()` becomes a no-op (nothing
+    #     dirty), which is fine.
+    db_session.commit()
+
     # (11) Fire the callback (best effort; never raises).
     _fire_callback(row)
+    # Commit again to flush `record_callback` bookkeeping (sent flag,
+    # error string). Failure here is not fatal -- the ceremony IS
+    # signed by this point, and the callback outcome is only used for
+    # support diagnostics.
+    db_session.commit()
