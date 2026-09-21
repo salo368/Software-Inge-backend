@@ -429,7 +429,11 @@ def register_signature_drawing(ctx: CeremonyContext) -> dict:
     return r.json()
 
 
-def give_consent(ctx: CeremonyContext, terms_version: str = "v1") -> dict:
+def give_consent(ctx: CeremonyContext, terms_version: str = "v1.0") -> dict:
+    """POST /signatures/{sign_id}/consent. Default `terms_version` must
+    match `_KNOWN_TERMS_VERSIONS` in the handler (currently `("v1.0",)`).
+    Passing anything else deliberately makes the handler return
+    400 `unknown_terms_version`."""
     base = signatures_api()
     r = requests.post(
         f"{base}/signatures/{ctx.sign_id}/consent",
@@ -463,10 +467,12 @@ def request_otp_with_debug_disclosure(ctx: CeremonyContext) -> str:
 
 
 def verify_otp(ctx: CeremonyContext, otp: str) -> dict:
+    """POST /signatures/{sign_id}/otp/verify. Body key is `code` (not
+    `otp`) per the deployed handler."""
     base = signatures_api()
     r = requests.post(
         f"{base}/signatures/{ctx.sign_id}/otp/verify",
-        json={"otp": otp},
+        json={"code": otp},
         timeout=30,
     )
     assert r.status_code == 200, f"verify-otp -> {r.status_code} {r.text}"
@@ -518,62 +524,82 @@ def drive_to_stage(
 ) -> dict:
     """Advances the ceremony from its current stage to `target`.
 
-    Callers that don't exercise `validate_face` on the happy path can
-    omit `face_bytes` -- the helper will call `load_face_fixture()` and
-    skip the face-related steps if no fixture is present, but then it
-    cannot advance past 'identity' without one.
+    Semantics of the stage names (see libs/orm/signatures.resolved_stage):
+      * created  -- no evidence yet.
+      * identity -- some evidence attached, not all validated.
+      * consent  -- all 4 evidences READY (drawn attached + 3 biometrics
+                    validated), consent NOT yet captured. This is the
+                    stage give_consent operates on.
+      * otp      -- consent captured + OTP challenge issued/pending.
+                    request_otp is what moves from consent -> otp.
+      * signing  -- OTP verified, async sign worker running.
+      * signed   -- terminal happy path.
 
-    Returns the final ceremony state (GET /signatures/{sign_id}).
+    So the *stage transitions* differ from the *stage names*: calling
+    give_consent from stage='consent' sets consent_given_at but leaves
+    stage='consent'. Only request_otp moves consent -> otp.
+
+    Callers without a face fixture cannot advance past 'identity' because
+    Rekognition rejects synthetic images.
     """
     if target not in _STAGE_ORDER:
         raise ValueError(f"unknown target stage: {target!r}")
 
-    # Determine current stage
+    def _idx(s: str) -> int:
+        return _STAGE_ORDER.index(s)
+
     state = get_ceremony(ctx)
-    if _STAGE_ORDER.index(state["stage"]) >= _STAGE_ORDER.index(target):
+    if _idx(state["stage"]) >= _idx(target):
         return state
 
-    # Upload evidences + validate up to 'identity'
-    if _STAGE_ORDER.index(target) >= _STAGE_ORDER.index("identity") and state["stage"] == "created":
-        # id_front + id_back are cheap and required.
+    # ---- Upload+validate: created -> identity -> consent ----
+    if _idx(target) >= _idx("identity") and state["stage"] == "created":
         upload_evidence(ctx, "id_front", make_synthetic_id_png("front"), "image/png")
         validate_id_side(ctx, "front")
         upload_evidence(ctx, "id_back", make_synthetic_id_png("back"), "image/png")
         validate_id_side(ctx, "back")
 
-        # Face: use caller-supplied bytes or the env fixture.
         face = face_bytes if face_bytes is not None else load_face_fixture()
         if face is None:
-            # Without a real face image, we can't advance past this
-            # point. Return whatever state we have; callers must handle.
+            # Without a real face we can't advance past this point.
             return get_ceremony(ctx)
         upload_evidence(ctx, "face", face, "image/jpeg")
         validate_face(ctx)
 
-        # Signature drawing.
-        upload_evidence(ctx, "signature", make_synthetic_signature_png(), "image/png")
+        upload_evidence(
+            ctx, "signature_drawing", make_synthetic_signature_png(), "image/png"
+        )
         register_signature_drawing(ctx)
-
         state = get_ceremony(ctx)
+        # resolved_stage() short-circuits to 'consent' when all 4 evidences
+        # are ready, so state["stage"] is now 'consent'.
 
-    if _STAGE_ORDER.index(target) >= _STAGE_ORDER.index("consent") and state["stage"] == "identity":
+    # ---- Consent (sets consent_given_at; stage stays 'consent') ----
+    # Runs whenever target is at least 'consent' AND consent hasn't
+    # been captured yet. give_consent leaves the row at stage='consent';
+    # the transition to 'otp' happens in request_otp below.
+    # `drive_to_stage("consent")` therefore means "consent captured, ready
+    # for OTP" (not the raw stage-machine name).
+    if (
+        _idx(target) >= _idx("consent")
+        and state["stage"] == "consent"
+        and not state.get("consent", {}).get("given")
+    ):
         give_consent(ctx)
         state = get_ceremony(ctx)
 
-    if _STAGE_ORDER.index(target) >= _STAGE_ORDER.index("otp") and state["stage"] == "consent":
-        # request_otp advances stage to 'otp' by itself.
+    # ---- Request OTP (consent -> otp) ----
+    if _idx(target) >= _idx("otp") and state["stage"] == "consent":
         request_otp_with_debug_disclosure(ctx)
         state = get_ceremony(ctx)
 
-    if _STAGE_ORDER.index(target) >= _STAGE_ORDER.index("signing") and state["stage"] == "otp":
-        otp = request_otp_with_debug_disclosure(ctx)  # fresh one
+    # ---- Verify OTP (otp -> signing -> signed via async worker) ----
+    if _idx(target) >= _idx("signing") and state["stage"] == "otp":
+        otp = request_otp_with_debug_disclosure(ctx)  # fresh code
         verify_otp(ctx, otp)
-        # verify_otp fires the async `sign` lambda; state may be
-        # 'signing' or already 'signed' depending on how fast Lambda
-        # picked it up.
         state = get_ceremony(ctx)
 
     if target == "signed":
-        state = wait_for_stage(ctx, "signed", timeout_s=90.0)
+        state = wait_for_stage(ctx, "signed", timeout_s=120.0)
 
     return state
