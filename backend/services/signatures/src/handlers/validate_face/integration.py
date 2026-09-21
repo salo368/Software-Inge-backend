@@ -82,14 +82,14 @@ def test_validate_face_happy_path_when_fixture_present():
 
 
 def test_validate_face_requires_uploaded_evidence():
-    """Calling validate before uploading -> 4xx, no crash, no state
-    change."""
+    """Calling validate before uploading returns 404 evidence_missing."""
     ctx = open_ceremony(signer_name="ITest ValidateFace NoEvidence")
     try:
         resp = requests.post(
             f"{signatures_api()}/signatures/{ctx.sign_id}/evidence/face",
             timeout=30,
         )
-        assert resp.status_code in (400, 409), resp.text
+        assert resp.status_code == 404, resp.text
+        assert resp.json()["error"] == "evidence_missing"
     finally:
         ctx.close()
