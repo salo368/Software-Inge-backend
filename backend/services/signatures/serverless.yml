@@ -77,6 +77,17 @@ provider:
             - s3:DeleteObject
           Resource:
             - arn:aws:s3:::cdts-${sls:stage}-signatures/*
+        # HeadObject probing (utils/evidence.py::resolve_evidence_key
+        # tries `.jpg` before `.png`). Without ListBucket, S3 returns
+        # 403 for missing keys instead of 404 so we can't distinguish
+        # "not uploaded yet" from a real permission error. Bucket-level
+        # resource (no `/*`) is intentional -- ListBucket applies to the
+        # bucket itself, not to individual objects.
+        - Effect: Allow
+          Action:
+            - s3:ListBucket
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-signatures
         # Rekognition for identity evidence validation (ID front/back
         # and face). Uses the S3-object variant so Rekognition reads the
         # object directly instead of us shuttling bytes.

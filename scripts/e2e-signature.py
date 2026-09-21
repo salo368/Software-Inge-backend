@@ -116,6 +116,18 @@ def _parse_args() -> argparse.Namespace:
         default=0,
         help="Index into GET /banks to pick which bank to use. Default 0.",
     )
+    p.add_argument(
+        "--otp-file",
+        type=Path,
+        default=None,
+        help=(
+            "If set, wait for the OTP to appear as the first line of "
+            "this file (polled every 2s) instead of blocking on stdin. "
+            "Useful when driving the script from a non-interactive "
+            "shell -- create the file with the OTP AFTER the request_otp "
+            "step prints. File is deleted after reading."
+        ),
+    )
     return p.parse_args()
 
 
@@ -465,10 +477,13 @@ def main() -> None:
         return ul["key"]
 
     _step("Uploading ID front, ID back, face, signature drawing")
-    _upload_evidence("id_front", make_id_document_png("front"), "image/png")
-    _upload_evidence("id_back",  make_id_document_png("back"),  "image/png")
-    _upload_evidence("face",     face_bytes,                    face_ct)
-    _upload_evidence("signature", make_signature_png(),         "image/png")
+    _upload_evidence("id_front",          make_id_document_png("front"), "image/png")
+    _upload_evidence("id_back",           make_id_document_png("back"),  "image/png")
+    _upload_evidence("face",              face_bytes,                    face_ct)
+    # upload_url exposes 'signature_drawing' externally (descriptive
+    # name for the microfrontend); the ORM and validators map it to
+    # 'signature' internally. See _EVIDENCE_MAP in upload_url/handler.py.
+    _upload_evidence("signature_drawing", make_signature_png(),          "image/png")
 
     _step("Validating id_front via Rekognition")
     r = _die_on_bad(
@@ -515,10 +530,30 @@ def main() -> None:
     print(f"    stage: {r.get('stage')}")
     print(f"    check your inbox at {register_email}")
 
-    # Interactive OTP entry.
-    otp = input("\n>>> paste the OTP code from your email: ").strip()
-    if not otp:
-        sys.exit("no OTP entered, aborting")
+    # OTP entry: either interactive stdin OR polling a file. The file
+    # mode lets us run the script from a non-interactive shell (create
+    # the ceremony, wait for the email, then drop the OTP into the file
+    # for the script to pick up).
+    if args.otp_file:
+        print(f"\n>>> waiting for OTP in {args.otp_file} (polling every 2s)...")
+        print(f"    once your email arrives:  echo <OTP> > {args.otp_file}")
+        deadline_otp = time.time() + 600  # 10 minutes; OTP validity is much shorter
+        otp = ""
+        while time.time() < deadline_otp:
+            if args.otp_file.is_file():
+                raw = args.otp_file.read_text().strip()
+                if raw:
+                    otp = raw.splitlines()[0].strip()
+                    args.otp_file.unlink()  # single-use
+                    print(f"    -> got OTP ({len(otp)} chars)")
+                    break
+            time.sleep(2)
+        if not otp:
+            sys.exit("timeout waiting for OTP file")
+    else:
+        otp = input("\n>>> paste the OTP code from your email: ").strip()
+        if not otp:
+            sys.exit("no OTP entered, aborting")
 
     _step("Verifying OTP -> triggers async `sign` worker")
     r = _die_on_bad(
