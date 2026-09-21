@@ -49,11 +49,15 @@ def _fake_row(**overrides) -> MagicMock:
             "stage": defaults["stage"],
             "signer_email_masked": "s******@example.com",
             "signature_location": defaults["signature_location"],
+            # ORM key for the drawn signature is 'signature' (see
+            # libs/orm/signatures.EVIDENCE_TYPES). The HTTP API accepts
+            # 'signature_drawing' as the evidence_type in POST /upload-url;
+            # the SPA has to translate.
             "uploads_state": {
                 "id_front": {"uploaded": False, "validated": False},
                 "id_back": {"uploaded": False, "validated": False},
                 "face": {"uploaded": False, "validated": False},
-                "signature_drawing": {"uploaded": False},
+                "signature": {"uploaded": False, "validated": None},
             },
             "consent": {"given": False, "given_at": None, "terms_version": None},
             "otp": {"requested": False, "expires_at": None, "attempts_left": 3},
