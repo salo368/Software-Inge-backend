@@ -376,19 +376,67 @@ def cleanup_user(email: str) -> None:
 
 
 def cleanup_process(process_id: str) -> None:
-    """Deletes a process and its dependent files/signatures rows."""
+    """Deletes a process and its dependent files/signatures rows.
+
+    Notes on the v2 signatures schema:
+      * The `signatures` table (post Fase 2 destructive migration) is
+        decoupled from `processes` and does NOT have a `process_id`
+        column. The link is `processes.sign_id -> signatures.sign_id`.
+      * Cleanup order therefore: read sign_id off the process row,
+        delete files (FK -> process), delete the process, THEN delete
+        the ceremony (nothing FKs to it, but we do it last so a
+        transient failure leaves the ceremony reachable via the
+        process row for diagnostics rather than orphaning it).
+    """
     if not process_id:
         return
     with db_conn() as c:
-        for table in ("files", "signatures"):
-            try:
-                c.run(f"DELETE FROM {table} WHERE process_id = :p", p=process_id)
-            except Exception:
-                pass
+        sign_id: str | None = None
+        try:
+            rows = c.run(
+                "SELECT sign_id FROM processes WHERE id = :p", p=process_id
+            )
+            if rows and rows[0][0]:
+                sign_id = rows[0][0]
+        except Exception:
+            pass
+        try:
+            c.run("DELETE FROM files WHERE process_id = :p", p=process_id)
+        except Exception:
+            pass
         try:
             c.run("DELETE FROM processes WHERE id = :p", p=process_id)
         except Exception:
             pass
+        if sign_id:
+            try:
+                c.run(
+                    "DELETE FROM signatures WHERE sign_id = :s", s=sign_id
+                )
+            except Exception:
+                pass
+
+
+def cleanup_signature(sign_id: str) -> None:
+    """Deletes a signature ceremony row and the S3 prefix under
+    `transactions/{sign_id}/`. Safe to call even if the row or objects
+    are missing (best-effort).
+
+    Only clears data the integration test itself created; the row's
+    `sign_id` is only known to callers that opened the ceremony in
+    this run, so there is no way to accidentally purge real ceremonies.
+    """
+    if not sign_id:
+        return
+    with db_conn() as c:
+        try:
+            c.run("DELETE FROM signatures WHERE sign_id = :s", s=sign_id)
+        except Exception:
+            pass
+    bucket = os.environ.get(
+        "SIGNATURES_BUCKET", f"cdts-{STAGE}-signatures"
+    )
+    cleanup_s3_prefix(bucket, f"transactions/{sign_id}/")
 
 
 def cleanup_s3_prefix(bucket: str, prefix: str) -> None:
