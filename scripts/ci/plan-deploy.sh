@@ -179,7 +179,35 @@ else
   json+="]"
 fi
 
+# Second list, everything except migrations. Used by the caller workflows to
+# fan out the parallel per-block "package" matrix; migrations is its own
+# gate ahead of the matrix so the schema is guaranteed to be current before
+# any other block deploys. `has_migrations` is a boolean the caller uses to
+# decide whether to run the migrations gate at all.
+has_migrations="false"
+others=()
+for b in "${ordered[@]:-}"; do
+  if [[ "${b}" == "migrations" ]]; then
+    has_migrations="true"
+  else
+    others+=("${b}")
+  fi
+done
+
+if [[ ${#others[@]} -eq 0 ]]; then
+  others_json="[]"
+else
+  others_json="["
+  for i in "${!others[@]}"; do
+    [[ $i -gt 0 ]] && others_json+=","
+    others_json+="\"${others[$i]}\""
+  done
+  others_json+="]"
+fi
+
 log "== blocks=${json}"
+log "== blocks_others=${others_json}"
+log "== has_migrations=${has_migrations}"
 
 if [[ "${DRY_RUN:-0}" == "1" ]]; then
   log "== DRY_RUN active, skipping GITHUB_OUTPUT"
@@ -190,5 +218,8 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   {
     echo "blocks=${json}"
     echo "count=${#ordered[@]}"
+    echo "blocks_others=${others_json}"
+    echo "others_count=${#others[@]}"
+    echo "has_migrations=${has_migrations}"
   } >>"${GITHUB_OUTPUT}"
 fi

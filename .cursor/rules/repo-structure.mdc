@@ -167,26 +167,34 @@ antes de crear archivos.
 - Abrir PR (a cualquier base) → **0 workflows**.
 - Push a `develop` (directo o via merge de PR) → `Deploy DEV`.
 - Push a `main` (via merge de PR; directo bloqueado por branch protection) → `Deploy PRO`.
-- Forma canonica:
- - `Deploy DEV`: `plan → validate → tests → deploy → integration → summary`.
- - `Deploy PRO`: `plan → validate → tests → deploy → summary` (SIN
- `integration`; no queremos usuarios de prueba en produccion).
-- `plan` y `validate` corren una sola vez. `tests`, `deploy` e `integration`
- son matrix por bloque (`plan.outputs.blocks`); `tests` e `integration`
- corren en paralelo, `deploy` secuencial (`max-parallel: 1`, migrations
- primero).
- - `validate` corre `lint-migrations`, `node --test` sobre los helpers JS,
- `serverless-compose package` y el pytest cross-cutting de `backend/tests/`.
- - `tests` corre `pytest <services|platform>/<block>` en un shard por bloque
- para levantar los `test.py` colocalizados de cada Lambda del bloque
- (unit, mockeado). Si un shard falla, ningun bloque se despliega.
- - `integration` (solo dev) corre `pytest --integration -m integration
- <services|platform>/<block>` contra la infra REAL desplegada. Tiene
- `continue-on-error: true` y `needs: [deploy]`: un fallo NO revierte
- AWS ni marca el workflow en rojo — queda en annotations, en el
- artifact `pytest-integration-dev-<block>` y en el `summary` (icono
- por bloque). Si el bloque no tiene `integration.py`, el job se saltea
- con un `::notice::` y se marca como `skipped` en el summary.
+- Forma canonica (agrupado por bloque via reusable workflow):
+ - `Deploy DEV`: `plan → validate → migrations (package)? → packages[block] → summary`.
+ - `Deploy PRO`: mismo shape, pero cada package saltea `integration` (`stage: pro`).
+- `plan` y `validate` corren una sola vez. Despues el pipeline se abre en una
+ fila por bloque; cada fila es una llamada a
+ `.github/workflows/block-package.yml`, que internamente corre
+ `test → deploy → integration` (integration solo cuando `stage == 'dev'`).
+ GitHub UI lo renderiza como un grupo expandible por bloque.
+ - `migrations` corre como package solitario y actua de gate: los demas
+ packages tienen `needs: [migrations]` (con `if: always()` para saltearlo
+ cuando no esta en el plan).
+ - `packages` es matrix por `plan.outputs.blocks_others` (todo menos
+ migrations) con `fail-fast: false` y sin `max-parallel`: cada bloque
+ tiene su propio stack CloudFormation, corren completamente en paralelo.
+ - Dentro de un package los jobs son secuenciales: `deploy` needs `test`,
+ `integration` needs `deploy`. Si `test` rompe, no se deploya ese bloque
+ (pero los demas siguen).
+ - `integration` (solo dev) tiene `continue-on-error: true`: un fallo NO
+ revierte AWS ni marca el workflow en rojo. Cada package sube
+ `integration-status-<block>` que el `summary` agrega con iconos
+ (:white_check_mark: / :fast_forward: / :x:), y el detalle queda en el
+ artifact `pytest-integration-dev-<block>`. Si el bloque no tiene
+ `integration.py`, el job se saltea con `::notice::` y aparece
+ `skipped` en el summary.
+- Los `integration.py` son **estrictamente block-local** (§13.3): no pueden
+ llamar endpoints HTTP de otro bloque. Para autenticar usar
+ `create_test_user_directly()` (SQL directo); para catalogos usar `SELECT`.
+ Cross-block via API rompe el modelo de packages en paralelo.
 - Para iterar en dev **sin gastar Actions**: hacer `sls deploy --stage dev`
  directamente desde local con credenciales AWS locales. Solo mergear a `main`
  cuando este todo validado — ese es el unico gasto real de Actions.
@@ -284,9 +292,11 @@ events:
 
 `backend/services/auth/src/handlers/refresh_token/integration.py` (OPCIONAL):
 ```python
-# Solo si la Lambda tiene efecto lateral persistente (mutacion en DB/S3
-# o dispara un worker async). No aplica a handlers puros de lectura.
-# Corre POST-deploy contra dev; --integration lo activa.
+# Only if the Lambda has a persistent side effect (DB/S3 mutation or
+# triggers an async worker). Not needed for pure-read handlers.
+# Runs POST-deploy against dev; --integration activates it.
+# NOTE: block-local. auth may call auth's own endpoints; ANY OTHER block
+# must use create_test_user_directly() instead of signup_and_login().
 import pytest, requests
 from tests.integration_helpers import (
  api_base, cleanup_user, query_one, signup_and_login,
@@ -303,7 +313,7 @@ def test_refresh_token_rotates_the_bearer_row_in_db():
  )
  assert resp.status_code == 200
  new_token = resp.json()["token"]
- # Fuente de reposo: el token viejo debe estar revocado, el nuevo activo.
+ # State at rest: old token must be revoked, new one active.
  old = query_one("SELECT revoked_at FROM bearer_tokens WHERE user_id = :u ORDER BY created_at ASC LIMIT 1", u=session["user_id"])
  assert old and old["revoked_at"] is not None
  assert new_token and new_token != session["token"]

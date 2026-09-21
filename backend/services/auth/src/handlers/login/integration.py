@@ -21,20 +21,21 @@ pytestmark = pytest.mark.integration
 
 
 def test_login_returns_a_new_bearer_token_row():
-    """Registrar + hacer logout implícito no está en scope; validamos que
-    cada login sucesivo agrega un token vivo distinto en la tabla."""
+    """Register-plus-implicit-logout is out of scope here; what we check
+    is that every successive login adds a fresh live token row instead of
+    recycling the previous one."""
     session = signup_and_login()
     email = session["email"]
     base = api_base("auth")
 
     try:
-        # Debe haber 1 token vivo tras el registro.
+        # Exactly 1 live token right after registration.
         assert query_scalar(
             "SELECT COUNT(*) FROM bearer_tokens WHERE user_id = :u AND revoked_at IS NULL",
             u=session["user_id"],
         ) == 1
 
-        # Un login extra debe agregar otro token vivo (no reciclar).
+        # A second login must add another live token (no recycling).
         resp = requests.post(
             f"{base}/auth/login",
             json={"email": email, "password": session["password"]},
@@ -49,7 +50,7 @@ def test_login_returns_a_new_bearer_token_row():
             u=session["user_id"],
         ) == 2
 
-        # Los dos tokens sirven contra /auth/me.
+        # Both tokens must be accepted by /auth/me.
         for tok in (session["token"], body["token"]):
             me = requests.get(f"{base}/auth/me", headers=bearer(tok), timeout=15)
             assert me.status_code == 200, me.text
@@ -59,7 +60,7 @@ def test_login_returns_a_new_bearer_token_row():
 
 
 def test_login_wrong_password_does_not_issue_a_token():
-    """El endpoint responde 401 y ninguna fila nueva aparece en bearer_tokens."""
+    """The endpoint replies 401 and no new row appears in bearer_tokens."""
     session = signup_and_login()
     base = api_base("auth")
 
@@ -81,6 +82,6 @@ def test_login_wrong_password_does_not_issue_a_token():
             u=session["user_id"],
         )
         assert tokens_before == tokens_after, \
-            "login con password inválido no debe emitir token"
+            "login with an invalid password must not issue a token"
     finally:
         cleanup_user(session["email"])

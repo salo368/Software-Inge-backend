@@ -1,0 +1,294 @@
+name: Block Package
+
+# Reusable per-block pipeline: test -> deploy -> integration.
+#
+# Called once per block from deploy-dev.yml / deploy-pro.yml. Each caller
+# matrix cell resolves to one invocation of this workflow, and GitHub UI
+# renders it as an expandable group in the run visualization -- so instead
+# of eight rows named "Tests auth", "Deploy auth", "Integration auth", ...
+# scattered across the page, you see one row per block ("auth", "banks",
+# ...) that expands to reveal its own three-stage chain.
+#
+# Contract with the caller:
+#   * `block` is the folder name under backend/services/<block> OR
+#     backend/platform/<block>. Discovered automatically by "Resolve
+#     block path" below.
+#   * `stage` is 'dev' or 'pro'. When 'pro', the integration job is
+#     skipped -- we do NOT want throwaway integration users landing in
+#     the production database.
+#   * AWS credentials come from `secrets: inherit` on the caller. The
+#     environment gate (dev / pro) is applied inside deploy so the same
+#     approvers rules that guard the caller apply here.
+
+on:
+  workflow_call:
+    inputs:
+      block:
+        description: "Block to run the package for (folder name under services/ or platform/)."
+        type: string
+        required: true
+      stage:
+        description: "'dev' or 'pro'. Integration is skipped when 'pro'."
+        type: string
+        required: true
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1) Unit tests (colocated test.py, mocked, blocking).
+  # --------------------------------------------------------------------------
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Resolve block path
+        id: path
+        working-directory: backend
+        run: |
+          if [ -d "services/${{ inputs.block }}" ]; then
+            echo "dir=services/${{ inputs.block }}" >> "$GITHUB_OUTPUT"
+          elif [ -d "platform/${{ inputs.block }}" ]; then
+            echo "dir=platform/${{ inputs.block }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::block '${{ inputs.block }}' not found under services/ or platform/"
+            exit 1
+          fi
+
+      - name: Run colocated unit tests
+        working-directory: backend
+        env:
+          # Neutralizes AWS/DB bootstrapping inside libs/core/db.py (see
+          # backend/conftest.py). Must be 'test' here, NOT ${{ inputs.stage }},
+          # because unit tests never touch real infra.
+          STAGE: test
+        run: |
+          shopt -s nullglob
+          hits=(${{ steps.path.outputs.dir }}/src/*/*/test.py)
+          if [ ${#hits[@]} -eq 0 ]; then
+            echo "::warning::No colocated test.py under ${{ steps.path.outputs.dir }}/src/. Every Lambda must ship a test.py (see docs/repo-structure.md §13.1)."
+            exit 0
+          fi
+          python -m pytest ${{ steps.path.outputs.dir }} \
+            -ra \
+            --junitxml=pytest-${{ inputs.block }}.xml
+
+      - name: Upload pytest report
+        if: always() && hashFiles(format('backend/pytest-{0}.xml', inputs.block)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ inputs.stage }}-${{ inputs.block }}
+          path: backend/pytest-${{ inputs.block }}.xml
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 2) Deploy (Serverless Compose). Runs only if unit tests pass.
+  # --------------------------------------------------------------------------
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.stage }}
+      url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Deploy block "${{ inputs.block }}"
+        working-directory: backend
+        run: |
+          if [ ! -f serverless-compose.yml ] || ! grep -qE '^  [A-Za-z0-9_-]+:' serverless-compose.yml; then
+            echo "::notice::No services registered; nothing to deploy."
+            exit 0
+          fi
+          npx serverless-compose "${{ inputs.block }}:deploy" --stage ${{ inputs.stage }} --verbose
+
+      - name: Apply migrations (if block == migrations)
+        if: inputs.block == 'migrations'
+        run: |
+          aws lambda invoke \
+            --function-name cdts-${{ inputs.stage }}-migrations-apply \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            --query 'LogResult' --output text \
+            /tmp/response.json | base64 -d
+          echo ""
+          echo "== Response =="
+          cat /tmp/response.json
+          echo ""
+          if grep -q '"errorType"' /tmp/response.json; then
+            echo "::error::Lambda returned an error. See logs above."
+            exit 1
+          fi
+
+      - name: Sync assets to S3 (if block == assets)
+        if: inputs.block == 'assets'
+        env:
+          STAGE: ${{ inputs.stage }}
+        run: bash scripts/ci/deploy-assets.sh
+
+  # --------------------------------------------------------------------------
+  # 3) Integration (dev only, non-blocking). Runs the colocated
+  #    integration.py files against the just-deployed block. Each block's
+  #    integration MUST stay block-local (see docs/repo-structure.md §13.3);
+  #    that is why packages can safely run in parallel across blocks.
+  # --------------------------------------------------------------------------
+  integration:
+    name: Integration
+    needs: deploy
+    if: inputs.stage == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    environment:
+      name: dev
+    env:
+      # GH-hosted runners are NOT EC2, so probing IMDS for creds/region
+      # hangs for the full retry budget. Force env-var creds.
+      AWS_EC2_METADATA_DISABLED: "true"
+      AWS_MAX_ATTEMPTS: "2"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve block path
+        id: path
+        working-directory: backend
+        run: |
+          if [ -d "services/${{ inputs.block }}" ]; then
+            echo "dir=services/${{ inputs.block }}" >> "$GITHUB_OUTPUT"
+          elif [ -d "platform/${{ inputs.block }}" ]; then
+            echo "dir=platform/${{ inputs.block }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::block '${{ inputs.block }}' not found under services/ or platform/"
+            exit 1
+          fi
+
+      # integration.py is OPTIONAL (§13.3); a block with none skips cleanly.
+      - name: Detect integration.py files
+        id: detect
+        working-directory: backend
+        run: |
+          shopt -s nullglob
+          hits=(${{ steps.path.outputs.dir }}/src/*/*/integration.py)
+          echo "count=${#hits[@]}" >> "$GITHUB_OUTPUT"
+          if [ ${#hits[@]} -eq 0 ]; then
+            echo "::notice::No integration.py under ${{ steps.path.outputs.dir }}/src/. Skipping (optional; see docs/repo-structure.md §13.3)."
+          fi
+
+      - name: Run integration tests
+        id: pytest
+        if: steps.detect.outputs.count != '0'
+        working-directory: backend
+        env:
+          STAGE: ${{ inputs.stage }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          FILES_BUCKET: cdts-${{ inputs.stage }}-files
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python -m pytest ${{ steps.path.outputs.dir }} \
+            --integration \
+            -m integration \
+            -v -s -ra --tb=short \
+            --junitxml=pytest-integration-${{ inputs.block }}.xml
+
+      - name: Record outcome for summary
+        if: always()
+        run: |
+          mkdir -p /tmp/int-status
+          if [ "${{ steps.detect.outputs.count }}" = "0" ]; then
+            echo "skipped" > "/tmp/int-status/${{ inputs.block }}.txt"
+          else
+            echo "${{ steps.pytest.outcome }}" > "/tmp/int-status/${{ inputs.block }}.txt"
+            if [ "${{ steps.pytest.outcome }}" != "success" ]; then
+              echo "::warning::Integration tests failed for ${{ inputs.block }} (non-blocking; deploy already succeeded)"
+            fi
+          fi
+
+      - name: Upload integration status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-status-${{ inputs.block }}
+          path: /tmp/int-status/${{ inputs.block }}.txt
+          retention-days: 7
+
+      - name: Upload integration pytest report
+        if: always() && hashFiles(format('backend/pytest-integration-{0}.xml', inputs.block)) != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-integration-${{ inputs.stage }}-${{ inputs.block }}
+          path: backend/pytest-integration-${{ inputs.block }}.xml
+          retention-days: 7

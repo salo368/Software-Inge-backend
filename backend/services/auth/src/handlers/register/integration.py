@@ -24,15 +24,15 @@ pytestmark = pytest.mark.integration
 
 
 def test_register_persists_user_and_token_in_db():
-    """Fuente de reposo: la fila del usuario debe existir en Postgres tras
-    el POST, y el hash debe ser bcrypt real (no plaintext)."""
+    """State at rest: the users row must exist in Postgres after the POST,
+    and the stored hash must be real bcrypt output (not plaintext)."""
     email = unique_email()
     password = "hunter22aa"
     payload = {"email": email, "password": password, "full_name": "Integration Bot"}
     base = api_base("auth")
 
     try:
-        # 1) Contract check: mismo assert style que el unit test.
+        # 1) Contract check, same assert style as the unit test.
         resp = requests.post(f"{base}/auth/register", json=payload, timeout=15)
         assert resp.status_code == 201, resp.text
         body = resp.json()
@@ -41,19 +41,19 @@ def test_register_persists_user_and_token_in_db():
         assert body["token"]
         assert body["expires_at"]
 
-        # 2) Fuente de reposo #1: la fila users existe con el hash correcto.
+        # 2) State at rest #1: the users row exists with the correct hash.
         row = query_one(
             "SELECT id, email, password_hash, full_name FROM users WHERE email = :e",
             e=email,
         )
         assert row is not None, f"no users row for {email}"
         assert row["email"] == email
-        # bcrypt hashes start with $2a$, $2b$ o $2y$ (12 rounds -> $2b$12$...).
+        # bcrypt hashes start with $2a$, $2b$ or $2y$ (12 rounds -> $2b$12$...).
         assert row["password_hash"].startswith("$2"), \
             f"password_hash does not look like bcrypt: {row['password_hash'][:10]}"
-        assert row["password_hash"] != password  # obvio, pero explícito
+        assert row["password_hash"] != password  # obvious, but explicit
 
-        # 3) Fuente de reposo #2: el bearer token quedó registrado y activo.
+        # 3) State at rest #2: the bearer token is registered and active.
         active_tokens = query_scalar(
             "SELECT COUNT(*) FROM bearer_tokens "
             "WHERE user_id = :u AND revoked_at IS NULL",
@@ -61,7 +61,7 @@ def test_register_persists_user_and_token_in_db():
         )
         assert active_tokens == 1
 
-        # 4) El token devuelto abre /auth/me contra la misma infra.
+        # 4) The returned token successfully hits /auth/me on the same infra.
         me = requests.get(f"{base}/auth/me", headers=bearer(body["token"]), timeout=15)
         assert me.status_code == 200
         assert me.json()["user"]["email"] == email
@@ -70,8 +70,8 @@ def test_register_persists_user_and_token_in_db():
 
 
 def test_register_rejects_duplicate_email_in_db():
-    """Aunque el primer registro sí persistió, el segundo con el mismo email
-    debe devolver 409 sin crear una segunda fila."""
+    """The first register persists, but a second one with the same email
+    must return 409 without creating a second row."""
     email = unique_email()
     payload = {"email": email, "password": "hunter22aa", "full_name": "Dup Bot"}
     base = api_base("auth")
@@ -84,7 +84,7 @@ def test_register_rejects_duplicate_email_in_db():
         assert second.status_code == 409
         assert second.json() == {"error": "email_taken"}
 
-        # Fuente de reposo: sigue habiendo EXACTAMENTE una fila.
+        # State at rest: still EXACTLY one row.
         count = query_scalar("SELECT COUNT(*) FROM users WHERE email = :e", e=email)
         assert count == 1
     finally:
