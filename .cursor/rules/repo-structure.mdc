@@ -182,10 +182,15 @@ antes de crear archivos.
  - `run_migrations`, `run_assets`, `run_infrastructure`
  - `transversal` (true si algo fuera de `services/` cambio dentro de `backend/`)
  - `total_count` (services + infra steps)
- Regla clave: **cualquier cambio transversal fuerza redeploy de TODOS los
- servicios**, porque lo que se movio es compartido. Cambios contenido-only
- a infra (`platform/migrations/sql/*.sql`, `platform/assets/files/*`) solo
- corren ese step de infra, sin tocar servicios.
+ Regla cardinal: **cualquier ejecucion de infraestructura fuerza redeploy
+ de TODOS los servicios**. Migrations cambia el schema de la DB, assets
+ cambia refs embebidas; dejar servicios sin redeployar rompe la
+ consistencia. Aplica igual a cambios content-only en
+ `platform/migrations/sql/*.sql` o `platform/assets/files/*`, a cambios
+ de codigo en `platform/<X>/src/**`, y a overrides manuales
+ `MANUAL_BLOCK=<infra>`. Idem para cualquier cambio en `libs/`, `layers/`,
+ `serverless-compose.yml`, `requirements-*.txt`, `tests/`, `config/` o
+ `data/`: fuerzan transversal, aunque no corran infra.
 - `validate` (global, una vez) corre `lint-migrations`, `node --test`, y el
  pytest cross-cutting de `backend/tests/`. Si falla, ni infraestructura ni
  servicios arrancan.

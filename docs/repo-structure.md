@@ -719,15 +719,23 @@ Flujo:
 
 1. **`plan-deploy.sh`** categoriza cada archivo del diff:
    - Cambio en `services/<X>/**` → despliega solo el servicio X.
-   - Cambio en `platform/<infra>/<content-dir>/**` (ej.
-     `platform/migrations/sql/*.sql`, `platform/assets/files/*`) → corre
-     solo ese step de infra, sin tocar servicios.
-   - **Cualquier otro cambio dentro de `backend/`** (código de infra,
-     `libs/`, `layers/`, `serverless-compose.yml`, `requirements-*.txt`,
+   - **Cualquier cambio bajo `platform/<infra>/**`** (código o
+     contenido — SQL nuevo, asset nuevo, handler de `apply`, etc.) →
+     corre ese step de infra Y despliega **TODOS** los servicios.
+     Regla cardinal: una migración cambia el esquema de la DB y un
+     asset cambia refs embebidas; deployar solo un subconjunto dejaría
+     al fleet dividido entre expectativas viejas y nuevas. La
+     distinción interna `infra-content` / `infra-code` sigue en el log
+     para saber qué disparó el fan-out, pero el efecto es el mismo.
+   - **Cualquier otro cambio dentro de `backend/`** (`libs/`,
+     `layers/`, `serverless-compose.yml`, `requirements-*.txt`,
      `pytest.ini`, `tests/`, `config/`, `data/`, etc.) → `transversal =
-     true` → despliega **TODOS** los servicios además del step de infra
-     correspondiente. Regla: si se movió algo compartido, cualquier
-     servicio puede depender de eso y hay que volver a certificar todos.
+     true` → despliega **TODOS** los servicios. Regla: si se movió
+     algo compartido, cualquier servicio puede depender de eso y hay
+     que volver a certificar todos.
+   - Este fan-out se aplica **también en overrides manuales**:
+     `MANUAL_BLOCK=migrations` corre migrations Y redeploya todos los
+     servicios, no se puede dejar la infra desincronizada del código.
 2. **`infrastructure`** (si el plan lo pidió) corre ANTES que los
    servicios, secuencialmente dentro del mismo job:
    `migrations · deploy → migrations · apply → assets · deploy →
@@ -802,8 +810,8 @@ Consecuencias practicas:
   así:
 
   ```
-  plan → validate → infrastructure?               (only if transversal
-                       │                            OR infra content change)
+  plan → validate → infrastructure?               (only if migrations
+                       │                            or assets changed)
                        ├── migrations · deploy    (sequential steps
                        ├── migrations · apply      inside one job)
                        ├── assets · deploy
