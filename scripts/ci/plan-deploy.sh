@@ -80,16 +80,54 @@ elif [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" ]]; then
     CHANGED_FILES="__FORCE_ALL__"
   fi
 elif [[ "${GITHUB_EVENT_NAME:-}" == "push" ]]; then
-  BEFORE="${GITHUB_EVENT_BEFORE:-}"
-  if [[ -z "${BEFORE}" || "${BEFORE}" == "0000000000000000000000000000000000000000" ]]; then
-    log "::warning::push without valid BEFORE (new branch or force-push), assuming full deploy"
-    CHANGED_FILES="__FORCE_ALL__"
-  elif ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
-    log "::warning::BEFORE ${BEFORE} not present locally, assuming full deploy"
-    CHANGED_FILES="__FORCE_ALL__"
-  else
-    log "== push: diff ${BEFORE}..HEAD"
-    CHANGED_FILES="$(git diff --name-only "${BEFORE}" HEAD)"
+  # Base for the diff, in preference order:
+  #
+  #  1. LAST_SUCCESSFUL_DEPLOY_SHA -- SHA of the last workflow run of this
+  #     pipeline that ended in success. This is the ONLY base that survives
+  #     failed pipelines. If pipeline N introduced a migration but died at
+  #     Validate before Infrastructure ran, and pipeline N+1 tries to
+  #     compute the diff against GITHUB_EVENT_BEFORE (= N), it would miss
+  #     the still-unapplied migration because the file already lives in
+  #     N's tree. Diffing against the last SUCCESSFUL deploy catches
+  #     everything that has not been rolled out yet, regardless of how
+  #     many pipelines failed in between.
+  #
+  #  2. GITHUB_EVENT_BEFORE -- parent of the pushed commit. Used only as a
+  #     fallback when there is no successful deploy yet (first deploy on
+  #     the branch, brand new repo, or when the successful SHA is
+  #     unreachable locally).
+  #
+  # If both fail we degrade safely to __FORCE_ALL__ (deploy everything).
+  BASE=""
+  if [[ -n "${LAST_SUCCESSFUL_DEPLOY_SHA:-}" ]]; then
+    # LAST_SUCCESSFUL_DEPLOY_SHA can be older than fetch-depth; try to
+    # bring it into the local object DB before checking.
+    git fetch --no-tags --depth=200 origin "${LAST_SUCCESSFUL_DEPLOY_SHA}" \
+      >/dev/null 2>&1 || true
+    if git cat-file -e "${LAST_SUCCESSFUL_DEPLOY_SHA}^{commit}" 2>/dev/null; then
+      BASE="${LAST_SUCCESSFUL_DEPLOY_SHA}"
+      log "== push: diff against last successful deploy ${BASE:0:7}..HEAD"
+    else
+      log "::warning::LAST_SUCCESSFUL_DEPLOY_SHA=${LAST_SUCCESSFUL_DEPLOY_SHA:0:7} not present locally after fetch"
+    fi
+  fi
+
+  if [[ -z "${BASE}" ]]; then
+    BEFORE="${GITHUB_EVENT_BEFORE:-}"
+    if [[ -z "${BEFORE}" || "${BEFORE}" == "0000000000000000000000000000000000000000" ]]; then
+      log "::warning::push without valid BEFORE and no last-successful-deploy, assuming full deploy"
+      CHANGED_FILES="__FORCE_ALL__"
+    elif ! git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+      log "::warning::BEFORE ${BEFORE} not present locally, assuming full deploy"
+      CHANGED_FILES="__FORCE_ALL__"
+    else
+      BASE="${BEFORE}"
+      log "== push: diff GITHUB_EVENT_BEFORE ${BASE:0:7}..HEAD (no successful deploy yet)"
+    fi
+  fi
+
+  if [[ -n "${BASE}" && "${CHANGED_FILES}" != "__FORCE_ALL__" ]]; then
+    CHANGED_FILES="$(git diff --name-only "${BASE}" HEAD)"
   fi
 else
   log "== local: diff HEAD^..HEAD"

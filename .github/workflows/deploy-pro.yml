@@ -12,6 +12,9 @@ on:
 
 permissions:
   contents: read
+  # actions:read is needed by the Plan job to run `gh run list --workflow=...`
+  # so it can find the SHA of the last successful deploy.
+  actions: read
 
 concurrency:
   group: deploy-pro
@@ -41,10 +44,34 @@ jobs:
         with:
           fetch-depth: 0
 
+      # See deploy-dev.yml for rationale. Anchor to the last SUCCESSFUL
+      # run of this workflow so migrations/assets pending from a failed
+      # pipeline are still visible on the next attempt.
+      - name: Find last successful deploy SHA
+        id: last-successful
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha="$(gh run list \
+            --workflow="${GITHUB_WORKFLOW}" \
+            --branch="${GITHUB_REF_NAME}" \
+            --status=success \
+            --limit=1 \
+            --json headSha \
+            -q '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "${sha}" ]; then
+            echo "== last successful deploy on ${GITHUB_REF_NAME}: ${sha}"
+          else
+            echo "== no previous successful deploy on ${GITHUB_REF_NAME}, falling back to GITHUB_EVENT_BEFORE"
+          fi
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+
       - name: Compute deploy plan
         id: plan
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          LAST_SUCCESSFUL_DEPLOY_SHA: ${{ steps.last-successful.outputs.sha }}
           MANUAL_BLOCK: ${{ inputs.block }}
         run: bash scripts/ci/plan-deploy.sh
 
