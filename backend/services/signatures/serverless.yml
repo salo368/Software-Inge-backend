@@ -26,6 +26,16 @@ provider:
     # M2M shared secret. Callers of POST /signatures must send it in the
     # X-Service-Key header; `create` reads the expected value from here.
     SSM_SIGNATURES_SERVICE_KEY: /cdts/${sls:stage}/signatures/service-key
+    # OPTIONAL, dev-only. When this SSM param exists and contains a hex key,
+    # `request_otp` will disclose the plaintext OTP in the response body
+    # (under `_debug_otp`) to callers that HMAC-sign sign_id with the same
+    # key. Enables fully-automated integration tests to complete the
+    # ceremony without a human reading the email. In production the param
+    # is NEVER provisioned -- `bootstrap-signatures-v2.sh` writes it only
+    # when the operator opts in for the dev stage. Env var is set on both
+    # stages so a future pro operator can provision it if they choose; the
+    # handler treats a missing param as "feature disabled".
+    SSM_DEBUG_OTP_KEY_PATH: /cdts/${sls:stage}/signatures/debug-otp-key
     # Signatures owns its own bucket, decoupled from `files`. Original PDFs,
     # evidences, signed PDFs, and evidence packages all live here under
     # transactions/{sign_id}/.
@@ -56,6 +66,7 @@ provider:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend/*
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/service-key
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/debug-otp-key
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/mock-ca/root/cert-pem
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/mock-ca/root/private-key-pem
         # SecureString params are KMS-encrypted; SSM decrypts on read but

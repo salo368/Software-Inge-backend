@@ -11,9 +11,13 @@ Flow:
        and stamps the hash + expires_at + stage='otp' on the row.
     4. Render the email via `utils.otp_email` and send it via
        `libs.core.mailer.send_email`.
-    5. The response NEVER echoes the plaintext OTP. It reports the
-       masked email, the expires_at timestamp, and the remaining
-       attempts (always MAX_OTP_ATTEMPTS at issue time).
+    5. The response NEVER echoes the plaintext OTP UNLESS the caller
+       proves knowledge of the SSM-provisioned debug key by
+       HMAC-signing this ceremony's sign_id (see
+       `_authorized_for_debug_otp`). That branch is only reachable in
+       dev, where the SSM param is provisioned by
+       `scripts/bootstrap-signatures-v2.sh`; production never sets it
+       and never exposes the plaintext.
 
 Non-blocking email delivery: `send_email` returns False if SMTP is
 misconfigured or the send failed. In that case we still return 200 so
@@ -35,9 +39,39 @@ Notes on OTP secrecy:
       DB access can read the plaintext.
     * `Logger.log("INFO", ...)` calls in this file never mention the
       plaintext.
+    * Debug disclosure (see below) logs the *decision* to disclose,
+      not the OTP value.
+
+Debug OTP escape hatch (dev-only, integration tests):
+
+    Automated integration tests need to complete a full ceremony
+    end-to-end, which requires knowing the plaintext OTP. Rather than
+    (a) parsing emails via IMAP, (b) storing the plaintext in the DB,
+    or (c) opening a `_debug/get-otp` endpoint, we expose the OTP in
+    the same `POST /signatures/{sign_id}/otp` response body under the
+    key `_debug_otp` when TWO conditions hold:
+
+      1. The SSM parameter `${SSM_DEBUG_OTP_KEY_PATH}` exists AND is
+         readable by this lambda. In production the param is not
+         provisioned, so `_load_debug_otp_key` returns None and the
+         branch is dead code.
+      2. The caller presents the header `X-Debug-OTP-Signature` whose
+         value is `hex(hmac_sha256(debug_key, sign_id))`. The HMAC is
+         bound to sign_id so that stealing the header from one request
+         cannot be replayed to disclose another ceremony's OTP.
+
+    Constant-time comparison. Underscore-prefixed response key marks
+    it as unstable / not part of the public contract.
 """
 
 from __future__ import annotations
+
+import hashlib
+import hmac
+import os
+from typing import Optional
+
+import boto3
 
 from libs.core.logger import Logger
 from libs.core.mailer import send_email
@@ -48,6 +82,79 @@ from utils.otp_email import render_otp_email
 
 
 _ALLOWED_STAGES = ("consent", "otp")
+
+# SSM path holding the debug OTP HMAC key. Value is a raw string
+# (typically 64 hex chars); read as bytes for hmac.new(). Missing env
+# var OR missing SSM param OR unreadable SSM param all collapse to
+# "feature disabled" -- `_load_debug_otp_key` returns None.
+SSM_DEBUG_OTP_KEY_PATH = os.environ.get("SSM_DEBUG_OTP_KEY_PATH")
+
+# Cache the debug key across warm invocations so a legitimate CI run
+# doesn't hammer SSM. `None` is a valid cached value meaning "feature
+# disabled here"; `_debug_key_loaded` distinguishes cold state.
+_debug_key: Optional[bytes] = None
+_debug_key_loaded = False
+
+
+def _load_debug_otp_key() -> Optional[bytes]:
+    """Returns the debug HMAC key, or None if the feature is disabled.
+
+    Any read failure (missing env var, missing SSM param, IAM denied,
+    network hiccup) yields None. That is the safe default: `feature
+    disabled` never accidentally leaks the plaintext OTP.
+    """
+    global _debug_key, _debug_key_loaded
+    if _debug_key_loaded:
+        return _debug_key
+    _debug_key_loaded = True
+    if not SSM_DEBUG_OTP_KEY_PATH:
+        return None
+    try:
+        resp = boto3.client("ssm").get_parameter(
+            Name=SSM_DEBUG_OTP_KEY_PATH, WithDecryption=True
+        )
+        value = resp["Parameter"]["Value"].strip()
+        if not value:
+            return None
+        _debug_key = value.encode()
+    except Exception as e:
+        # Log at WARNING (not ERROR) because this is expected in stages
+        # where the param was not provisioned. The one-time cache miss
+        # penalty is fine.
+        Logger.log(
+            "WARNING",
+            f"request_otp: debug OTP key unavailable at "
+            f"{SSM_DEBUG_OTP_KEY_PATH} ({type(e).__name__})",
+        )
+        _debug_key = None
+    return _debug_key
+
+
+def _authorized_for_debug_otp(headers: Optional[dict], sign_id: str) -> bool:
+    """True iff the caller proves knowledge of the debug key.
+
+    Expected header (case-insensitive because API Gateway lowercases):
+
+        X-Debug-OTP-Signature: <hex(hmac_sha256(debug_key, sign_id))>
+
+    Binding the HMAC to sign_id (rather than a static value) means
+    intercepting the header for ceremony A cannot be replayed against
+    ceremony B. Comparison is constant-time.
+    """
+    debug_key = _load_debug_otp_key()
+    if not debug_key or not sign_id:
+        return False
+    provided: Optional[str] = None
+    for k, v in (headers or {}).items():
+        if k and k.lower() == "x-debug-otp-signature":
+            provided = v
+            break
+    if not provided or not isinstance(provided, str):
+        return False
+    expected = hmac.new(
+        debug_key, sign_id.encode(), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, provided)
 
 
 @handle_exceptions
@@ -75,17 +182,29 @@ def handler(event, context):
             " (SMTP misconfigured?)",
         )
 
-    return generate_response(
-        {
-            "sign_id": row.sign_id,
-            "stage": row.stage,
-            "signer_email_masked": row.masked_email,
-            "otp": {
-                "expires_at": row.otp_expires_at.isoformat(),
-                # `attempts_left` uses the ORM's public formula so it
-                # stays in sync with MAX_OTP_ATTEMPTS if we ever tune it.
-                "attempts_left": row.public_dict()["otp"]["attempts_left"],
-                "email_sent": sent,
-            },
-        }
-    )
+    body: dict = {
+        "sign_id": row.sign_id,
+        "stage": row.stage,
+        "signer_email_masked": row.masked_email,
+        "otp": {
+            "expires_at": row.otp_expires_at.isoformat(),
+            # `attempts_left` uses the ORM's public formula so it
+            # stays in sync with MAX_OTP_ATTEMPTS if we ever tune it.
+            "attempts_left": row.public_dict()["otp"]["attempts_left"],
+            "email_sent": sent,
+        },
+    }
+
+    # Debug OTP escape hatch. Only reachable when the SSM key is
+    # provisioned AND the caller HMAC-signed sign_id with it. Never
+    # log the plaintext -- only the decision to disclose it, so a
+    # replay of the log won't reveal past OTPs.
+    if _authorized_for_debug_otp(event.get("headers"), row.sign_id):
+        body["_debug_otp"] = plaintext_otp
+        Logger.log(
+            "INFO",
+            f"request_otp: sign_id={row.sign_id[:6]} disclosed OTP to "
+            f"authenticated debug caller",
+        )
+
+    return generate_response(body)
