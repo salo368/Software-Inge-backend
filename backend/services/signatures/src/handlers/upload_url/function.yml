@@ -1,7 +1,6 @@
 description: >
-  Issues a presigned PUT URL for evidence uploads (cedula front/back,
-  face, signature drawing) directly to signatures' bucket. Auth by
-  sign_id; presign TTL is 5 minutes.
+  Issues a presigned PUT URL for evidence uploads (cedula/face/signature
+  drawing) directly to signatures' bucket. Auth by sign_id; TTL 5 min.
 timeout: 10
 events:
   - httpApi:
