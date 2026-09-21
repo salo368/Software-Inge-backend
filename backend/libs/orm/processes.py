@@ -30,6 +30,12 @@ class Processes(Base):
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     stage: Mapped[str] = mapped_column(String(20), default="form")
     form_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    # Points to the signature ceremony that belongs to this process, if
+    # any. Set by `processes.create_signature_ceremony` after calling
+    # `POST /signatures`. Null while the process is still in `form` or
+    # `documents`. NOT a FK: signatures is a generic service and does not
+    # know about processes.
+    sign_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -45,6 +51,7 @@ class Processes(Base):
             "rate": float(self.rate),
             "stage": self.stage,
             "form_snapshot": self.form_snapshot,
+            "sign_id": self.sign_id,
             "signed_at": self.signed_at.isoformat() if self.signed_at else None,
             "paid_at": self.paid_at.isoformat() if self.paid_at else None,
             "completed_at": self.completed_at.isoformat() if self.completed_at else None,
