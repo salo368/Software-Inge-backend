@@ -101,9 +101,13 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--face",
-        required=True,
+        required=False,
         type=Path,
-        help="Path to a jpg/png of a real face (one person, eyes open).",
+        default=None,
+        help=(
+            "Path to a jpg/png of a real face (one person, eyes open). "
+            "Required unless --stop-at-review is set."
+        ),
     )
     p.add_argument(
         "--password",
@@ -128,7 +132,22 @@ def _parse_args() -> argparse.Namespace:
             "step prints. File is deleted after reading."
         ),
     )
-    return p.parse_args()
+    p.add_argument(
+        "--stop-at-review",
+        action="store_true",
+        help=(
+            "Halt right after opening the ceremony and printing the "
+            "sign_url. Skips all evidence uploads / OTP / verify. "
+            "Use this to hand a fresh sign_id to a browser session so "
+            "you can smoke-test the signing SPA manually."
+        ),
+    )
+    args = p.parse_args()
+    # --face is required for the full flow (face_valid step) but the
+    # stop-at-review shortcut skips that step entirely.
+    if not args.stop_at_review and args.face is None:
+        p.error("--face is required unless --stop-at-review is set")
+    return args
 
 
 # --------------------------------------------------------------------------- #
@@ -455,6 +474,27 @@ def main() -> None:
     else:
         sign_id = sign_url
     print(f"    sign_id:  {sign_id[:16]}...")
+
+    # Manual-smoke escape hatch: hand the ceremony over to a browser
+    # instead of driving it to completion from Python. Prints an
+    # actionable summary and exits successfully so CI callers know the
+    # bootstrap portion of the flow worked.
+    if args.stop_at_review:
+        _step("Stop-at-review requested. Ceremony is live.")
+        print()
+        print("  Open this URL in your browser to test the signing SPA:")
+        print()
+        print(f"      {sign_url}")
+        print()
+        print(f"  sign_id (full): {sign_id}")
+        print(f"  signer email:   {args.email}")
+        print()
+        print("  Tips for the manual test:")
+        print("    * OTP will be emailed to the signer email above.")
+        print("    * Use a real face photo when prompted (Rekognition")
+        print("      rejects synthetic drawings).")
+        print("    * Ceremony expires in ~1h; take screenshots as you go.")
+        return
 
     # --------------------------------------------------------------------- #
     # SIGNER PERSPECTIVE from here on. Auth = sign_id in path only.
