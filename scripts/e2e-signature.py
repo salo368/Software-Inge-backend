@@ -320,11 +320,15 @@ def _put_to_presigned(url: str, body: bytes, content_type: str,
 def main() -> None:
     args = _parse_args()
 
-    if not args.face.is_file():
-        sys.exit(f"face file not found: {args.face}")
-
-    face_bytes = args.face.read_bytes()
-    face_ct = "image/png" if args.face.suffix.lower() == ".png" else "image/jpeg"
+    # --face is skipped by --stop-at-review; only validate when we'll
+    # actually use it in the biometric-upload steps.
+    face_bytes: bytes = b""
+    face_ct = "image/jpeg"
+    if not args.stop_at_review:
+        if not args.face.is_file():
+            sys.exit(f"face file not found: {args.face}")
+        face_bytes = args.face.read_bytes()
+        face_ct = "image/png" if args.face.suffix.lower() == ".png" else "image/jpeg"
 
     _step("Discovering API URLs from CloudFormation")
     urls = discover_api_urls(args.stage, args.region)
