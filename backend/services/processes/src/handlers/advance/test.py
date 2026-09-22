@@ -248,6 +248,121 @@ class TestFromSignature:
         get_by_sign_id.assert_called_once_with("sign_xyz")
 
 
+class TestFromSignatureReopen:
+    """When the current ceremony is `failed` or `expired`, advance()
+    should call `open_ceremony_for_process` again and hand back the
+    new sign_url without advancing the stage. This is what powers the
+    'Reabrir ceremonia' button in the portal wizard."""
+
+    def _prime(self, h, monkeypatch, user, ceremony_stage):
+        proc = _proc(user.id, "signature", sign_id="sign_old")
+        monkeypatch.setattr(
+            h, "Processes", MagicMock(get_by_id=MagicMock(return_value=proc))
+        )
+        ceremony = MagicMock(stage=ceremony_stage)
+        monkeypatch.setattr(
+            h,
+            "Signatures",
+            MagicMock(get_by_sign_id=MagicMock(return_value=ceremony)),
+        )
+        bank = MagicMock()
+        bank.name = "Banco Popular"
+        monkeypatch.setattr(
+            h, "Banks", MagicMock(get_by_id=MagicMock(return_value=bank))
+        )
+        return proc, bank
+
+    def test_failed_ceremony_reopens_without_advancing(
+        self, load_handler, monkeypatch
+    ):
+        h = load_handler(__file__)
+        user = _patch_auth(monkeypatch)
+        proc, bank = self._prime(h, monkeypatch, user, "failed")
+
+        opener = MagicMock(return_value="https://front.test/sign/sign_new")
+        monkeypatch.setattr(h, "open_ceremony_for_process", opener)
+
+        resp = h.handler(_authed_event(str(uuid4())), None)
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["sign_url"] == "https://front.test/sign/sign_new"
+        assert body["reopened"] is True
+        opener.assert_called_once()
+        _, kw = opener.call_args
+        assert kw["proc"] is proc
+        assert kw["user"] is user
+        assert kw["bank"] is bank
+        # Critical: the process must NOT advance -- the user still
+        # has to complete the new ceremony end to end.
+        proc.advance_to.assert_not_called()
+
+    def test_expired_ceremony_reopens_without_advancing(
+        self, load_handler, monkeypatch
+    ):
+        h = load_handler(__file__)
+        user = _patch_auth(monkeypatch)
+        proc, _bank = self._prime(h, monkeypatch, user, "expired")
+
+        opener = MagicMock(return_value="https://front.test/sign/sign_new")
+        monkeypatch.setattr(h, "open_ceremony_for_process", opener)
+
+        resp = h.handler(_authed_event(str(uuid4())), None)
+
+        assert resp["statusCode"] == 200
+        body = json.loads(resp["body"])
+        assert body["sign_url"] == "https://front.test/sign/sign_new"
+        assert body["reopened"] is True
+        opener.assert_called_once()
+        proc.advance_to.assert_not_called()
+
+    def test_bridge_failure_during_reopen_returns_502(
+        self, load_handler, monkeypatch
+    ):
+        h = load_handler(__file__)
+        user = _patch_auth(monkeypatch)
+        proc, _bank = self._prime(h, monkeypatch, user, "failed")
+
+        bridge_error = h.SignatureBridgeError(
+            "signatures_invoke_failed", "boto boom"
+        )
+        monkeypatch.setattr(
+            h,
+            "open_ceremony_for_process",
+            MagicMock(side_effect=bridge_error),
+        )
+
+        resp = h.handler(_authed_event(str(uuid4())), None)
+
+        assert resp["statusCode"] == 502
+        assert (
+            json.loads(resp["body"])["error"]
+            == "signature_bridge_signatures_invoke_failed"
+        )
+        proc.advance_to.assert_not_called()
+
+    def test_in_progress_ceremony_still_gets_signature_required(
+        self, load_handler, monkeypatch
+    ):
+        """Sanity: only failed/expired trigger reopen. Every other
+        non-signed stage (created/identity/signature/consent/otp/
+        signing) means the user just hasn't finished yet and must
+        keep using the existing sign_id -- reopening would strand
+        their in-flight work."""
+        h = load_handler(__file__)
+        user = _patch_auth(monkeypatch)
+        self._prime(h, monkeypatch, user, "otp")
+
+        opener = MagicMock()
+        monkeypatch.setattr(h, "open_ceremony_for_process", opener)
+
+        resp = h.handler(_authed_event(str(uuid4())), None)
+
+        assert resp["statusCode"] == 400
+        assert json.loads(resp["body"]) == {"error": "signature_required"}
+        opener.assert_not_called()
+
+
 # ---------------------------------------------------------------------------
 # terminal / cross-cutting
 # ---------------------------------------------------------------------------
