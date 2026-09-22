@@ -15,6 +15,13 @@ Gates:
                the previous transition); if `proc.sign_id` is missing
                the process was created before Fase 6a and cannot
                advance without a manual reopen.
+
+               If the current ceremony is `failed` or `expired`, the
+               handler REOPENS a fresh one via
+               `open_ceremony_for_process` and returns the new
+               `sign_url` + `reopened=true` WITHOUT advancing the
+               stage. The frontend uses this to let the user retry
+               without operator intervention.
   payment    : mocked. Any advance call moves it to `done`.
   done       : idempotent; returns the process untouched.
 
@@ -107,7 +114,35 @@ def handler(event, context):
             # skipping the signing step.
             raise HandledError("signature_required", 400)
         ceremony = Signatures.get_by_sign_id(proc.sign_id)
-        if ceremony is None or ceremony.stage != "signed":
+        if ceremony is None:
+            raise HandledError("signature_required", 400)
+
+        if ceremony.stage in ("failed", "expired"):
+            # The previous ceremony aborted (worker error, TTL
+            # elapsed, whatever). Reopen a fresh one and hand the new
+            # sign_url back. We do NOT advance the process stage --
+            # the user still has to complete the ceremony -- so this
+            # is a "same stage, new sign_id" transition. The bridge
+            # unconditionally overwrites proc.sign_id, so the old
+            # failed row is effectively orphaned (its S3 objects age
+            # out via the bucket lifecycle rule).
+            bank = Banks.get_by_id(proc.bank_id)
+            try:
+                sign_url = open_ceremony_for_process(
+                    proc=proc, user=event["user"], bank=bank
+                )
+            except SignatureBridgeError as e:
+                raise HandledError(f"signature_bridge_{e.code}", 502)
+            return generate_response({
+                "process": proc.public_dict(),
+                "sign_url": sign_url,
+                "reopened": True,
+            })
+
+        if ceremony.stage != "signed":
+            # Any other non-signed stage (created/identity/signature/
+            # consent/otp/signing) means the user just hasn't finished
+            # yet. They should keep using the existing sign_id.
             raise HandledError("signature_required", 400)
 
     proc.advance_to(NEXT_STAGE[proc.stage])
