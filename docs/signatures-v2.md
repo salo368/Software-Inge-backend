@@ -568,6 +568,95 @@ Wizard step   Actor           Acción
                                         stage='signed' → advance_to('payment')
 ```
 
+### 10.4 Frontend — Signing micro-app
+
+Contrato de la SPA `signing/` (repositorio `Software-Inge-frontend`) con el backend.
+Está aquí para que un cambio en cualquier lado deje evidencia obvia del quiebre;
+para el detalle de UI/UX consultá `projects/signing/README.md` en el repo del
+frontend.
+
+**Deployment**
+
+* Micro-frontend independiente detrás de la misma CloudFront que el portal.
+* Vive bajo la ruta `/sign/` (S3 bucket propio + SPA router function que
+  redirige deep-links a `index.html`).
+* Environment `dev` apunta a `https://<signatures-api-id>.execute-api.us-east-1.amazonaws.com`.
+  El id del API Gateway se descubre con
+  `aws cloudformation describe-stacks --stack-name cdts-dev-signatures --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" --output text`.
+  Si el stack se recrea el id cambia y hay que actualizar
+  `projects/signing/src/environments/environment.ts` en el mismo PR.
+
+**Rutas**
+
+| Ruta | Componente | Notas |
+| --- | --- | --- |
+| `/sign/:sign_id` | `SignComponent` | El `sign_id` es la capability token. |
+| `/sign` | `MissingSignIdComponent` | Fallback amigable si el usuario borra el id. |
+
+**Query params reconocidos**
+
+| Param | Uso |
+| --- | --- |
+| `return_url` | URL absoluta same-origin al portal. La SPA la muestra como CTA en los screens `done` / `failed` / `expired`. Los return_urls de otra origin se descartan silenciosamente (defensa contra `?return_url=https://evil.com/steal` en un email). |
+| `e2e=1` | Instala el hook `window.__signingE2E` (solo si `environment.stage === 'dev'`). Ver más abajo. |
+
+**Estado — máquina server-authoritative**
+
+La SPA lee `Ceremony.stage` del backend en cada tick (poll de 4s, 2s durante
+`signing`) y computa el screen local. Nunca inventa transiciones; sólo el
+backend puede avanzar `stage`.
+
+| `stage` backend | Screen SPA | Notas |
+| --- | --- | --- |
+| `created` | `review` (local) o `identity` | Si el usuario refrescó a mitad del flujo la SPA salta directo a `identity`. |
+| `identity` | `identity` o `signature` | Cuando las 3 evidencias biométricas están validadas Y la firma dibujada aún no se subió, muestra el pad. |
+| `consent` | `consent` | Checkbox + `POST /consent`. Al cliquear "Continuar" la SPA encadena `request_otp` sin esperar otro tick. |
+| `otp` | `otp` | 6 dígitos + verify. |
+| `signing` | `signing` | Loading indeterminado; timeout blando a 3 min. |
+| `signed` | `done` | Muestra hash + link presignado a `signed.pdf` + CTA "Volver al proceso" (si hay `return_url`). |
+| `failed` / `expired` | `failed` / `expired` | Terminales; sin retry desde acá. El portal reabre vía `POST /processes/{id}/advance` — ver `advance` handler ("reopen" logic). |
+
+**Endpoints consumidos por la SPA**
+
+Todos usan `sign_id` en el path como token. Sin bearer ni cookie:
+
+| Método | Ruta | Cuándo |
+| --- | --- | --- |
+| `GET` | `/signatures/{sign_id}` | Poll continuo + tras cada mutación. |
+| `POST` | `/signatures/{sign_id}/upload-url` | Antes de cada `PUT` a S3. |
+| `POST` | `/signatures/{sign_id}/evidence/id-front` | Después de subir `id_front`. |
+| `POST` | `/signatures/{sign_id}/evidence/id-back` | Después de subir `id_back`. |
+| `POST` | `/signatures/{sign_id}/evidence/face` | Después de subir `face`. |
+| `POST` | `/signatures/{sign_id}/evidence/signature` | Después de subir el drawing PNG. |
+| `POST` | `/signatures/{sign_id}/consent` | Body: `{"terms_version": "v1.0"}`. |
+| `POST` | `/signatures/{sign_id}/otp` | Emite código nuevo (o reenvía si TTL vigente). |
+| `POST` | `/signatures/{sign_id}/otp/verify` | Body: `{"code": "123456"}`. |
+
+La SPA **no** llama `POST /signatures` (crear ceremony) ni endpoints del
+service `processes`. Ambos son responsabilidad del portal.
+
+**Test hook `window.__signingE2E` (dev + `?e2e=1` only)**
+
+Instalado por `projects/signing/src/app/core/e2e-hooks.ts` solo cuando
+`environment.stage === 'dev'` AND la URL trae `?e2e=1`. Nunca en el bundle de
+pro. Expone acciones tipadas que bypasean `<video>+getUserMedia` y
+`<canvas>` pointer strokes alimentando blobs directo al mismo code path que
+usa la UI real.
+
+Uso desde Playwright (ver `e2e/` en el repo del frontend):
+
+```typescript
+await driver.setDebugOtpKey(debugKeyHex);         // opt-in al eco de _debug_otp
+await driver.submitEvidence('id_front', base64);  // upload + validate
+await driver.acceptConsent();                     // chain hasta screen otp
+await driver.confirmOtp(await driver.debugOtp()); // 6 dígitos leídos del server
+await driver.waitForStage('signed', 180_000);     // async worker
+```
+
+El escape hatch de OTP en `request_otp` (§8.5) es lo que hace este test hook
+posible sin buzón de correo. Sin el `debug-otp-key` en SSM la SPA vuelve a
+comportarse como en producción (silent OTP por email).
+
 ---
 
 ## 11. Formato del evidence package
