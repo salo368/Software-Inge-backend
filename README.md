@@ -60,7 +60,9 @@ Detalle completo de la estructura backend: [`docs/repo-structure.md`](./docs/rep
 - Cada rama abre **dos PRs**: uno a `develop` (para desplegar y probar en `dev`) y
   uno a `main` (para desplegar en `pro`). **La misma rama** alimenta ambos ambientes.
 - `develop` y `main` **nunca** se mergean entre si (evita conflictos add/add del squash).
-- Las PR NO requieren aprobacion de pares, pero SI requieren que los checks de CI pasen.
+- Las PR NO requieren aprobacion de pares, pero SI requieren que los checks de CI pasen
+  **antes de poder mergear** (ver sección [CI/CD](#cicd) — el check de PR es liviano y
+  no toca AWS; el deploy real solo corre después del merge).
 
 Detalle completo con comandos y anti-patrones: [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
@@ -119,13 +121,31 @@ npm test
 
 ## CI/CD
 
-Ver [`.github/workflows/`](./.github/workflows/):
+Ver [`.github/workflows/`](./.github/workflows/). Hay dos momentos distintos en el
+ciclo de vida de un cambio, con credenciales distintas:
 
-- [`deploy-dev.yml`](./.github/workflows/deploy-dev.yml) - deploy a `dev` en push a `develop`
-- [`deploy-pro.yml`](./.github/workflows/deploy-pro.yml) - deploy a `pro` en push a `main`
+- **En cada Pull Request** (hacia `develop` o hacia `main`): corre un check liviano
+  y de solo lectura — lint + tests unitarios de los bloques afectados — **sin
+  credenciales de AWS**. Es un *required status check*: el PR no se puede mergear
+  si falla. No hace deploy ni toca infraestructura.
+- **En cada push a `develop` o `main`** (es decir, apenas se mergea el PR):
+  [`deploy-dev.yml`](./.github/workflows/deploy-dev.yml) o
+  [`deploy-pro.yml`](./.github/workflows/deploy-pro.yml) corren la forma completa
+  `plan → validate → deploy → summary`, con las credenciales del deployer de ese
+  stage.
 
-Ambos tienen la misma forma: `plan → validate → deploy → summary`. Las PRs no
-disparan workflows.
+> **Motivo del cambio:** antes, un PR no disparaba ningún workflow — la única
+> verificación ocurría *después* del merge, cuando el push a `develop`/`main` ya
+> había arrancado el deploy. Eso contradecía la regla de arriba ("las PR SI
+> requieren que los checks de CI pasen") y dejaba mergear cambios rotos sin
+> aviso previo. El check de PR reutiliza los mismos pasos `validate`/`test` que
+> ya existen en los workflows de deploy — no se duplica lógica ni se le da
+> acceso a credenciales de AWS a un run disparado por PR.
+>
+> **Estado de implementación:** esta sección documenta la política ya acordada;
+> el workflow que la implementa (agregar el disparador `pull_request` y marcarlo
+> como *required status check* en `main`/`develop`) se agrega en un PR de
+> seguimiento, sin más cambios al modelo de ramas descrito arriba.
 
 ### Deploy selectivo por bloque
 
