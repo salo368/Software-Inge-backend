@@ -18,9 +18,16 @@ Contract:
     Postconditions on success:
         row.stage == 'signed'
         row.hash_signed, row.cert_serial, row.signed_at set
-        S3: transactions/{sign_id}/signed.pdf
-        S3: transactions/{sign_id}/evidence-package.json
+        S3: evidence-archive/{sign_id}/signed.pdf
+        S3: evidence-archive/{sign_id}/evidence-package.json
         Callback POST fired if row.callback_url is set
+
+    The signed PDF and the evidence package live under `evidence-archive/`,
+    NOT `transactions/` -- a separate prefix so the bucket's lifecycle rules
+    can retain them for 10 years (regulatory requirement) while everything
+    else under `transactions/` (original PDF, biometric evidence) keeps
+    expiring at 30 days (privacy minimization). See serverless.yml and
+    docs/add-signatures-uc3.md.
 
     Postconditions on failure:
         row.stage == 'failed'
@@ -299,8 +306,9 @@ def _run_pipeline(row: Signatures) -> None:
     # (7) Hash the signed output (this hash is what /verify recomputes).
     hash_signed = _sha256(signed_pdf)
 
-    # (8) Upload signed PDF.
-    signed_key = f"transactions/{row.sign_id}/signed.pdf"
+    # (8) Upload signed PDF. Lives under evidence-archive/, not
+    # transactions/ -- see module docstring.
+    signed_key = f"evidence-archive/{row.sign_id}/signed.pdf"
     _put_object(signed_key, signed_pdf, "application/pdf")
 
     # (9) Mark the row signed BEFORE building the evidence package, so
@@ -322,7 +330,7 @@ def _run_pipeline(row: Signatures) -> None:
         cert_pem=cert_pem.decode("utf-8"),
     )
     package_bytes = json.dumps(package, indent=2, default=str).encode("utf-8")
-    package_key = f"transactions/{row.sign_id}/evidence-package.json"
+    package_key = f"evidence-archive/{row.sign_id}/evidence-package.json"
     _put_object(package_key, package_bytes, "application/json")
 
     # Commit BEFORE firing the callback. Rationale: the callback lambda

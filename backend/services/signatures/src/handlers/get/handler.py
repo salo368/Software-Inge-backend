@@ -81,8 +81,10 @@ def handler(event, context):
     # anyone who followed the URL, so only expose it in the terminal
     # state.
     if row.stage == "signed":
+        # evidence-archive/, not transactions/ -- see sign/handler.py
+        # module docstring (10-year retention prefix split).
         payload["signed_pdf_url"] = _presign_get(
-            s3, f"transactions/{row.sign_id}/signed.pdf"
+            s3, f"evidence-archive/{row.sign_id}/signed.pdf"
         )
 
     return generate_response(payload)

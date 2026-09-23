@@ -346,9 +346,9 @@ class TestHappyPath:
         # Signed PDF and evidence package were uploaded to the expected
         # S3 keys.
         uploaded = s3.dump()
-        assert "transactions/sign_abc/signed.pdf" in uploaded
-        assert uploaded["transactions/sign_abc/signed.pdf"] == _FAKE_SIGNED_PDF
-        pkg_key = "transactions/sign_abc/evidence-package.json"
+        assert "evidence-archive/sign_abc/signed.pdf" in uploaded
+        assert uploaded["evidence-archive/sign_abc/signed.pdf"] == _FAKE_SIGNED_PDF
+        pkg_key = "evidence-archive/sign_abc/evidence-package.json"
         assert pkg_key in uploaded
 
         # Evidence package embeds the leaf cert + both hashes.

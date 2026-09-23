@@ -169,17 +169,34 @@ resources:
               AllowedHeaders: ['*']
               ExposedHeaders: [ETag]
               MaxAge: 3600
-        # Academic project: no ceremony survives forever. 30 days for
-        # everything (original PDFs, evidences, signed PDFs, evidence
-        # packages, audit logs). If you need longer retention for a
-        # specific transaction, download the signed PDF + package via
-        # /verify before this fires.
+        # Two retention tiers, split by prefix (see docs/add-signatures-uc3.md):
+        #
+        # - transactions/  (original PDF + biometric evidence: ID front/
+        #   back, face selfie, drawn signature). Privacy-sensitive, no
+        #   regulatory reason to keep past the ceremony's operational
+        #   window -> hard-delete at 30 days, unchanged from before.
+        #
+        # - evidence-archive/  (signed.pdf + evidence-package.json only,
+        #   written exclusively by the `sign` worker). This IS the
+        #   probative document + its audit trail -> regulatory retention
+        #   of 10 years. Transition to GLACIER_IR (Instant Retrieval) at
+        #   30 days rather than GLACIER/DEEP_ARCHIVE: same archival cost,
+        #   but reads still resolve in milliseconds, so `verify` and
+        #   `get` keep serving signed_pdf_url without a multi-hour
+        #   restore workflow.
         LifecycleConfiguration:
           Rules:
-            - Id: expire-all-transactions-30d
+            - Id: expire-transactions-30d
               Status: Enabled
               Prefix: transactions/
               ExpirationInDays: 30
+            - Id: archive-evidence-10y
+              Status: Enabled
+              Prefix: evidence-archive/
+              Transitions:
+                - TransitionInDays: 30
+                  StorageClass: GLACIER_IR
+              ExpirationInDays: 3650
 
   Outputs:
     SignaturesBucketName:

@@ -94,7 +94,7 @@ def test_verify_by_pdf_source_url_matches_sign_id_variant():
             "get_object",
             Params={
                 "Bucket": bucket,
-                "Key": f"transactions/{ctx.sign_id}/signed.pdf",
+                "Key": f"evidence-archive/{ctx.sign_id}/signed.pdf",
             },
             ExpiresIn=300,
         )

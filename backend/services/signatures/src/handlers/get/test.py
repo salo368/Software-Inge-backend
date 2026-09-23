@@ -181,7 +181,7 @@ class TestHappyPath:
         self, load_handler, monkeypatch
     ):
         """Once stage == 'signed' the handler presigns and returns a URL
-        pointing to `transactions/{sign_id}/signed.pdf`."""
+        pointing to `evidence-archive/{sign_id}/signed.pdf`."""
         h = load_handler(__file__)
         row = _fake_row(sign_id="sign_signed", stage="signed")
         row.public_dict = MagicMock(
@@ -200,7 +200,7 @@ class TestHappyPath:
         payload = json.loads(resp["body"])
         assert payload["stage"] == "signed"
         assert payload["signed_pdf_url"].endswith(
-            "transactions/sign_signed/signed.pdf"
+            "evidence-archive/sign_signed/signed.pdf"
         )
         # Two presigns: original + signed.
         assert s3.generate_presigned_url.call_count == 2
@@ -209,7 +209,7 @@ class TestHappyPath:
             for call in s3.generate_presigned_url.call_args_list
         ]
         assert "transactions/sign_signed/original.pdf" in keys
-        assert "transactions/sign_signed/signed.pdf" in keys
+        assert "evidence-archive/sign_signed/signed.pdf" in keys
 
     def test_does_not_leak_internal_fields(self, load_handler, monkeypatch):
         """`callback_url` and `service_caller` are internal-only. The

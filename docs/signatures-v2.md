@@ -204,25 +204,34 @@ Bucket propio del servicio: `cdts-{stage}-signatures`, definido en
   presigned URLs con TTL corto).
 - SSE-AES256 en reposo.
 - CORS permisivo para PUT desde el microfrontend.
-- Lifecycle: objetos bajo `transactions/*` expiran a los **30 días**. Suficiente
-  para el ciclo consumo → verify → auditoría inicial; para retención larga la
-  copia se archiva fuera de este bucket.
+- Lifecycle en **dos niveles**, separados por prefijo (ver
+  `docs/add-signatures-uc3.md` para el razonamiento completo):
+  - `transactions/*` (PDF original + evidencia biométrica): expira a los
+    **30 días**. Dato sensible por privacidad (KYC), sin razón regulatoria
+    para conservarlo más allá del ciclo operativo de la ceremonia.
+  - `evidence-archive/*` (PDF firmado + manifiesto de auditoría): transiciona
+    a **GLACIER_IR** a los 30 días y expira a los **3650 días (10 años)** —
+    retención regulatoria (Tabla 13, PICA.HT1). Se eligió GLACIER_IR (Instant
+    Retrieval) en vez de GLACIER/DEEP_ARCHIVE porque `verify` y `get` siguen
+    sirviendo `signed_pdf_url` en milisegundos durante toda la ventana de 10
+    años, sin flujo de restore de horas.
 
 Layout por ceremony:
 
 ```text
 cdts-{stage}-signatures/
-└── transactions/{sign_id}/
-    ├── original.pdf              ← subido por create (desde pdf_source_url)
-    ├── id/
-    │   ├── front.jpg  |  front.png
-    │   └── back.jpg   |  back.png
-    ├── face/
-    │   ├── selfie.jpg |  selfie.png
-    ├── signature/
-    │   └── canvas.png             ← garabato del signer (PNG con alfa)
-    ├── signed.pdf                 ← producido por sign
-    └── evidence-package.json      ← manifiesto de auditoría (ver §11)
+├── transactions/{sign_id}/
+│   ├── original.pdf              ← subido por create (desde pdf_source_url)
+│   ├── id/
+│   │   ├── front.jpg  |  front.png
+│   │   └── back.jpg   |  back.png
+│   ├── face/
+│   │   ├── selfie.jpg |  selfie.png
+│   └── signature/
+│       └── canvas.png             ← garabato del signer (PNG con alfa)
+└── evidence-archive/{sign_id}/
+    ├── signed.pdf                 ← producido por sign; retención 10 años
+    └── evidence-package.json      ← manifiesto de auditoría (ver §11); retención 10 años
 ```
 
 Reglas:
@@ -678,7 +687,7 @@ fuente. Schema:
   },
   "document": {
     "original_key": "transactions/{sign_id}/original.pdf",
-    "signed_key":   "transactions/{sign_id}/signed.pdf",
+    "signed_key":   "evidence-archive/{sign_id}/signed.pdf",
     "hash_original": "<sha256 hex>",
     "hash_signed":   "<sha256 hex>",
     "signature_location": { "page": 1, "x_pct": 60, "y_pct": 85, "width_pct": 25 }
@@ -810,7 +819,10 @@ aws ssm get-parameter --name /cdts/dev/processes-api/url                        
   Todos los campos relevantes (`stage`, `otp_attempts_left`, `signature_key`,
   `hash_original`, `callback_error`, ...) están ahí.
 - **Listar el S3 de esa ceremony**:
-  `aws s3 ls s3://cdts-dev-signatures/transactions/<sign_id>/`
+  `aws s3 ls s3://cdts-dev-signatures/transactions/<sign_id>/` (original +
+  evidencia biométrica) y
+  `aws s3 ls s3://cdts-dev-signatures/evidence-archive/<sign_id>/`
+  (signed.pdf + evidence-package.json, retención 10 años).
 - **Logs**: cada Lambda logea en `/aws/lambda/cdts-dev-signatures-<fn>`
   (retention 14 días).
 - **Sign atascado**: si `stage='signing'` sin transicionar en más de 5 min, el

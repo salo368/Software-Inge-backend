@@ -11,7 +11,8 @@ combine:
     * the cryptographic outputs of `sign` (hashes + cert serial + PEM).
 
 We serialise all of that into a single JSON document that lives next to
-the signed PDF at `transactions/{sign_id}/evidence-package.json`. The
+the signed PDF at `evidence-archive/{sign_id}/evidence-package.json`
+(10-year retention prefix, see sign/handler.py). The
 `verify` endpoint reads both, cross-checks the hashes, and answers
 whether the PDF has been tampered with AND whether the ceremony was
 properly executed.

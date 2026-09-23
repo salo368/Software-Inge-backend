@@ -9,10 +9,12 @@ and asserts the state left by the async worker:
   * Row.hash_signed populated (SHA-256 of the signed PDF bytes)
   * Row.cert_serial populated (issued by the mock CA)
   * Row.signed_at is a UTC timestamp within the last minute
-  * The signed PDF exists at transactions/{sign_id}/signed.pdf
+  * The signed PDF exists at evidence-archive/{sign_id}/signed.pdf
   * The evidence package exists at
-    transactions/{sign_id}/evidence-package.json (JSON, not ZIP -- see
-    handler docstring)
+    evidence-archive/{sign_id}/evidence-package.json (JSON, not ZIP -- see
+    handler docstring). Both live under evidence-archive/, not
+    transactions/, so the 10-year retention lifecycle rule applies to
+    them and not to the (privacy-sensitive, 30-day) biometric evidence.
 """
 from __future__ import annotations
 
@@ -60,12 +62,12 @@ def test_sign_lambda_produces_signed_pdf_and_evidence_bundle():
 
         # Artifacts in S3.
         bucket = signatures_bucket()
-        signed = s3_head(bucket, f"transactions/{ctx.sign_id}/signed.pdf")
+        signed = s3_head(bucket, f"evidence-archive/{ctx.sign_id}/signed.pdf")
         assert signed is not None, "signed.pdf missing"
         assert signed["ContentType"] in ("application/pdf", "binary/octet-stream")
         assert signed["ContentLength"] > 0
         evidence = s3_head(
-            bucket, f"transactions/{ctx.sign_id}/evidence-package.json"
+            bucket, f"evidence-archive/{ctx.sign_id}/evidence-package.json"
         )
         assert evidence is not None, "evidence-package.json missing"
         assert evidence["ContentLength"] > 0

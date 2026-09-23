@@ -110,7 +110,9 @@ def _load_pdf_from_sign_id(sign_id: str) -> tuple[bytes, Signatures]:
     if row.stage != "signed":
         raise HandledError("ceremony_not_signed", 404)
 
-    key = f"transactions/{sign_id}/signed.pdf"
+    # evidence-archive/, not transactions/ -- see sign/handler.py module
+    # docstring (10-year retention prefix split).
+    key = f"evidence-archive/{sign_id}/signed.pdf"
     try:
         obj = boto3.client("s3").get_object(Bucket=SIGNATURES_BUCKET, Key=key)
         # S3 object metadata carries ContentLength; check it before we
