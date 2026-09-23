@@ -10,6 +10,15 @@ No repite lo operativo — para endpoints, ciclo de vida, auth y bootstrap ver
 [`signatures-v2.md`](./signatures-v2.md). Este documento es sobre **por qué**,
 no **cómo**.
 
+**Vistas UML** (notación 4+1 / Kruchten): las vistas de Despliegue y de
+Código de este slice están en
+[`add-signatures-uc3-vistas.drawio`](./add-signatures-uc3-vistas.drawio)
+(dos páginas en un mismo archivo, abrir con [draw.io / diagrams.net](https://app.diagrams.net)).
+La vista de despliegue traza 1:1 con la topología de §2 de `signatures-v2.md`
+y con el split de retención de §5.1 de este documento; la vista de código
+traza 1:1 con el layout real de `backend/services/signatures/` (paquetes
+`handlers`, `utils`, `libs.core`, `libs.orm`).
+
 ---
 
 ## 1. Contexto y alcance
