@@ -62,6 +62,9 @@ tests/report/
 Thumbs.db
 desktop.ini
 
+# --- draw.io desktop app local backups ---
+.$*.bkp
+
 # --- Build artifacts ---
 dist/
 build/
