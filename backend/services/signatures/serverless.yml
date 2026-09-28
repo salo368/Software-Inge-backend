@@ -13,7 +13,15 @@ provider:
   logRetentionInDays: 14
 
   httpApi:
-    cors: true
+    cors:
+      allowedHeaders:
+        - Content-Type
+        - X-Amz-Date
+        - Authorization
+        - X-Api-Key
+        - X-Amz-Security-Token
+        - X-Amz-User-Agent
+        - X-Debug-OTP-Signature
 
   environment:
     STAGE: ${sls:stage}
