@@ -9,56 +9,23 @@
 > `backend/utils/build-functions.js`, `backend/libs/**`, `backend/conftest.py`,
 > `scripts/ci/plan-deploy.sh` y el código real de `backend/services/**`.
 
-## Vistas del metamodelo
+## Versión visual
 
-El metamodelo se dibuja en **vistas pequeñas, una por tema**, en vez de un solo
-diagrama gigante. Cada vista es una página (pestaña) de
-[`metamodelo.drawio`](./metamodelo.drawio).
+La explicación visual está en [`anatomia-backend.html`](./anatomia-backend.html): una
+página autocontenida (diagramas en SVG y HTML, sin imágenes) que se abre en cualquier
+navegador. Presenta el modelo por vistas, de afuera hacia adentro:
 
-| Vista | Tema | Archivos |
+| Vista | Tema | Estado |
 |---|---|---|
-| 1 | Estructura de un servicio | [PNG](./vista-1-servicio.png) · [PDF](./vista-1-servicio.pdf) · [SVG](./vista-1-servicio.svg) |
-| 2 | Estructura de una función (Lambda) | pendiente |
+| 1 | El servicio | lista |
+| 2 | La función | lista |
 | 3 | Código compartido `libs/` | pendiente |
-| 4 | Acceso a datos: capa ORM | pendiente |
-| 5 | Pruebas (`test.py`, `integration.py`) | pendiente |
-| 6 | Bloques de plataforma (`migrations`, `assets`) | pendiente |
+| 4 | Acceso a datos (ORM) | pendiente |
+| 5 | Pruebas | pendiente |
+| 6 | Bloques de plataforma | pendiente |
 
-### Vista 1 · Estructura de un servicio
-
-![Vista 1 · Estructura de un servicio](./vista-1-servicio.png)
-
-**Cómo editar.** Abrir `metamodelo.drawio` en [diagrams.net](https://app.diagrams.net)
-(Archivo → Abrir desde → Dispositivo) y exportar desde Archivo → Exportar. El script
-[`gen_vistas.py`](./gen_vistas.py) genera el `.drawio` con un layout reproducible; si
-se edita el `.drawio` a mano, **no** volver a correr el script (sobrescribe el archivo).
-
----
-
-## 0. Notación elegida
-
-**UML — diagrama de clases usado como metamodelo**, dibujado en draw.io.
-
-| Opción | Por qué sí / por qué no |
-|---|---|
-| **UML (clases) en draw.io** ✅ | Un metamodelo es exactamente "tipos + composición + generalización + restricciones": es lo que expresa un diagrama de clases. Composición (◆) para "está hecho de", herencia (△) para "es un tipo de", dependencias (⇢) para "usa/importa", notas para las reglas. draw.io deja el archivo editable y exporta PNG/SVG/PDF para el entregable. |
-| ArchiMate (Archi) | Pensado para arquitectura empresarial (negocio/aplicación/tecnología). Sirve más para el diagrama de despliegue en AWS que para la estructura interna del código. |
-| C4 | Bueno para contenedores y componentes de un sistema concreto; no tiene buena forma de decir "toda Lambda tiene exactamente un `handler.py`". |
-
-Cada **clase** del diagrama es un **tipo de elemento** del repo (nivel M2). Los
-servicios y Lambdas reales son **instancias** de esas clases (nivel M1).
-
-Convenciones visuales del diagrama:
-
-| Color | Significado |
-|---|---|
-| Azul | Unidades desplegables (Composición, Bloque, Servicio, Plataforma) |
-| Verde | Lambda y sus tres tipos |
-| Amarillo | Archivos (artefactos) de un bloque o de una Lambda |
-| Morado | Código compartido `backend/libs/` (core, ORM, utils generales) |
-| Gris | Tooling de build y testing transversal |
-| Naranja | Recursos AWS de runtime y triggers |
-| Nota amarilla | Regla / restricción (R1…R14) |
+Este documento es la referencia completa en texto: catálogo de elementos, relaciones,
+reglas y diferencias entre la documentación y el código.
 
 ---
 
@@ -329,7 +296,7 @@ El metamodelo cubre el 100 % de lo que existe hoy:
 
 ## 6. Discrepancias entre la documentación y el código
 
-El diagrama modela **el código real**. Conviene alinear la doc (o decidir lo contrario):
+El modelo sigue **el código real**. Conviene alinear la doc (o decidir lo contrario):
 
 1. **`layers/shared/` no existe.** `repo-structure.md` dice que lo compartido se
    publica como Lambda Layer desde `backend/layers/shared/`. En la práctica el código
@@ -345,11 +312,11 @@ El diagrama modela **el código real**. Conviene alinear la doc (o decidir lo co
 
 ---
 
-## 7. Qué queda fuera de este diagrama
+## 7. Qué queda fuera de este modelo
 
 - **Servicios concretos** y sus endpoints (no es un modelo de servicios).
 - **Pipeline CI/CD** (plan → validate → infrastructure → services → summary) y reglas de
-  deploy selectivo: solo aparece la Infra de proyecto como caja.
+  deploy selectivo.
 - **Despliegue en AWS** (cómo quedan los stacks, buckets, BD y frontend en la nube).
 
-Esos dos últimos son candidatos naturales para el **Diagrama 2**.
+Esos dos últimos son candidatos naturales para el segundo gráfico del entregable.
