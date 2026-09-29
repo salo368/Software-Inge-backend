@@ -9,20 +9,22 @@
 > `backend/utils/build-functions.js`, `backend/libs/**`, `backend/conftest.py`,
 > `scripts/ci/plan-deploy.sh` y el código real de `backend/services/**`.
 
-## Versión visual
+## Gráficos
 
-La explicación visual está en [`anatomia-backend.html`](./anatomia-backend.html): una
-página autocontenida (diagramas en SVG y HTML, sin imágenes) que se abre en cualquier
-navegador. Presenta el modelo por vistas, de afuera hacia adentro:
+Cada gráfico es un lienzo HTML de 1600×900 (diagramas hechos con HTML/CSS y SVG, fuentes
+incrustadas, sin imágenes). Se abre en cualquier navegador y se exporta a PNG y PDF para
+el documento del entregable.
 
-| Vista | Tema | Estado |
-|---|---|---|
-| 1 | El servicio | lista |
-| 2 | La función | lista |
-| 3 | Código compartido `libs/` | pendiente |
-| 4 | Acceso a datos (ORM) | pendiente |
-| 5 | Pruebas | pendiente |
-| 6 | Bloques de plataforma | pendiente |
+| # | Tema | Archivos | Estado |
+|---|---|---|---|
+| 1 | Estructura de un servicio | [HTML](./grafico-1-servicio.html) · [PNG](./grafico-1-servicio.png) · [PDF](./grafico-1-servicio.pdf) | listo |
+| 2 | Estructura de una función (Lambda) | | pendiente |
+| 3 | Código compartido `libs/` | | pendiente |
+| 4 | Acceso a datos (ORM) | | pendiente |
+| 5 | Pruebas | | pendiente |
+| 6 | Bloques de plataforma | | pendiente |
+
+![Gráfico 1 · Estructura de un servicio](./grafico-1-servicio.png)
 
 Este documento es la referencia completa en texto: catálogo de elementos, relaciones,
 reglas y diferencias entre la documentación y el código.
