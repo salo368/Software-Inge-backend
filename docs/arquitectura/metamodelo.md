@@ -5,20 +5,33 @@
 > servicios concretos (`auth`, `signatures`...), sino la *plantilla* que todo
 > servicio, Lambda o librería debe seguir.
 >
-> Es la base del **Diagrama 1 · Metamodelo**.
 > Fuentes: [`docs/repo-structure.md`](../repo-structure.md), `backend/serverless-compose.yml`,
 > `backend/utils/build-functions.js`, `backend/libs/**`, `backend/conftest.py`,
 > `scripts/ci/plan-deploy.sh` y el código real de `backend/services/**`.
 
-![Diagrama 1 · Metamodelo estructural del backend CDTS](./metamodelo.png)
+## Vistas del metamodelo
 
-| Archivo | Para qué |
-|---|---|
-| [`metamodelo.drawio`](./metamodelo.drawio) | Fuente editable (abrir en [diagrams.net](https://app.diagrams.net) o draw.io desktop). |
-| [`metamodelo.png`](./metamodelo.png) | Imagen a 2× para el documento del entregable. |
-| [`metamodelo.pdf`](./metamodelo.pdf) | Vectorial, para imprimir o anexar. |
-| [`metamodelo.svg`](./metamodelo.svg) | Vectorial para web; trae el diagrama embebido, así que draw.io lo puede reabrir. |
-| [`gen_metamodelo.py`](./gen_metamodelo.py) | Script que genera el `.drawio` (layout reproducible). Si editas el `.drawio` a mano, **no** lo vuelvas a correr: sobrescribe el archivo. |
+El metamodelo se dibuja en **vistas pequeñas, una por tema**, en vez de un solo
+diagrama gigante. Cada vista es una página (pestaña) de
+[`metamodelo.drawio`](./metamodelo.drawio).
+
+| Vista | Tema | Archivos |
+|---|---|---|
+| 1 | Estructura de un servicio | [PNG](./vista-1-servicio.png) · [PDF](./vista-1-servicio.pdf) · [SVG](./vista-1-servicio.svg) |
+| 2 | Estructura de una función (Lambda) | pendiente |
+| 3 | Código compartido `libs/` | pendiente |
+| 4 | Acceso a datos: capa ORM | pendiente |
+| 5 | Pruebas (`test.py`, `integration.py`) | pendiente |
+| 6 | Bloques de plataforma (`migrations`, `assets`) | pendiente |
+
+### Vista 1 · Estructura de un servicio
+
+![Vista 1 · Estructura de un servicio](./vista-1-servicio.png)
+
+**Cómo editar.** Abrir `metamodelo.drawio` en [diagrams.net](https://app.diagrams.net)
+(Archivo → Abrir desde → Dispositivo) y exportar desde Archivo → Exportar. El script
+[`gen_vistas.py`](./gen_vistas.py) genera el `.drawio` con un layout reproducible; si
+se edita el `.drawio` a mano, **no** volver a correr el script (sobrescribe el archivo).
 
 ---
 
