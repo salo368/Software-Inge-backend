@@ -17,12 +17,15 @@ el documento del entregable.
 
 | # | Tema | Archivos | Estado |
 |---|---|---|---|
+| 0 | Diseño completo del backend | [HTML](./grafico-0-diseno.html) · [PNG](./grafico-0-diseno.png) · [PDF](./grafico-0-diseno.pdf) | listo |
 | 1 | Estructura de un servicio | [HTML](./grafico-1-servicio.html) · [PNG](./grafico-1-servicio.png) · [PDF](./grafico-1-servicio.pdf) | listo |
 | 2 | Estructura de una función (Lambda) | | pendiente |
 | 3 | Código compartido `libs/` | | pendiente |
 | 4 | Acceso a datos (ORM) | | pendiente |
 | 5 | Pruebas | | pendiente |
 | 6 | Bloques de plataforma | | pendiente |
+
+![Gráfico 0 · Diseño completo del backend](./grafico-0-diseno.png)
 
 ![Gráfico 1 · Estructura de un servicio](./grafico-1-servicio.png)
 
