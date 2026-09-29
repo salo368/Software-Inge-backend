@@ -17,7 +17,8 @@ nivel y su ruta, y marca con una lupa (🔍 NN) qué partes se amplían en otro 
 
 ```
 01 · Nivel 0  backend/                     vista general
-├── 02 · Nivel 1  services/<servicio>/     un servicio
+├── 02 · Nivel 1  services/<servicio>/     un servicio (plantilla)
+│   ├── 07 ·          services/auth/          ejemplo real: el servicio auth
 │   └── 03 · Nivel 2  src/<tipo>/<función>/   una función
 ├── 04 · Nivel 1  libs/                    código compartido
 │   └── 05 · Nivel 2  libs/orm/            acceso a datos
@@ -32,8 +33,9 @@ nivel y su ruta, y marca con una lupa (🔍 NN) qué partes se amplían en otro 
 | 04 | 1 | Código compartido `libs/` | [HTML](./graficos/04-libs.html) · [PNG](./graficos/04-libs.png) · [PDF](./graficos/04-libs.pdf) |
 | 05 | 2 | Acceso a datos: la capa ORM | [HTML](./graficos/05-orm.html) · [PNG](./graficos/05-orm.png) · [PDF](./graficos/05-orm.pdf) |
 | 06 | 1 | Bloques de plataforma `platform/` | [HTML](./graficos/06-plataforma.html) · [PNG](./graficos/06-plataforma.png) · [PDF](./graficos/06-plataforma.pdf) |
+| 07 | 1 | Ejemplo real: servicio `auth` | [HTML](./graficos/07-auth.html) · [PNG](./graficos/07-auth.png) · [PDF](./graficos/07-auth.pdf) |
 
-[`graficos/index.html`](./graficos/index.html) muestra los seis seguidos. Cada lienzo mide
+[`graficos/index.html`](./graficos/index.html) muestra toda la serie seguida. Cada lienzo mide
 1600×900, está hecho con HTML/CSS y SVG, trae las fuentes incrustadas y no usa imágenes:
 se abre en cualquier navegador, incluso sin internet. Los PNG (2×) y PDF (vectorial) son
 para el documento del entregable.
