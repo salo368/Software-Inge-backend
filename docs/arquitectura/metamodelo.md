@@ -9,25 +9,36 @@
 > `backend/utils/build-functions.js`, `backend/libs/**`, `backend/conftest.py`,
 > `scripts/ci/plan-deploy.sh` y el código real de `backend/services/**`.
 
-## Gráficos
+## Gráficos: niveles de zoom
 
-Cada gráfico es un lienzo HTML de 1600×900 (diagramas hechos con HTML/CSS y SVG, fuentes
-incrustadas, sin imágenes). Se abre en cualquier navegador y se exporta a PNG y PDF para
-el documento del entregable.
+El metamodelo se dibuja como una serie de **niveles de zoom**: una vista general del
+backend y, desde ella, ampliaciones de cada pieza. Cada lienzo trae arriba a la derecha su
+nivel y su ruta, y marca con una lupa (🔍 NN) qué partes se amplían en otro gráfico.
 
-| # | Tema | Archivos | Estado |
+```
+01 · Nivel 0  backend/                     vista general
+├── 02 · Nivel 1  services/<servicio>/     un servicio
+│   └── 03 · Nivel 2  src/<tipo>/<función>/   una función
+├── 04 · Nivel 1  libs/                    código compartido
+│   └── 05 · Nivel 2  libs/orm/            acceso a datos
+└── 06 · Nivel 1  platform/                migraciones y assets
+```
+
+| # | Nivel | Tema | Archivos |
 |---|---|---|---|
-| 0 | Diseño completo del backend | [HTML](./grafico-0-diseno.html) · [PNG](./grafico-0-diseno.png) · [PDF](./grafico-0-diseno.pdf) | listo |
-| 1 | Estructura de un servicio | [HTML](./grafico-1-servicio.html) · [PNG](./grafico-1-servicio.png) · [PDF](./grafico-1-servicio.pdf) | listo |
-| 2 | Estructura de una función (Lambda) | | pendiente |
-| 3 | Código compartido `libs/` | | pendiente |
-| 4 | Acceso a datos (ORM) | | pendiente |
-| 5 | Pruebas | | pendiente |
-| 6 | Bloques de plataforma | | pendiente |
+| 01 | 0 | Diseño del backend | [HTML](./graficos/01-backend.html) · [PNG](./graficos/01-backend.png) · [PDF](./graficos/01-backend.pdf) |
+| 02 | 1 | Estructura de un servicio | [HTML](./graficos/02-servicio.html) · [PNG](./graficos/02-servicio.png) · [PDF](./graficos/02-servicio.pdf) |
+| 03 | 2 | Estructura de una función | [HTML](./graficos/03-funcion.html) · [PNG](./graficos/03-funcion.png) · [PDF](./graficos/03-funcion.pdf) |
+| 04 | 1 | Código compartido `libs/` | [HTML](./graficos/04-libs.html) · [PNG](./graficos/04-libs.png) · [PDF](./graficos/04-libs.pdf) |
+| 05 | 2 | Acceso a datos: la capa ORM | [HTML](./graficos/05-orm.html) · [PNG](./graficos/05-orm.png) · [PDF](./graficos/05-orm.pdf) |
+| 06 | 1 | Bloques de plataforma `platform/` | [HTML](./graficos/06-plataforma.html) · [PNG](./graficos/06-plataforma.png) · [PDF](./graficos/06-plataforma.pdf) |
 
-![Gráfico 0 · Diseño completo del backend](./grafico-0-diseno.png)
+[`graficos/index.html`](./graficos/index.html) muestra los seis seguidos. Cada lienzo mide
+1600×900, está hecho con HTML/CSS y SVG, trae las fuentes incrustadas y no usa imágenes:
+se abre en cualquier navegador, incluso sin internet. Los PNG (2×) y PDF (vectorial) son
+para el documento del entregable.
 
-![Gráfico 1 · Estructura de un servicio](./grafico-1-servicio.png)
+![01 · Diseño del backend](./graficos/01-backend.png)
 
 Este documento es la referencia completa en texto: catálogo de elementos, relaciones,
 reglas y diferencias entre la documentación y el código.
