@@ -101,176 +101,144 @@ code, .code { font-family: var(--mono); font-size: 12px; color: var(--ink); }
 .wlabel { font-family: var(--sans); font-size: 11.5px; fill: var(--muted); }
 .wlabel.teal { fill: var(--teal); font-weight: 500; }
 
-/* 07 · ejemplo real del gráfico 02: carpeta y stack (izquierda) · sus 4 endpoints (centro) · sus tablas y el ciclo del token (derecha). */
-.tree { left: 56px; top: 190px; width: 320px; height: 330px; border: 1.5px solid var(--ink); border-radius: 12px; background: #fff; padding: 16px 18px; }
-.tree .tt { display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 15px; font-weight: 500; margin-bottom: 10px; }
-.tree .tt svg { width: 16px; height: 16px; }
-.tree pre { margin: 0; font-family: var(--mono); font-size: 12.5px; line-height: 1.75; color: var(--ink); }
-.tree pre .c { color: var(--faint); }
-.tree pre .t { color: var(--teal); font-weight: 500; }
-.tree .note { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); line-height: 1.45; }
-.stack { left: 56px; top: 540px; width: 320px; height: 230px; border: 1.5px solid var(--aws-line); border-radius: 12px; background: #fff; overflow: hidden; }
-.stack-head { background: var(--aws-soft); border-bottom: 1px solid var(--aws-line); padding: 10px 16px; }
-.stack-head .code { font-size: 13.5px; font-weight: 500; }
-.stack-head .k { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; color: var(--aws); margin-bottom: 2px; }
-.stack ul { list-style: none; margin: 0; padding: 12px 16px; display: grid; gap: 9px; }
-.stack li { font-size: 12px; line-height: 1.4; color: var(--muted); }
-.stack li b { display: block; color: var(--ink); font-weight: 600; font-size: 12.5px; }
-
-.ep { left: 420px; width: 680px; height: 112px; border: 1px solid var(--line); border-radius: 10px; background: #fff; display: grid; grid-template-columns: 180px 1fr 142px; }
-.ep > div { padding: 12px 14px; }
-.ep .route { border-right: 1px solid var(--line); display: grid; gap: 5px; align-content: center; }
-.m { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; font-weight: 500; }
-.m i { font-style: normal; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; color: #fff; background: var(--ink); border-radius: 3px; padding: 1px 5px; }
-.m i.get { background: var(--teal); }
-.ep .fnm { font-family: var(--mono); font-size: 14px; font-weight: 500; color: var(--teal); }
-.ep .tag { font-size: 10.5px; color: var(--faint); }
-.ep .body { display: grid; gap: 7px; align-content: center; }
-.ep .body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink); }
-.uses { display: flex; flex-wrap: wrap; gap: 4px; }
-.uses span { font-family: var(--mono); font-size: 10.5px; background: var(--libs-soft); border: 1px solid var(--libs-line); color: var(--libs); border-radius: 4px; padding: 1px 5px; }
-.uses span.dec { background: var(--teal-soft); border-color: #a9d3cd; color: var(--teal); }
-.ep .codes { border-left: 1px solid var(--line); display: grid; gap: 4px; align-content: center; }
-.ep .codes div { display: flex; gap: 7px; align-items: baseline; font-size: 11.5px; color: var(--muted); }
-.ep .codes b { font-family: var(--mono); font-size: 12px; font-weight: 500; width: 26px; }
-.ep .codes .ok b { color: var(--ok); } .ep .codes .er b { color: var(--bad); }
-
-.others { left: 420px; top: 690px; width: 680px; height: 80px; border: 1px dashed #9fb9b5; border-radius: 10px; background: var(--teal-soft); padding: 12px 16px; display: grid; grid-template-columns: 210px 1fr; gap: 14px; align-items: center; }
-.others .who { display: grid; gap: 5px; }
-.others .who b { font-size: 12.5px; font-weight: 600; }
-.others .who div { display: flex; gap: 5px; }
-.others .who span { font-family: var(--mono); font-size: 11.5px; background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
-.others p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink); }
-
-.tbl { left: 1150px; width: 394px; border: 1.5px solid var(--aws-line); border-radius: 10px; background: #fff; overflow: hidden; }
-.tbl-head { display: flex; align-items: baseline; gap: 8px; padding: 9px 14px; background: var(--aws-soft); border-bottom: 1px solid var(--aws-line); }
-.tbl-head .code { font-size: 13.5px; font-weight: 500; }
-.tbl-head span { font-size: 11.5px; color: var(--muted); }
-.col { display: grid; grid-template-columns: 118px 1fr; gap: 8px; padding: 5px 14px; border-bottom: 1px solid var(--soft); font-size: 12px; }
-.col:last-child { border-bottom: none; }
-.who-rw { margin: 0 14px; padding: 7px 0 0; border-top: 1px solid var(--line); display: grid; gap: 2px; font-size: 11.5px; color: var(--muted); }
-.who-rw b { color: var(--ink); font-weight: 500; }
-.col .code { font-size: 12px; font-weight: 500; }
-.col span { color: var(--muted); }
-.life { left: 1150px; top: 622px; width: 394px; height: 148px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); padding: 12px 14px; }
-.life .lt { font-size: 10.5px; font-weight: 600; letter-spacing: .1em; color: var(--faint); margin-bottom: 10px; }
-.life ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; counter-reset: l; }
-.life li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; font-size: 12px; line-height: 1.4; color: var(--muted); counter-increment: l; }
-.life li::before { content: counter(l); width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 1.5px solid var(--teal); color: var(--teal); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
-.life li b { color: var(--ink); font-weight: 500; }
+/* 07 · cajas y flechas: quién llama → stack de auth (API Gateway + 4 Lambdas) → piezas de libs/ → tablas. Dos flujos: emitir token y usar/revocar token. */
+.box { position: absolute; border-radius: 10px; background: #fff; border: 1px solid var(--line); padding: 10px 14px; display: grid; gap: 3px; align-content: center; }
+.box .k { font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--faint); }
+.box .n { font-size: 14px; font-weight: 600; }
+.box .code.n { font-size: 13.5px; font-weight: 500; }
+.box .d { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.box.client { border: 1.5px solid var(--ink); }
+.box.api { border: 1.5px solid var(--aws-line); background: var(--aws-soft); align-content: start; padding-top: 16px; }
+.box.api .k { color: var(--aws); }
+.box.fn { border: 1.5px solid var(--teal); background: var(--teal-soft); }
+.box.fn .k { color: var(--teal); }
+.box.fn .code.n { color: var(--teal); }
+.box.lib { border: 1.5px solid var(--libs-line); background: var(--libs-soft); }
+.box.lib .k { color: var(--libs); }
+.box.other { border: 1px dashed #9aa6b0; background: #fcfcfd; }
+.frame { position: absolute; border: 1.5px dashed #aab4bd; border-radius: 14px; }
+.frame .fl { position: absolute; left: 14px; top: -9px; background: #fff; padding: 0 6px; font-family: var(--mono); font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.group { position: absolute; border: 1px solid #b6dcd6; border-radius: 12px; background: #f7fbfa; }
+.group .gl { position: absolute; left: 12px; top: 8px; font-size: 10px; font-weight: 600; letter-spacing: .1em; color: var(--teal); }
+.db { position: absolute; border: 1.5px solid var(--aws-line); border-radius: 14px; background: #fffaf3; }
+.db .dh { position: absolute; left: 0; right: 0; top: 0; height: 44px; border-bottom: 1px solid var(--aws-line); background: var(--aws-soft); border-radius: 14px 14px 0 0; padding: 0 16px; display: flex; align-items: center; gap: 8px; }
+.db .dh b { font-size: 14px; font-weight: 600; }
+.db .dh span { font-size: 11.5px; color: var(--aws); font-weight: 500; }
+.table { position: absolute; border: 1px solid var(--aws-line); border-radius: 8px; background: #fff; overflow: hidden; }
+.table .th { padding: 7px 12px; border-bottom: 1px solid var(--aws-line); font-family: var(--mono); font-size: 13.5px; font-weight: 500; background: #fff7ec; }
+.table .tr { padding: 5px 12px; font-size: 11.5px; color: var(--muted); border-bottom: 1px solid var(--soft); display: flex; justify-content: space-between; gap: 8px; }
+.table .tr:last-child { border-bottom: none; }
+.table .tr .code { font-size: 11.5px; font-weight: 500; }
+.wlabel { paint-order: stroke; stroke: #fff; stroke-width: 5px; stroke-linejoin: round; }
+.wlabel.m { font-family: var(--mono); font-size: 11px; fill: var(--ink); }
 </style>
 
 <div class="stage"><div class="fit" id="fit">
-<div id="canvas" role="img" aria-label="Servicio auth del backend CDTS: cuatro funciones HTTP (register, login, me, logout) sobre las tablas users y bearer_tokens. register y login emiten tokens, me los usa y logout los revoca. Los servicios files, forms y processes validan tokens con @require_auth de libs sin llamar a auth.">
+<div id="canvas" role="img" aria-label="Servicio auth en cajas y flechas: el cliente llama por HTTPS al API Gateway del stack cdts-stage-auth. register y login validan con validators, usan passwords (bcrypt), leen o crean users y emiten el token con issue_token, que crea una fila en bearer_tokens. me y logout pasan por require_auth, que lee bearer_tokens; logout revoca el token. files, forms y processes también usan require_auth.">
 
   <div class="abs eyebrow">CDTS · METAMODELO · 07 · EJEMPLO REAL DEL GRÁFICO 02</div>
   <div class="abs crumb"><span class="lvl">NIVEL 1</span><span class="seg">backend/</span><span class="sep">›</span><span class="seg on">services/auth/</span></div>
   <h1 class="abs title">Servicio auth</h1>
-  <p class="abs subtitle">Registra usuarios y emite los tokens de sesión. <b>Es el único que crea tokens;</b> los demás servicios solo los validan.</p>
+  <p class="abs subtitle">Registra usuarios y emite los tokens de sesión. <b>Es el único que los crea;</b> los demás servicios solo los validan.</p>
 
-  <div class="abs colhead" style="left:56px">EN EL REPOSITORIO</div>
-  <div class="abs colhead" style="left:420px">SUS 4 FUNCIONES · TODAS SON API (HANDLERS/)</div>
-  <div class="abs colhead" style="left:1150px">EN LA BASE DE DATOS</div>
+  <div class="abs colhead" style="left:56px; top:156px">QUIÉN LLAMA</div>
+  <div class="abs colhead" style="left:740px; top:156px">LIBS/ QUE USAN</div>
+  <div class="abs colhead" style="left:1290px; top:156px">BASE DE DATOS</div>
 
-  <!-- carpeta -->
-  <div class="abs tree">
-    <div class="tt"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h5l1.5 1.5h6.5v8.5h-13z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>services/auth/</div>
-<pre>├── serverless.yml
-├── functions.js
-├── requirements.txt  <span class="c">+ bcrypt</span>
-└── src/handlers/
-    ├── <span class="t">register/</span>  <span class="c">+ integration</span>
-    ├── <span class="t">login/</span>     <span class="c">+ integration</span>
-    ├── <span class="t">me/</span>
-    └── <span class="t">logout/</span></pre>
-    <div class="note">Cada función: handler.py · function.yml · test.py (3 casos). Sin utils/ ni data/.</div>
+  <!-- cliente -->
+  <div class="box client" style="left:56px; top:380px; width:140px; height:120px">
+    <span class="k">CLIENTE</span><span class="n">SPA Angular</span><span class="d">guarda el token y lo envía en cada petición</span>
   </div>
 
-  <!-- stack -->
-  <div class="abs stack">
-    <div class="stack-head"><span class="k">EN AWS</span><span class="code">Stack cdts-&lt;stage&gt;-auth</span></div>
-    <ul>
-      <li><b>API Gateway · 4 rutas /auth/*</b>CORS abierto, una ruta por función</li>
-      <li><b>4 Lambdas</b><span class="code" style="font-size:11px">cdts-&lt;stage&gt;-auth-register · -login · -me · -logout</span></li>
-      <li><b>IAM mínimo</b>solo puede leer /cdts/&lt;stage&gt;/db en SSM; sin buckets</li>
-    </ul>
+  <!-- stack auth -->
+  <div class="frame" style="left:236px; top:182px; width:440px; height:536px"><span class="fl">stack cdts-&lt;stage&gt;-auth</span></div>
+  <div class="box api" style="left:256px; top:210px; width:150px; height:490px">
+    <span class="k">API GATEWAY</span><span class="n">HTTP API</span><span class="d">4 rutas /auth/*<br>CORS abierto</span>
   </div>
 
-  <!-- endpoints -->
-  <div class="abs ep" style="top:190px">
-    <div class="route"><span class="m"><i>POST</i>/auth/register</span><span class="fnm">register/</span><span class="tag">test.py · integration.py</span></div>
-    <div class="body"><p>Valida email y clave (10+ caracteres, letra y número), guarda al usuario con bcrypt y emite su primer token.</p>
-      <div class="uses"><span>valid_email</span><span>password_reason</span><span>hash_password</span><span>Users.create</span><span>issue_token</span></div></div>
-    <div class="codes"><div class="ok"><b>201</b>creado + token</div><div class="er"><b>400</b>datos inválidos</div><div class="er"><b>409</b>email ya existe</div></div>
+  <div class="group" style="left:450px; top:210px; width:206px; height:192px"><span class="gl">EMITIR TOKEN</span></div>
+  <div class="box fn" style="left:462px; top:236px; width:182px; height:66px"><span class="k">LAMBDA</span><span class="code n">register</span><span class="d mono" style="font-size:11px">POST /auth/register</span></div>
+  <div class="box fn" style="left:462px; top:318px; width:182px; height:66px"><span class="k">LAMBDA</span><span class="code n">login</span><span class="d mono" style="font-size:11px">POST /auth/login</span></div>
+
+  <div class="group" style="left:450px; top:470px; width:206px; height:192px"><span class="gl">USAR Y REVOCAR TOKEN</span></div>
+  <div class="box fn" style="left:462px; top:496px; width:182px; height:66px"><span class="k">LAMBDA</span><span class="code n">logout</span><span class="d mono" style="font-size:11px">POST /auth/logout</span></div>
+  <div class="box fn" style="left:462px; top:578px; width:182px; height:66px"><span class="k">LAMBDA</span><span class="code n">me</span><span class="d mono" style="font-size:11px">GET /auth/me</span></div>
+
+  <!-- libs -->
+  <div class="box lib" style="left:740px; top:232px; width:220px; height:58px"><span class="code n">validators.py</span><span class="d">email válido · clave 10+ con letra y número</span></div>
+  <div class="box lib" style="left:740px; top:308px; width:220px; height:58px"><span class="code n">passwords.py</span><span class="d">bcrypt, costo 12</span></div>
+  <div class="box lib" style="left:740px; top:402px; width:220px; height:66px"><span class="code n">auth.issue_token</span><span class="d">token aleatorio; guarda solo su SHA-256; vence en 24 h</span></div>
+  <div class="box lib" style="left:740px; top:560px; width:220px; height:80px"><span class="code n">@require_auth</span><span class="d">lee el header Bearer, busca el token y carga al usuario; si no sirve, 401</span></div>
+  <div class="box other" style="left:740px; top:692px; width:220px; height:78px"><span class="k">OTROS SERVICIOS</span><span class="code n" style="font-size:12.5px">files · forms · processes</span><span class="d">usan el mismo decorador</span></div>
+
+  <!-- base de datos -->
+  <div class="db" style="left:1290px; top:182px; width:254px; height:536px">
+    <div class="dh"><b>PostgreSQL</b><span>schema &lt;stage&gt;</span></div>
   </div>
-  <div class="abs ep" style="top:314px">
-    <div class="route"><span class="m"><i>POST</i>/auth/login</span><span class="fnm">login/</span><span class="tag">test.py · integration.py</span></div>
-    <div class="body"><p>Busca al usuario por email, compara la clave con bcrypt y emite un token nuevo.</p>
-      <div class="uses"><span>Users.get_by_email</span><span>verify_password</span><span>issue_token</span></div></div>
-    <div class="codes"><div class="ok"><b>200</b>usuario + token</div><div class="er"><b>400</b>faltan campos</div><div class="er"><b>401</b>credenciales inválidas</div></div>
+  <div class="table" style="left:1306px; top:248px; width:222px; height:106px">
+    <div class="th">users</div>
+    <div class="tr"><span class="code">email</span><span>único</span></div>
+    <div class="tr"><span class="code">password_hash</span><span>bcrypt</span></div>
   </div>
-  <div class="abs ep" style="top:438px">
-    <div class="route"><span class="m"><i class="get">GET</i>/auth/me</span><span class="fnm">me/</span><span class="tag">test.py</span></div>
-    <div class="body"><p>Devuelve el perfil del dueño del token, sin el password_hash.</p>
-      <div class="uses"><span class="dec">@require_auth</span><span>Users.public_dict</span></div></div>
-    <div class="codes"><div class="ok"><b>200</b>perfil</div><div class="er"><b>401</b>token ausente o vencido</div></div>
-  </div>
-  <div class="abs ep" style="top:562px">
-    <div class="route"><span class="m"><i>POST</i>/auth/logout</span><span class="fnm">logout/</span><span class="tag">test.py</span></div>
-    <div class="body"><p>Revoca solo el token de esta petición (marca revoked_at); las otras sesiones siguen vivas.</p>
-      <div class="uses"><span class="dec">@require_auth</span><span>BearerTokens.revoke</span></div></div>
-    <div class="codes"><div class="ok"><b>200</b>revocado</div><div class="er"><b>401</b>token ausente o vencido</div></div>
+  <div class="table" style="left:1306px; top:408px; width:222px; height:240px">
+    <div class="th">bearer_tokens</div>
+    <div class="tr"><span class="code">user_id</span><span>dueño</span></div>
+    <div class="tr"><span class="code">token_hash</span><span>SHA-256</span></div>
+    <div class="tr"><span class="code">expires_at</span><span>+24 h</span></div>
+    <div class="tr"><span class="code">revoked_at</span><span>al hacer logout</span></div>
+    <div class="tr" style="border-top:1px solid var(--line); margin-top:6px; color:var(--ink)"><span>se crea · se usa · se revoca</span></div>
   </div>
 
-  <!-- otros servicios -->
-  <div class="abs others">
-    <div class="who"><b>Cómo lo usan los demás</b><div><span>files</span><span>forms</span><span>processes</span></div></div>
-    <p>Importan <span class="code">@require_auth</span> de <span class="code">libs/utils/auth.py</span> y validan el token leyendo <span class="code">bearer_tokens</span> y <span class="code">users</span> directo en la BD. Nunca llaman a /auth por HTTP.</p>
-  </div>
-
-  <!-- tablas -->
-  <div class="abs tbl" style="top:190px; height:216px">
-    <div class="tbl-head"><span class="code">users</span><span>una fila por cuenta</span></div>
-    <div class="col"><span class="code">id</span><span>uuid</span></div>
-    <div class="col"><span class="code">email</span><span>único, en minúsculas</span></div>
-    <div class="col"><span class="code">password_hash</span><span>bcrypt, costo 12</span></div>
-    <div class="col"><span class="code">full_name</span><span>nombre para mostrar</span></div>
-    <div class="col"><span class="code">created_at</span><span>y updated_at</span></div>
-    <div class="who-rw"><span><b>la escribe:</b> register</span><span><b>la leen:</b> login, me y @require_auth</span></div>
-  </div>
-  <div class="abs tbl" style="top:420px; height:188px">
-    <div class="tbl-head"><span class="code">bearer_tokens</span><span>una fila por sesión</span></div>
-    <div class="col"><span class="code">user_id</span><span>dueño, borra en cascada</span></div>
-    <div class="col"><span class="code">token_hash</span><span>SHA-256 del token, único</span></div>
-    <div class="col"><span class="code">expires_at</span><span>emisión + 24 horas</span></div>
-    <div class="col"><span class="code">revoked_at</span><span>vacío hasta el logout</span></div>
-    <div class="who-rw"><span><b>la escriben:</b> register, login y logout</span><span><b>la leen:</b> @require_auth en 4 servicios</span></div>
-  </div>
-  <div class="abs life">
-    <div class="lt">CICLO DE VIDA DE UN TOKEN</div>
-    <ol>
-      <li><span><b>Se emite</b> en register o login; el cliente lo recibe una vez.</span></li>
-      <li><span><b>Se usa</b> en cada petición: Authorization: Bearer &lt;token&gt;.</span></li>
-      <li><span><b>Termina</b> con logout (revoked_at) o a las 24 horas.</span></li>
-    </ol>
-  </div>
-
+  <!-- flechas -->
   <svg class="wires" viewBox="0 0 1600 900" aria-hidden="true">
-    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7d8994"/></marker></defs>
-    <!-- las funciones leen y escriben las tablas -->
-    <path class="wire" d="M1100,300 H1146" marker-end="url(#ah)"/>
-    <text class="wlabel" x="1123" y="282" text-anchor="middle">vía</text>
-    <text class="wlabel" x="1123" y="294" text-anchor="middle">ORM</text>
-    <!-- los demás servicios leen bearer_tokens -->
-    <path class="wire" d="M1100,730 H1130 V548 H1146" marker-end="url(#ah)" stroke-dasharray="5 4"/>
-    <text class="wlabel" x="1126" y="686" text-anchor="end">leen</text>
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7d8994"/></marker>
+      <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f6f6a"/></marker>
+    </defs>
+
+    <!-- cliente ⇄ API -->
+    <path class="wire" d="M196,456 H252" marker-end="url(#ah)"/>
+    <text class="wlabel" x="224" y="448" text-anchor="middle">HTTPS</text>
+    <path class="wire teal" d="M256,420 H200" marker-end="url(#at)"/>
+    <text class="wlabel teal" x="228" y="412" text-anchor="middle">token</text>
+
+    <!-- API → funciones -->
+    <path class="wire" d="M406,269 H458" marker-end="url(#ah)"/>
+    <path class="wire" d="M406,351 H458" marker-end="url(#ah)"/>
+    <path class="wire" d="M406,529 H458" marker-end="url(#ah)"/>
+    <path class="wire" d="M406,611 H458" marker-end="url(#ah)"/>
+
+    <!-- emitir: register / login -->
+    <path class="wire" d="M656,261 H736" marker-end="url(#ah)"/>
+    <text class="wlabel" x="696" y="253" text-anchor="middle">valida</text>
+    <path class="wire" d="M656,337 H736" marker-end="url(#ah)"/>
+    <text class="wlabel" x="696" y="329" text-anchor="middle">hash · verify</text>
+    <path class="wire" d="M656,392 H700 V435 H736" marker-end="url(#ah)"/>
+    <text class="wlabel" x="718" y="426" text-anchor="middle">emite</text>
+    <path class="wire" d="M600,210 V196 H1270 V301 H1302" marker-end="url(#ah)"/>
+    <text class="wlabel m" x="1110" y="190" text-anchor="middle">Users.create · Users.get_by_email</text>
+    <path class="wire teal" d="M960,435 H1302" marker-end="url(#at)"/>
+    <text class="wlabel m" x="1130" y="427" text-anchor="middle">BearerTokens.create</text>
+
+    <!-- usar y revocar: logout / me -->
+    <path class="wire" d="M644,519 H1302" marker-end="url(#ah)"/>
+    <text class="wlabel m" x="1130" y="511" text-anchor="middle">BearerTokens.revoke</text>
+    <path class="wire" d="M644,547 H700 V584 H736" marker-end="url(#ah)"/>
+    <path class="wire" d="M644,611 H736" marker-end="url(#ah)"/>
+    <text class="wlabel" x="690" y="603" text-anchor="middle">valida</text>
+    <path class="wire teal" d="M960,600 H1302" marker-end="url(#at)"/>
+    <text class="wlabel m" x="1130" y="592" text-anchor="middle">BearerTokens.get_by_hash</text>
+
+    <!-- otros servicios → require_auth -->
+    <path class="wire" d="M850,692 V644" marker-end="url(#ah)" stroke-dasharray="5 4"/>
+    <text class="wlabel" x="860" y="672">importan</text>
   </svg>
 
   <div class="abs rules">
     <div class="rule"><i></i><div><b>El token se entrega una sola vez</b><span>En la BD solo queda su hash SHA-256; si se filtra la tabla, no sirve.</span></div></div>
-    <div class="rule"><i></i><div><b>Mismo error para email y clave</b><span>invalid_credentials no revela si el usuario existe.</span></div></div>
-    <div class="rule"><i></i><div><b>bcrypt solo vive aquí</b><span>passwords.py lo aísla: es el único servicio que lo instala.</span></div></div>
-    <div class="rule"><i></i><div><b>Validar no requiere llamar a auth</b><span>Cualquier servicio usa @require_auth contra la BD.</span></div></div>
+    <div class="rule"><i></i><div><b>Mismo error para email y clave</b><span>login responde invalid_credentials sin revelar si el usuario existe.</span></div></div>
+    <div class="rule"><i></i><div><b>bcrypt solo vive aquí</b><span>passwords.py lo aísla: auth es el único que lo instala.</span></div></div>
+    <div class="rule"><i></i><div><b>Validar no requiere llamar a auth</b><span>@require_auth lee la BD directo, desde cualquier servicio.</span></div></div>
   </div>
 </div>
 </div></div>
