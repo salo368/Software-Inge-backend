@@ -1,4 +1,7 @@
+from uuid import UUID
+
 from sqlalchemy import DateTime, String, insert, select
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
@@ -10,7 +13,7 @@ class Users(Base):
 
     __tablename__ = TABLE_NAME
 
-    id: Mapped[str] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
     email: Mapped[str] = mapped_column(String())
     full_name: Mapped[str] = mapped_column(String())
     created_at = mapped_column(DateTime())
