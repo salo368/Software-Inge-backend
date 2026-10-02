@@ -1,0 +1,134 @@
+name: Ensure PRO Signatures Service Key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ensure-pro-signatures-service-key
+  cancel-in-progress: false
+
+jobs:
+  ensure-service-key:
+    name: Ensure PRO signatures M2M service key
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pro
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Validate AWS context
+        shell: bash
+        env:
+          AWS_REGION_VALUE: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${AWS_REGION_VALUE}" ]]; then
+            echo "::error::AWS_REGION is not configured for environment pro."
+            exit 1
+          fi
+
+          echo "AWS region is configured."
+          aws sts get-caller-identity \
+            --query '{Account:Account,Arn:Arn}' \
+            --output table
+
+      - name: Ensure PRO signatures service key
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARAMETER_NAME="/cdts/pro/signatures/service-key"
+
+          echo "Checking ${PARAMETER_NAME}..."
+
+          set +e
+          CHECK_OUTPUT="$(
+            aws ssm get-parameter \
+              --name "${PARAMETER_NAME}" \
+              --query "Parameter.Type" \
+              --output text 2>&1
+          )"
+          CHECK_STATUS=$?
+          set -e
+
+          if [[ ${CHECK_STATUS} -eq 0 ]]; then
+            if [[ "${CHECK_OUTPUT}" != "SecureString" ]]; then
+              echo "::error::Parameter exists but is not a SecureString."
+              exit 1
+            fi
+
+            echo "Parameter already exists as SecureString."
+            echo "Existing value will NOT be overwritten."
+
+          elif grep -q "ParameterNotFound" <<< "${CHECK_OUTPUT}"; then
+            echo "Parameter does not exist. Creating it..."
+
+            SERVICE_KEY="$(openssl rand -hex 32)"
+            echo "::add-mask::${SERVICE_KEY}"
+
+            aws ssm put-parameter \
+              --name "${PARAMETER_NAME}" \
+              --type SecureString \
+              --value "${SERVICE_KEY}" \
+              --description "PRO M2M key for processes -> signatures" \
+              --query '{Name:Name,Version:Version,Tier:Tier}' \
+              --output table
+
+            unset SERVICE_KEY
+
+            echo "Parameter created successfully."
+
+          else
+            echo "::error::Unable to inspect ${PARAMETER_NAME}."
+            echo "${CHECK_OUTPUT}"
+            echo
+            echo "::error::The GitHub PRO AWS identity may not have SSM access."
+            exit 1
+          fi
+
+      - name: Verify parameter availability
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARAMETER_NAME="/cdts/pro/signatures/service-key"
+
+          PARAMETER_TYPE="$(
+            aws ssm get-parameter \
+              --name "${PARAMETER_NAME}" \
+              --query "Parameter.Type" \
+              --output text
+          )"
+
+          if [[ "${PARAMETER_TYPE}" != "SecureString" ]]; then
+            echo "::error::Expected SecureString, found ${PARAMETER_TYPE}."
+            exit 1
+          fi
+
+          aws ssm get-parameter \
+            --name "${PARAMETER_NAME}" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text \
+            > /dev/null
+
+          echo "=========================================="
+          echo " PRO Signatures Service Key"
+          echo "=========================================="
+          echo "Environment : pro"
+          echo "Parameter   : available"
+          echo "Type        : SecureString"
+          echo "Decrypt     : authorized"
+          echo "Value       : NOT exposed"
+          echo "=========================================="
