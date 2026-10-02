@@ -8,7 +8,7 @@ from libs.utils.rates import get_ranked_rates, yield_cop
 
 ASSETS_BASE_URL = os.getenv("ASSETS_BASE_URL", "")
 
-def _get_bank_data():
+def _get_banks_data():
 
     banks = Banks.get_all(active=True)
     
@@ -52,7 +52,7 @@ def handler(event, context):
 
     ranked = get_ranked_rates(amount, term_days)
 
-    banks_data = _get_bank_data()
+    banks_data = _get_banks_data()
 
     banks_data_ranked = []
 
