@@ -47,8 +47,11 @@ class DBSession:
             Logger.log("INFO", "Session created")
         return cls._instance
 
-    def query(self, *, statement):
-        return self.session.execute(statement).scalars().first()
+    def query(self, *, statement, many=False):
+        result = self.session.execute(statement).scalars()
+        if many:
+            return list(result)
+        return result.first()
 
     def commit(self):
         self.session.commit()
