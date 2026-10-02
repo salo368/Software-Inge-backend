@@ -20,6 +20,11 @@ services:
     dependsOn:
       - migrations
 
+  documents:
+    path: services/documents
+    dependsOn:
+      - migrations
+
   forms:
     path: services/forms
     dependsOn:

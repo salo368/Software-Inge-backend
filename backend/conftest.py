@@ -93,6 +93,7 @@ if not _INTEGRATION_RUN:
         "SSM_SIGNATURES_SERVICE_KEY", "/cdts/test/signatures/service-key"
     )
     os.environ.setdefault("SSM_SMTP_PATH", "/cdts/test/smtp")
+    os.environ.setdefault("DOCUMENTS_BUCKET", "cdts-test-documents")
 
 # ---------------------------------------------------------------------------
 # 3) Stub `boto3` BEFORE any handler imports libs.core.db.

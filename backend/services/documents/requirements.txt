@@ -1,0 +1,9 @@
+sqlalchemy==2.0.34
+pg8000==1.31.2
+# OCR local (modo por defecto, gratis, sin internet). Requiere el binario
+# `tesseract` instalado en la imagen de build -- ver
+# docs/add-signatures-uc3.md-style nota en domain/adapters/tesseract_adapter.py.
+pytesseract==0.3.13
+Pillow==10.4.0
+# Fuzzy matching tolerante a ruido de OCR al comparar contra lo declarado.
+rapidfuzz==3.14.6
