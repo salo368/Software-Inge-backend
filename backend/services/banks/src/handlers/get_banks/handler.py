@@ -8,8 +8,25 @@ ASSETS_BASE_URL = os.getenv("ASSETS_BASE_URL", "")
 
 @handle_exceptions
 def handler(event, context):
-    # Lists active banks with their logo URLs resolved against ASSETS_BASE_URL.
-    banks = Banks.list_active()
-    return generate_response({
-        "banks": [b.public_dict(ASSETS_BASE_URL) for b in banks],
-    })
+
+    banks = Banks.get_all(active=True)
+
+    banks_data = []
+    for bank in banks:
+        data = {
+            "id": bank.id,
+            "code": bank.code,
+            "name": bank.name,
+            "logo_url": f"{ASSETS_BASE_URL.rstrip('/')}/{bank.logo_key}" if ASSETS_BASE_URL else bank.logo_key,
+            "description": bank.description,
+            "tier": bank.tier,
+            "rating_by": bank.rating_by,
+            "highlights": list(bank.highlights or []),
+        }
+        banks_data.append(data)
+
+    response = {
+        "banks": banks_data,
+    }
+
+    return generate_response(response, 200)
