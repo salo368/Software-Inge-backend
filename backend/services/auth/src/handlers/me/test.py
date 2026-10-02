@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 
@@ -9,38 +10,64 @@ def _authed_event(token: str = "tok") -> dict:
     return {"headers": {"Authorization": f"Bearer {token}"}}
 
 
+# Happy path: valid bearer -> 200 with the authenticated user's public fields.
 def test_me_happy_path(load_handler, monkeypatch):
-    h = load_handler(__file__)
 
-    fake_user = MagicMock(public_dict=MagicMock(return_value={"id": "u-1", "email": "a@b.co"}))
-    fake_bearer = MagicMock()
-    monkeypatch.setattr("libs.utils.auth.verify_token", MagicMock(return_value=(fake_user, fake_bearer)))
+    handler = load_handler(__file__)
 
-    resp = h.handler(_authed_event(), None)
+    now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    fake_user = MagicMock(
+        id="u-1",
+        email="a@b.co",
+        full_name="Ana",
+        created_at=now,
+        updated_at=now,
+    )
+    fake_bearer = MagicMock(revoked_at=None)
+
+    monkeypatch.setattr(
+        "libs.utils.auth.BearerTokens",
+        MagicMock(get_by_hash=MagicMock(return_value=fake_bearer)),
+    )
+    monkeypatch.setattr("libs.utils.auth.is_alive", MagicMock(return_value=True))
+    monkeypatch.setattr("libs.utils.auth.Users", MagicMock(get_by_id=MagicMock(return_value=fake_user)))
+
+    resp = handler.handler(_authed_event(), None)
 
     assert resp["statusCode"] == 200
-    assert json.loads(resp["body"]) == {"user": {"id": "u-1", "email": "a@b.co"}}
+    assert json.loads(resp["body"]) == {
+        "user": {
+            "id": "u-1",
+            "email": "a@b.co",
+            "full_name": "Ana",
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat(),
+        }
+    }
 
 
+# No Authorization header -> 401 before require_auth touches the DB.
 def test_me_missing_bearer_returns_401(load_handler):
-    h = load_handler(__file__)
 
-    resp = h.handler({"headers": {}}, None)
+    handler = load_handler(__file__)
+
+    resp = handler.handler({"headers": {}}, None)
 
     assert resp["statusCode"] == 401
     assert json.loads(resp["body"]) == {"error": "missing_bearer_token"}
 
 
+# Bearer present but unknown to the DB -> 401.
 def test_me_invalid_token_returns_401(load_handler, monkeypatch):
-    h = load_handler(__file__)
 
-    from libs.core.responses import HandledError
+    handler = load_handler(__file__)
+
     monkeypatch.setattr(
-        "libs.utils.auth.verify_token",
-        MagicMock(side_effect=HandledError("invalid_or_expired_token", 401)),
+        "libs.utils.auth.BearerTokens",
+        MagicMock(get_by_hash=MagicMock(return_value=None)),
     )
 
-    resp = h.handler(_authed_event("bad-token"), None)
+    resp = handler.handler(_authed_event("bad-token"), None)
 
     assert resp["statusCode"] == 401
     assert json.loads(resp["body"]) == {"error": "invalid_or_expired_token"}

@@ -30,10 +30,7 @@ def _set_search_path(dbapi_conn, _):
     cur = dbapi_conn.cursor()
     cur.execute(f"SET search_path TO {STAGE}, pg_catalog")
     cur.close()
-    # pg8000 runs that SET inside an implicit transaction. The pool rolls back
-    # on return, and PostgreSQL undoes a SET issued in a rolled-back
-    # transaction, dropping the connection back to the default search_path
-    # (pro). Committing pins it for the life of the connection.
+
     dbapi_conn.commit()
 
 
@@ -49,6 +46,9 @@ class DBSession:
             cls._instance.session = Session()
             Logger.log("INFO", "Session created")
         return cls._instance
+
+    def query(self, *, statement):
+        return self.session.execute(statement).scalars().first()
 
     def commit(self):
         self.session.commit()
