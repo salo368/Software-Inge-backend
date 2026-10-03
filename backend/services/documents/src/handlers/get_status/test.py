@@ -1,7 +1,14 @@
-"""Unit tests for documents/get_status (CQRS -- lado de lectura)."""
+"""Unit tests for documents/get_status (CQRS -- lado de lectura).
+
+Ver la nota en upload_url/test.py: el mock de autenticación se hace a
+nivel de `libs.utils.auth.BearerTokens`/`.Users` (donde @require_auth las
+referencia), no de una función `verify_token` que puede dejar de existir
+en una refactorización interna.
+"""
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -28,7 +35,18 @@ def _doc(**overrides):
 def _wire(h, monkeypatch, *, documentos, user_id=None, process_owner_id=None):
     user_id = user_id or uuid4()
     process_owner_id = process_owner_id if process_owner_id is not None else user_id
-    monkeypatch.setattr(h, "verify_token", MagicMock(return_value=(MagicMock(id=user_id), MagicMock())))
+    user = MagicMock(id=user_id)
+    bearer = MagicMock(
+        revoked_at=None,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        user_id=user_id,
+    )
+    bearer.is_alive.return_value = True
+    monkeypatch.setattr(
+        "libs.utils.auth.BearerTokens",
+        MagicMock(get_by_hash=MagicMock(return_value=bearer)),
+    )
+    monkeypatch.setattr("libs.utils.auth.Users", MagicMock(get_by_id=MagicMock(return_value=user)))
     monkeypatch.setattr(
         h, "Processes", MagicMock(get_by_id=MagicMock(return_value=MagicMock(user_id=process_owner_id)))
     )

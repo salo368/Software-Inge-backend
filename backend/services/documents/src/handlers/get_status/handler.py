@@ -9,20 +9,13 @@ from uuid import UUID
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.documents import Documentos
 from libs.orm.processes import Processes
-from libs.utils.auth import verify_token
-
-
-def _extract_bearer(event) -> str:
-    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-    authz = headers.get("authorization", "")
-    if not authz.lower().startswith("bearer "):
-        raise HandledError("missing_bearer_token", 401)
-    return authz[7:].strip()
+from libs.utils.auth import require_auth
 
 
 @handle_exceptions
+@require_auth
 def handler(event, context):
-    user, _ = verify_token(_extract_bearer(event))
+    user = event["user"]
 
     raw_process_id = (event.get("queryStringParameters") or {}).get("process_id")
     try:

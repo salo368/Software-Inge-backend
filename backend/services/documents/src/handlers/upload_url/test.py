@@ -1,7 +1,19 @@
-"""Unit tests for documents/upload_url."""
+"""Unit tests for documents/upload_url.
+
+El handler usa el decorador @require_auth (no una función `verify_token`
+importada directo), así que el mock de autenticación se hace a nivel de
+las clases ORM que `require_auth` consulta internamente
+(`BearerTokens.get_by_hash`, `Users.get_by_id`) -- vía su ruta de módulo
+completa, no vía `h.<nombre>`, porque el handler no las importa él mismo.
+Esto es deliberado: es robusto frente a cómo libs/utils/auth.py reorganice
+su lógica interna (a diferencia de parchear una función interna como
+`verify_token`, que puede dejar de existir en una refactorización -- ver
+el hallazgo documentado en C11_Arquitectura_Mecanismos_y_Patrones.md).
+"""
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -13,8 +25,22 @@ def _event(body: dict | None, authorized: bool = True) -> dict:
 
 def _wire(h, monkeypatch, *, user=None):
     user = user or MagicMock(id=uuid4())
+    bearer = MagicMock(
+        revoked_at=None,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        user_id=user.id,
+    )
+    bearer.is_alive.return_value = True
+    # Parcheado donde `require_auth` las referencia (`libs.utils.auth`,
+    # que las importa con `from libs.orm.X import Y`), no en su módulo de
+    # origen -- si se parcha en el origen, el binding que `auth.py` ya
+    # resolvió al importar no se entera del cambio.
     monkeypatch.setattr(
-        h, "verify_token", MagicMock(return_value=(user, MagicMock()))
+        "libs.utils.auth.BearerTokens",
+        MagicMock(get_by_hash=MagicMock(return_value=bearer)),
+    )
+    monkeypatch.setattr(
+        "libs.utils.auth.Users", MagicMock(get_by_id=MagicMock(return_value=user))
     )
     monkeypatch.setattr(
         h,

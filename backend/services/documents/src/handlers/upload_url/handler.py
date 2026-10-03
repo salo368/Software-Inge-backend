@@ -14,13 +14,12 @@ scopes.
 from __future__ import annotations
 
 import json
+import os
 from uuid import uuid4
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.core.s3 import presign_upload
-from libs.utils.auth import verify_token
-
-import os
+from libs.utils.auth import require_auth
 
 DOCUMENTS_BUCKET = os.environ["DOCUMENTS_BUCKET"]
 
@@ -35,22 +34,17 @@ _EXT_BY_CONTENT_TYPE = {
 }
 
 
-def _extract_bearer(event) -> str:
-    headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
-    authz = headers.get("authorization", "")
-    if not authz.lower().startswith("bearer "):
-        raise HandledError("missing_bearer_token", 401)
-    return authz[7:].strip()
-
-
 @handle_exceptions
+@require_auth
 def handler(event, context):
     # Mismo mecanismo de auth que el resto de `portal` (Bearer token de
-    # `auth`), no un capability-token nuevo tipo `sign_id` -- C11 vive
+    # `auth`, vía el decorador @require_auth -- no una función
+    # `verify_token` importada directo: esa es una pieza interna de
+    # libs/utils/auth.py que puede reorganizarse con el tiempo; el
+    # decorador es el contrato público estable que el resto del backend
+    # ya usa). No es un capability-token nuevo tipo `sign_id` -- C11 vive
     # dentro del wizard autenticado, no detrás de un link público como
     # `signatures`.
-    verify_token(_extract_bearer(event))
-
     body = json.loads(event.get("body") or "{}")
     process_id = body.get("process_id")
     document_type = body.get("document_type")
