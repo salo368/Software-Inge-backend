@@ -1,0 +1,3 @@
+description: FA1 -- indica si el inversionista tiene un documento vigente reutilizable.
+events:
+  - httpApi: { method: GET, path: /documents/check-reuse }

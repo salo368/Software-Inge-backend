@@ -55,12 +55,60 @@ _HEADER_EXCLUDE = {
 # defecto que los hallazgos del prototipo.
 _STOPWORDS = {"DE", "DEL", "LA", "EL", "Y", "A"}
 
+# FE1 (Error · Ilegible o formato no admitido, catálogo C11). La magia de
+# cabecera (magic bytes) de cada content-type admitido: si lo que el
+# cliente declaró al pedir la URL prefirmada no coincide con lo que
+# realmente subió -- un PUT directo a S3 no puede obligar a que coincidan,
+# la URL prefirmada no valida contenido -- se rechaza antes de gastar OCR
+# en un archivo que de todas formas no es lo que dice ser.
+_MAGIC_BYTES: dict[str, tuple[bytes, ...]] = {
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+}
+
+# Un archivo de pocos bytes no es una foto real (canvas vacío, subida
+# truncada); uno de decenas de MB no es una foto de cédula, es una señal de
+# que algo se subió por error o de un intento de abuso. Los dos umbrales
+# son del mismo tipo de guarda fail-fast que ya usa evaluar_legibilidad.
+MIN_FILE_SIZE_BYTES = 1024
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
 
 @dataclass(frozen=True)
 class LegibilityResult:
     legible: bool
     reason: str | None = None
     avg_confidence: float | None = None
+
+
+@dataclass(frozen=True)
+class FormatResult:
+    valido: bool
+    reason: str | None = None
+
+
+def evaluar_formato(data: bytes, *, content_type: str) -> FormatResult:
+    """FE1: ¿el archivo subido es realmente lo que el content-type declara,
+    y tiene un tamaño plausible para una foto de documento?
+
+    Se corre ANTES de evaluar_legibilidad en el worker: no tiene sentido
+    gastar un ciclo de OCR en un archivo que ya se sabe que no es válido.
+    Un único motivo de rechazo, formato_no_admitido, cubre las tres causas
+    (tipo no soportado, bytes que no coinciden con lo declarado, tamaño
+    fuera de rango) porque desde la perspectiva del inversionista las tres
+    piden la misma acción: recargar un archivo distinto.
+    """
+    firmas = _MAGIC_BYTES.get(content_type)
+    if firmas is None:
+        return FormatResult(valido=False, reason="formato_no_admitido")
+
+    if not any(data.startswith(firma) for firma in firmas):
+        return FormatResult(valido=False, reason="formato_no_admitido")
+
+    if not (MIN_FILE_SIZE_BYTES <= len(data) <= MAX_FILE_SIZE_BYTES):
+        return FormatResult(valido=False, reason="formato_no_admitido")
+
+    return FormatResult(valido=True)
 
 
 def evaluar_legibilidad(fields: ExtractedFields) -> LegibilityResult:

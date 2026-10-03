@@ -8,17 +8,19 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
+from libs.orm.processes import Processes
 
 # C11 -- "Capturar y validar documentación de soporte". Flujo básico (FB):
-# pendiente -> validando -> validado | rechazado. FE2 (vencido) y FA1/FA2
-# (reutilización, documentación corporativa) son slices siguientes -- no se
-# modela su estado todavía a propósito, para no inventar columnas que el
-# slice actual no ejercita.
+# pendiente -> validando -> validado | rechazado. FA1 (reutilización de
+# vigentes) y FE1 (formato no admitido) ya están cubiertos -- ver
+# get_vigente/register_reused más abajo y domain/matching.evaluar_formato.
+# FE2 (vencido) y FA2 (documentación corporativa) siguen siendo slices
+# futuros -- no se modela su estado todavía a propósito.
 STAGES = ("pendiente", "validando", "validado", "rechazado")
 
-# Motivos de rechazo estables (el frontend los usa para distinguir FE1 de
-# "no corresponde" sin parsear texto libre).
-REJECTION_REASONS = ("documento_ilegible", "no_corresponde")
+# Motivos de rechazo estables (el frontend los usa para distinguir cada
+# caso sin parsear texto libre).
+REJECTION_REASONS = ("documento_ilegible", "no_corresponde", "formato_no_admitido")
 
 
 def _utcnow() -> datetime:
@@ -58,6 +60,10 @@ class Documentos(Base):
         return db_session.session.execute(stmt).scalars().first()
 
     @classmethod
+    def get_by_id(cls, document_id: UUID):
+        return db_session.session.get(cls, document_id)
+
+    @classmethod
     def list_by_process(cls, process_id: UUID):
         stmt = (
             select(cls)
@@ -88,6 +94,47 @@ class Documentos(Base):
         assert reason in REJECTION_REASONS, f"unknown rejection reason: {reason}"
         self.stage = "rechazado"
         self.rejection_reason = reason
+
+    @classmethod
+    def get_vigente(cls, *, user_id: UUID, document_type: str):
+        """FA1: el documento validado más reciente de CUALQUIER proceso
+        del usuario, para ese tipo de documento (soporta el escenario de
+        inversionista recurrente, E02). No aplica la ventana de vigencia
+        aquí -- es una regla de negocio (domain.vigencia.es_vigente), y
+        quien llama decide si el resultado todavía sirve."""
+        stmt = (
+            select(cls)
+            .join(Processes, Processes.id == cls.process_id)
+            .where(
+                Processes.user_id == user_id,
+                cls.document_type == document_type,
+                cls.stage == "validado",
+            )
+            .order_by(cls.validated_at.desc())
+            .limit(1)
+        )
+        return db_session.session.execute(stmt).scalars().first()
+
+    @classmethod
+    def register_reused(cls, *, process_id: UUID, document_type: str, source: "Documentos"):
+        """FA1: crea una fila ya validada para `process_id`, apuntando a
+        la MISMA evidencia en S3 que `source` -- no se copia el archivo,
+        porque la evidencia validada es inmutable una vez escrita (mismo
+        criterio de retención que protege evidencia-validada/). s3_key_raw
+        es sintético (nunca existió una subida real) pero único, para
+        respetar la restricción de la columna."""
+        row = cls(
+            process_id=process_id,
+            document_type=document_type,
+            stage="validado",
+            s3_key_raw=f"reused/{process_id}/{document_type}/{uuid4()}",
+            s3_key_evidence=source.s3_key_evidence,
+            hash_sha256=source.hash_sha256,
+            validated_at=_utcnow(),
+        )
+        db_session.session.add(row)
+        db_session.session.flush()
+        return row
 
 
 class DocumentEvents(Base):

@@ -154,3 +154,46 @@ class TestCorrespondeConDeclarado:
         result = matching.corresponde_con_declarado(fields, nombre_declarado="Juan Perez Gomez")
         assert result.corresponde is False
         assert result.nombre_extraido is None
+
+
+# ---------------------------------------------------------------------------
+# evaluar_formato (FE1: formato no admitido / tamaño fuera de rango)
+# ---------------------------------------------------------------------------
+class TestEvaluarFormato:
+    def test_valido_cuando_jpeg_real_declarado_como_jpeg(self):
+        data = b"\xff\xd8\xff" + b"\x00" * 2000
+        result = matching.evaluar_formato(data, content_type="image/jpeg")
+        assert result.valido is True
+
+    def test_valido_cuando_png_real_declarado_como_png(self):
+        data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 2000
+        result = matching.evaluar_formato(data, content_type="image/png")
+        assert result.valido is True
+
+    def test_invalido_cuando_los_bytes_no_corresponden_al_content_type_declarado(self):
+        # content_type dice JPEG pero los primeros bytes son de un PNG --
+        # alguien subió un archivo distinto al que declaró, o lo corrompió.
+        data = b"\x89PNG\r\n\x1a\n" + b"\x00" * 2000
+        result = matching.evaluar_formato(data, content_type="image/jpeg")
+        assert result.valido is False
+        assert result.reason == "formato_no_admitido"
+
+    def test_invalido_cuando_content_type_no_esta_en_la_lista_admitida(self):
+        data = b"\xff\xd8\xff" + b"\x00" * 2000
+        result = matching.evaluar_formato(data, content_type="application/zip")
+        assert result.valido is False
+        assert result.reason == "formato_no_admitido"
+
+    def test_invalido_cuando_el_archivo_es_mas_pequeno_que_el_minimo(self):
+        # Un archivo de pocos bytes no es una foto real, es un error de
+        # subida (canvas vacío, archivo truncado).
+        data = b"\xff\xd8\xff"
+        result = matching.evaluar_formato(data, content_type="image/jpeg")
+        assert result.valido is False
+        assert result.reason == "formato_no_admitido"
+
+    def test_invalido_cuando_el_archivo_excede_el_tamano_maximo(self):
+        data = b"\xff\xd8\xff" + b"\x00" * (matching.MAX_FILE_SIZE_BYTES + 1)
+        result = matching.evaluar_formato(data, content_type="image/jpeg")
+        assert result.valido is False
+        assert result.reason == "formato_no_admitido"

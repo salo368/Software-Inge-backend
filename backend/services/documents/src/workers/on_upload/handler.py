@@ -19,15 +19,20 @@ funciones puras):
        criterio que `files/on_upload`).
     2. Descargar el archivo + los datos declarados por el inversionista
        (`Processes` -> `Forms.full_name`).
-    3. Extraer texto vía el puerto `DocumentExtractor` (Strategy:
+    3. `domain.matching.evaluar_formato` -> si los bytes no corresponden al
+       tipo que la extensión de la key declara, o el tamaño está fuera de
+       rango: rechazar (FE1, motivo `formato_no_admitido`) ANTES de gastar
+       un ciclo de OCR.
+    4. Extraer texto vía el puerto `DocumentExtractor` (Strategy:
        `TesseractAdapter` por defecto).
-    4. `domain.matching.evaluar_legibilidad` -> si no es legible: rechazar
-       (FE1), sin calcular hash ni mover el archivo.
-    5. `domain.matching.corresponde_con_declarado` -> si no corresponde:
+    5. `domain.matching.evaluar_legibilidad` -> si no es legible: rechazar
+       (FE1, motivo `documento_ilegible`), sin calcular hash ni mover el
+       archivo.
+    6. `domain.matching.corresponde_con_declarado` -> si no corresponde:
        rechazar (motivo `no_corresponde`).
-    6. Si corresponde: hash SHA-256 (Q20R01, integridad) + copia a
+    7. Si corresponde: hash SHA-256 (Q20R01, integridad) + copia a
        `evidencia-validada/` (Tiered Storage, Q22R03, retención 10 años).
-    7. Auditoría (Q22R01): un evento append-only por cada transición, sin
+    8. Auditoría (Q22R01): un evento append-only por cada transición, sin
        excepción -- carga, y el resultado final (validado o rechazado).
 """
 from __future__ import annotations
@@ -42,13 +47,20 @@ from libs.orm.forms import Forms
 from libs.orm.processes import Processes
 
 from domain.adapters.tesseract_adapter import TesseractAdapter
-from domain.matching import corresponde_con_declarado, evaluar_legibilidad
+from domain.matching import corresponde_con_declarado, evaluar_formato, evaluar_legibilidad
 from domain.ports import ExtractedFields, ExtractedWord
 
 # Strategy pattern: una sola variable decide el adaptador activo. El modo
 # cloud (Azure AI Document Intelligence) se agrega en un slice siguiente
 # sin tocar este módulo -- solo una rama más aquí.
 _extractor = TesseractAdapter()
+
+# FE1: el evento S3 no trae el content-type declarado al pedir la URL
+# prefirmada, así que se infiere de la extensión que upload_url ya
+# codificó en la propia key (ver _EXT_BY_CONTENT_TYPE en upload_url/
+# handler.py). Una extensión no reconocida se trata como formato no
+# admitido, igual que unos bytes que no coincidan con la extensión.
+_EXT_TO_CONTENT_TYPE = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}
 
 
 def handler(event, context):
@@ -90,6 +102,18 @@ def _process_record(record: dict) -> None:
     DocumentEvents.record(document_id=row.id, event_type="documento_cargado", actor=str(proc.user_id))
 
     data = download_bytes(bucket, key)
+
+    ext = key.rsplit(".", 1)[-1].lower() if "." in key else ""
+    content_type = _EXT_TO_CONTENT_TYPE.get(ext, "")
+    formato = evaluar_formato(data, content_type=content_type)
+    if not formato.valido:
+        row.mark_rechazado(reason=formato.reason)
+        DocumentEvents.record(
+            document_id=row.id, event_type="documento_rechazado",
+            actor="system", result=formato.reason,
+        )
+        return
+
     fields = _extractor.extract(data)
 
     legibilidad = evaluar_legibilidad(fields)

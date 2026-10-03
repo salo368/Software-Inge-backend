@@ -34,7 +34,14 @@ def _ilegible_fields(h):
     return h.ExtractedFields(words=(Word(text="", confidence=97.0, block_num=1, par_num=1, line_num=1),))
 
 
-def _wire(h, monkeypatch, *, process_id, document_type="id_front", extractor_fields, full_name="Juan Perez"):
+# JPEG real (cabecera válida) + relleno para superar MIN_FILE_SIZE_BYTES.
+# Antes de este slice el mock era b"fake-image-bytes": dejó de alcanzar
+# para pasar evaluar_formato (FE1), que ahora corre antes que el OCR.
+_VALID_JPEG_BYTES = b"\xff\xd8\xff" + b"0" * 1100
+
+
+def _wire(h, monkeypatch, *, process_id, document_type="id_front", extractor_fields,
+          full_name="Juan Perez", raw_bytes=_VALID_JPEG_BYTES):
     key = f"transactions/{process_id}/{document_type}/{uuid4()}.jpg"
 
     documento = MagicMock(id=uuid4(), stage="validando")
@@ -53,7 +60,7 @@ def _wire(h, monkeypatch, *, process_id, document_type="id_front", extractor_fie
     monkeypatch.setattr(
         h, "Forms", MagicMock(get_by_user=MagicMock(return_value=MagicMock(full_name=full_name)))
     )
-    monkeypatch.setattr(h, "download_bytes", MagicMock(return_value=b"fake-image-bytes"))
+    monkeypatch.setattr(h, "download_bytes", MagicMock(return_value=raw_bytes))
     monkeypatch.setattr(h, "upload_from_bytes", MagicMock())
     monkeypatch.setattr(h, "_extractor", _FakeExtractor(extractor_fields))
     monkeypatch.setattr(h.db_session, "commit", MagicMock())
@@ -165,6 +172,40 @@ def test_es_idempotente_si_la_key_ya_fue_procesada(load_handler, monkeypatch):
 
     assert resp == {"processed": 1}
     h.Documentos.register_from_s3.assert_not_called()
+
+
+def test_marca_rechazado_formato_no_admitido_cuando_los_bytes_no_son_un_jpeg_real(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process_id = uuid4()
+    # La extensión del key es .jpg (lo que upload_url habría generado para
+    # content_type=image/jpeg) pero el contenido real no es un JPEG --
+    # alguien subió un archivo distinto, o lo corrompió en tránsito.
+    key, documento = _wire(
+        h, monkeypatch, process_id=process_id,
+        extractor_fields=_legible_fields(h), raw_bytes=b"esto-no-es-un-jpeg" + b"0" * 1100,
+    )
+
+    resp = h.handler(_s3_event(key), None)
+
+    assert resp == {"processed": 1}
+    documento.mark_rechazado.assert_called_once_with(reason="formato_no_admitido")
+    h.upload_from_bytes.assert_not_called()
+
+
+def test_no_ejecuta_ocr_cuando_el_formato_no_es_valido(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process_id = uuid4()
+    key, documento = _wire(
+        h, monkeypatch, process_id=process_id,
+        extractor_fields=_legible_fields(h), raw_bytes=b"demasiado-corto",
+    )
+
+    h.handler(_s3_event(key), None)
+
+    # Fail fast: un archivo con formato inválido no debe gastar un ciclo
+    # de OCR antes de rechazarse.
+    assert h._extractor.calls == 0
+    documento.mark_rechazado.assert_called_once_with(reason="formato_no_admitido")
 
 
 def test_ignora_key_fuera_del_esquema_esperado(load_handler, monkeypatch):
