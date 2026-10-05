@@ -6,6 +6,13 @@ cliente haya llamado a check_reuse primero: vuelve a verificar aquí que
 el documento origen siga siendo del mismo usuario, esté validado y
 todavía esté vigente (guarda defensiva -- el tiempo entre las dos
 llamadas HTTP es suficiente para que el documento haya vencido).
+
+Dos guardas adicionales, encontradas en revisión antes de abrir el PR,
+no en el diseño original: el document_type que llega en el cuerpo debe
+coincidir con el de la evidencia real (nunca se toma como dado solo
+porque el cliente lo declaró), y el proceso destino no puede ya tener un
+documento validado del mismo tipo (evita un expediente duplicado si
+alguien llama a este endpoint sin pasar por check_reuse primero).
 """
 from __future__ import annotations
 
@@ -52,6 +59,24 @@ def handler(event, context):
 
     if source.stage != "validado" or not es_vigente(source.validated_at):
         raise HandledError("documento_no_reutilizable", 409)
+
+    # El document_type declarado debe corresponder a la evidencia real que
+    # se está reutilizando -- nunca se toma como dado solo porque vino en
+    # el cuerpo de la petición. Sin esto, un cliente podría pedir que un
+    # id_front validado se registre bajo cualquier otro document_type.
+    if source.document_type != document_type:
+        raise HandledError("document_type_no_coincide_con_el_origen", 409)
+
+    # El proceso destino no debe terminar con dos documentos validado del
+    # mismo tipo -- es el mismo caso que el frontend ya evita ofrecer
+    # (no se llama a check_reuse si ya hay un id_front validado), pero el
+    # backend no puede depender de que el cliente respete esa regla.
+    ya_tiene_validado = any(
+        d.document_type == document_type and d.stage == "validado"
+        for d in Documentos.list_by_process(process_id)
+    )
+    if ya_tiene_validado:
+        raise HandledError("proceso_ya_tiene_documento_validado", 409)
 
     nuevo = Documentos.register_reused(process_id=process_id, document_type=document_type, source=source)
     DocumentEvents.record(
