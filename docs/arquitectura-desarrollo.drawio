@@ -1,0 +1,81 @@
+<mxfile host="app.diagrams.net" agent="cdts" version="24.0.0">
+  <diagram id="cdts-metamodelo" name="Metamodelo">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1120" pageHeight="640" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="CDTS · Modelo conceptual del backend" style="text;html=1;align=left;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#1f2630;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="16" width="700" height="26" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Backend ===== -->
+        <mxCell id="cBackend" value="Backend" style="swimlane;html=1;fontSize=13;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="600" y="60" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="bk1" value="el sistema completo" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cBackend"><mxGeometry x="0" y="26" width="200" height="24" as="geometry" /></mxCell>
+
+        <!-- ===== Service ===== -->
+        <mxCell id="cService" value="«abstract»&lt;br&gt;Service" style="swimlane;html=1;fontSize=13;fontStyle=3;childLayout=stackLayout;horizontal=1;startSize=38;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="590" y="190" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="sv1" value="frontera de un dominio" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cService"><mxGeometry x="0" y="38" width="220" height="24" as="geometry" /></mxCell>
+
+        <!-- ===== Function ===== -->
+        <mxCell id="cFunction" value="«abstract»&lt;br&gt;Function" style="swimlane;html=1;fontSize=13;fontStyle=3;childLayout=stackLayout;horizontal=1;startSize=38;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="420" y="340" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="fn1" value="unidad de ejecución" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cFunction"><mxGeometry x="0" y="38" width="220" height="24" as="geometry" /></mxCell>
+
+        <!-- ===== Model ===== -->
+        <mxCell id="cModel" value="«abstract»&lt;br&gt;Model" style="swimlane;html=1;fontSize=13;fontStyle=3;childLayout=stackLayout;horizontal=1;startSize=38;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2a8c7f;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="760" y="340" width="220" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="md1" value="entidad de dominio persistente" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cModel"><mxGeometry x="0" y="38" width="220" height="24" as="geometry" /></mxCell>
+
+        <!-- ===== Function subtypes ===== -->
+        <mxCell id="cHandler" value="Handler" style="swimlane;html=1;fontSize=13;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="180" y="500" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="h1" value="se activa por petición" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cHandler"><mxGeometry x="0" y="26" width="200" height="24" as="geometry" /></mxCell>
+
+        <mxCell id="cWorker" value="Worker" style="swimlane;html=1;fontSize=13;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="430" y="500" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="w1" value="se activa por un evento" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cWorker"><mxGeometry x="0" y="26" width="200" height="24" as="geometry" /></mxCell>
+
+        <mxCell id="cScheduled" value="Scheduled" style="swimlane;html=1;fontSize=13;fontStyle=1;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=0;resizeParentMax=0;collapsible=0;marginBottom=0;rounded=0;fillColor=#ffffff;strokeColor=#2f3a4a;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="680" y="500" width="200" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" value="se activa por horario" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=10;fontSize=11;fontStyle=2;fontColor=#6b7483;" vertex="1" parent="cScheduled"><mxGeometry x="0" y="26" width="200" height="24" as="geometry" /></mxCell>
+
+        <!-- ===== Relationships ===== -->
+        <!-- Compositions -->
+        <mxCell id="r1" value="1..*" style="endArrow=none;startArrow=diamondThin;startFill=1;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#5b6472;fontSize=10;fontColor=#6b7483;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cBackend" target="cService"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r2" value="1..*" style="endArrow=none;startArrow=diamondThin;startFill=1;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#5b6472;fontSize=10;fontColor=#6b7483;exitX=0.35;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cService" target="cFunction"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="r3" value="1..*" style="endArrow=none;startArrow=diamondThin;startFill=1;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#5b6472;fontSize=10;fontColor=#6b7483;exitX=0.65;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cService" target="cModel"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Generalizations -->
+        <mxCell id="g1" style="endArrow=block;endFill=0;startArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#2f3a4a;exitX=0.5;exitY=0;entryX=0.3;entryY=1;" edge="1" parent="1" source="cHandler" target="cFunction"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g2" style="endArrow=block;endFill=0;startArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#2f3a4a;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="cWorker" target="cFunction"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="g3" style="endArrow=block;endFill=0;startArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#2f3a4a;exitX=0.5;exitY=0;entryX=0.7;entryY=1;" edge="1" parent="1" source="cScheduled" target="cFunction"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Function uses Model -->
+        <mxCell id="d1" value="usa" style="endArrow=open;startArrow=none;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8891a0;fontSize=10;fontColor=#6b7483;fontStyle=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="cFunction" target="cModel"><mxGeometry relative="1" as="geometry" /></mxCell>
+
+        <!-- Service communicates with Service -->
+        <mxCell id="self1" value="se comunica" style="endArrow=open;startArrow=none;dashed=1;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8891a0;fontSize=10;fontColor=#6b7483;fontStyle=2;exitX=0;exitY=0.3;entryX=0;entryY=0.7;" edge="1" parent="1" source="cService" target="cService"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="550" y="208" /><mxPoint x="550" y="234" /></Array></mxGeometry></mxCell>
+
+        <!-- Model references Model -->
+        <mxCell id="self2" value="referencia  0..*" style="endArrow=open;startArrow=none;html=1;edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#2a8c7f;fontSize=10;fontColor=#6b7483;exitX=1;exitY=0.3;entryX=1;entryY=0.7;" edge="1" parent="1" source="cModel" target="cModel"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1020" y="358" /><mxPoint x="1020" y="384" /></Array></mxGeometry></mxCell>
+
+        <!-- ===== Legend ===== -->
+        <mxCell id="lg" value="Notación UML" style="swimlane;html=1;fontSize=11;fontStyle=1;startSize=22;collapsible=0;rounded=0;fillColor=#fafbfc;strokeColor=#dfe3ea;fontColor=#1f2630;" vertex="1" parent="1">
+          <mxGeometry x="140" y="580" width="520" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="◆ composición (parte-de)      ▷ herencia (es-un)      ⇢ dependencia / uso      1..* multiplicidad" style="text;html=1;align=left;verticalAlign=middle;spacingLeft=12;fontSize=10;fontColor=#39404d;" vertex="1" parent="lg"><mxGeometry x="0" y="22" width="520" height="18" as="geometry" /></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
