@@ -10,8 +10,11 @@ Order follows FK dependencies for readability; SQLAlchemy resolves them lazily.
 """
 from libs.orm.base import Base
 from libs.orm.users import Users
+from libs.orm.user_credentials import UserCredentials
 from libs.orm.banks import Banks
-from libs.orm.bank_rates import BankRates
+from libs.orm.rates_term_band import TermBand
+from libs.orm.rates_amount_band import AmountBand
+from libs.orm.rates import Rate
 from libs.orm.bearer_tokens import BearerTokens
 from libs.orm.forms import Forms
 from libs.orm.processes import Processes
@@ -21,8 +24,11 @@ from libs.orm.signatures import Signatures
 __all__ = [
     "Base",
     "Users",
+    "UserCredentials",
     "Banks",
-    "BankRates",
+    "TermBand",
+    "AmountBand",
+    "Rate",
     "BearerTokens",
     "Forms",
     "Processes",

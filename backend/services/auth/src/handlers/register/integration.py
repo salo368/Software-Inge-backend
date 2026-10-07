@@ -41,17 +41,24 @@ def test_register_persists_user_and_token_in_db():
         assert body["token"]
         assert body["expires_at"]
 
-        # 2) State at rest #1: the users row exists with the correct hash.
+        # 2) State at rest #1: the users row exists, and the matching
+        # user_credentials row holds the real bcrypt hash.
         row = query_one(
-            "SELECT id, email, password_hash, full_name FROM users WHERE email = :e",
+            "SELECT id, email, full_name FROM users WHERE email = :e",
             e=email,
         )
         assert row is not None, f"no users row for {email}"
         assert row["email"] == email
+
+        creds = query_one(
+            "SELECT password_hash FROM user_credentials WHERE user_id = :u",
+            u=row["id"],
+        )
+        assert creds is not None, f"no user_credentials row for {email}"
         # bcrypt hashes start with $2a$, $2b$ or $2y$ (12 rounds -> $2b$12$...).
-        assert row["password_hash"].startswith("$2"), \
-            f"password_hash does not look like bcrypt: {row['password_hash'][:10]}"
-        assert row["password_hash"] != password  # obvious, but explicit
+        assert creds["password_hash"].startswith("$2"), \
+            f"password_hash does not look like bcrypt: {creds['password_hash'][:10]}"
+        assert creds["password_hash"] != password  # obvious, but explicit
 
         # 3) State at rest #2: the bearer token is registered and active.
         active_tokens = query_scalar(

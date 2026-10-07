@@ -1,50 +1,56 @@
-from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
-from sqlalchemy import CHAR, DateTime, ForeignKey, select, update
+from sqlalchemy import DateTime, String, insert, select, update
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
 
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
+TABLE_NAME = "bearer_tokens"
 
 class BearerTokens(Base):
-    __tablename__ = "bearer_tokens"
 
-    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
-    )
-    token_hash: Mapped[str] = mapped_column(CHAR(64), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    __tablename__ = TABLE_NAME
 
-    def is_alive(self) -> bool:
-        return self.revoked_at is None and self.expires_at > datetime.now(timezone.utc)
+    id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True))
+    token_hash: Mapped[str] = mapped_column(String())
+    expires_at = mapped_column(DateTime())
+    revoked_at = mapped_column(DateTime())
+    created_at = mapped_column(DateTime())
 
-    @classmethod
-    def get_by_hash(cls, token_hash: str):
-        stmt = select(cls).where(cls.token_hash == token_hash).limit(1)
-        return db_session.session.execute(stmt).scalars().first()
+    def create(user_id, token_hash, expires_at):
 
-    @classmethod
-    def create(cls, *, user_id: UUID, token_hash: str, expires_at: datetime):
-        row = cls(user_id=user_id, token_hash=token_hash, expires_at=expires_at)
-        db_session.session.add(row)
-        db_session.session.flush()
-        return row
-
-    @classmethod
-    def revoke(cls, token_id: UUID) -> bool:
-        stmt = (
-            update(cls)
-            .where(cls.id == token_id, cls.revoked_at.is_(None))
-            .values(revoked_at=datetime.now(timezone.utc))
+        statement = (
+            insert(BearerTokens)
+            .values(
+                user_id=user_id,
+                token_hash=token_hash,
+                expires_at=expires_at,
+            )
+            .returning(BearerTokens)
         )
-        return (db_session.session.execute(stmt).rowcount or 0) > 0
+
+        return db_session.query(statement=statement)
+
+    def get_by_hash(token_hash):
+
+        statement = (
+            select(BearerTokens)
+            .where(BearerTokens.token_hash == token_hash)
+            .limit(1)
+        )
+
+        return db_session.query(statement=statement)
+
+    def update_by_id(id, values):
+
+        statement = (
+            update(BearerTokens)
+            .where(BearerTokens.id == id)
+            .values(**values)
+            .returning(BearerTokens)
+        )
+
+        return db_session.query(statement=statement)
