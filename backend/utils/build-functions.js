@@ -72,8 +72,18 @@ module.exports = (serviceDir) => async ({ options, resolveConfigurationProperty 
       functions[folder] = {
         name: `cdts-${stage}-${service}-${folderKebab}`,
         handler: `src/${type}/${folder}/handler.handler`,
-        ...custom, // explicit name/handler in function.yml override the auto ones
+        ...custom, // explicit name/handler/image in function.yml override the auto ones
       };
+
+      // Container-image escape hatch: Serverless Framework rejects a
+      // function that declares both `handler` and `image`, so a
+      // function.yml with `image:` must drop the auto-derived handler.
+      // Needed when a function depends on a native binary that a zip
+      // package can't carry (see services/documents/src/workers/
+      // on_upload/function.yml -- Tesseract OCR).
+      if (custom.image !== undefined) {
+        delete functions[folder].handler;
+      }
     }
   }
 

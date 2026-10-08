@@ -3,7 +3,10 @@
 
 No ejecuta Tesseract real (no está garantizado en todos los entornos de
 desarrollo). Solo instancia las clases y verifica conformidad estructural
-vía `isinstance()`, que `@runtime_checkable` habilita sin tocar OCR.
+vía `isinstance()`, que `@runtime_checkable` habilita sin tocar OCR. La
+excepción es `test_tesseract_adapter_pide_ocr_en_espanol`, que mockea
+`pytesseract.image_to_data` para verificar los argumentos de la llamada
+sin invocar el binario real.
 """
 from __future__ import annotations
 
@@ -28,6 +31,32 @@ def test_tesseract_adapter_cumple_el_protocol_document_extractor():
 
     adapter = TesseractAdapter()
     assert isinstance(adapter, DocumentExtractor)
+
+
+def test_tesseract_adapter_pide_ocr_en_espanol():
+    """Las cédulas colombianas tienen tildes y eñes; sin lang='spa',
+    pytesseract corre con el modelo de inglés por defecto, que las
+    degrada. Encontrado al preparar la imagen de contenedor (donde el
+    idioma del paquete instalado SÍ importa) -- no se había notado antes
+    porque ningún test anterior inspeccionaba los argumentos de la
+    llamada real a pytesseract."""
+    import io
+    from unittest.mock import patch
+
+    from PIL import Image
+
+    from domain.adapters.tesseract_adapter import TesseractAdapter
+
+    img = Image.new("RGB", (10, 10), color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+
+    fake_data = {"text": [], "conf": [], "block_num": [], "par_num": [], "line_num": []}
+    with patch("pytesseract.image_to_data", return_value=fake_data) as mock_ocr:
+        TesseractAdapter().extract(buf.getvalue())
+
+    _, kwargs = mock_ocr.call_args
+    assert kwargs.get("lang") == "spa"
 
 
 def test_fake_extractor_de_pruebas_cumple_el_mismo_protocol():

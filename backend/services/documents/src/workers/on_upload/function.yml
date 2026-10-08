@@ -1,4 +1,10 @@
 description: S3 ObjectCreated trigger. Ejecuta OCR + matching + decide validado/rechazado (C11, FB).
 timeout: 60
+# Imagen de contenedor (no zip): necesita el binario `tesseract`, que
+# serverless-python-requirements no puede empaquetar. Ver Dockerfile y
+# provider.ecr.images.documentsworker en serverless.yml. El escape hatch
+# `image:` en build-functions.js elimina el `handler` auto-derivado --
+# Serverless Framework rechaza una función que declare los dos.
+image: documentsworker
 # S3 event source is wired via the bucket NotificationConfiguration
 # declared in serverless.yml resources. No events: block needed here.

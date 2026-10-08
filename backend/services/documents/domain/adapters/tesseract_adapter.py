@@ -29,7 +29,11 @@ class TesseractAdapter:
         from PIL import Image
 
         image = Image.open(BytesIO(image_bytes))
-        data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+        # lang="spa": una cédula colombiana tiene tildes y eñes; sin esto,
+        # pytesseract corre con el modelo de inglés por defecto, que los
+        # degrada (requiere el paquete de idioma español instalado junto
+        # al binario, ver Dockerfile).
+        data = pytesseract.image_to_data(image, lang="spa", output_type=pytesseract.Output.DICT)
 
         words: list[ExtractedWord] = []
         n = len(data["text"])
