@@ -15,21 +15,6 @@ provider:
   httpApi:
     cors: true
 
-  # Imagen de contenedor para on_upload (necesita el binario `tesseract`,
-  # ver Dockerfile). Serverless Framework v3 construye y publica esta
-  # imagen a ECR como parte de `sls deploy` -- no hace falta un paso de
-  # `docker build`/`docker push` aparte en el pipeline, siempre que el
-  # runner tenga Docker disponible (los runners de GitHub Actions
-  # ubuntu-latest lo traen por defecto). Sí hace falta que el principal de
-  # AWS que usa `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` en CI tenga
-  # permisos de ECR (crear repositorio, push de imagen) -- es un cambio de
-  # IAM a nivel de cuenta que no vive en este archivo, pendiente de que el
-  # equipo lo aplique antes del primer deploy con esta imagen.
-  ecr:
-    images:
-      documentsworker:
-        path: ./
-
   environment:
     STAGE: ${sls:stage}
     SSM_DB_PATH: /cdts/${sls:stage}/db

@@ -1,10 +1,20 @@
 description: S3 ObjectCreated trigger. Ejecuta OCR + matching + decide validado/rechazado (C11, FB).
 timeout: 60
-# Imagen de contenedor (no zip): necesita el binario `tesseract`, que
-# serverless-python-requirements no puede empaquetar. Ver Dockerfile y
-# provider.ecr.images.documentsworker en serverless.yml. El escape hatch
-# `image:` en build-functions.js elimina el `handler` auto-derivado --
-# Serverless Framework rechaza una función que declare los dos.
-image: documentsworker
+# Necesita el binario real `tesseract` (pytesseract es solo el wrapper de
+# Python). serverless-python-requirements no puede empaquetarlo porque no
+# es una dependencia de PyPI; se adjunta como Lambda Layer en vez de pasar
+# a imagen de contenedor, para mantenerse 100% zip (docs/repo-structure.md
+# §1 "no hay contenedores"). La Layer la publica el bloque hermano
+# backend/layers/tesseract (ver su serverless.yml y build/README.md para
+# cómo se compiló tesseract+leptonica desde código fuente, porque ninguno
+# de los dos está empaquetado en los repos de Amazon Linux 2023).
+layers:
+  - ${cf:cdts-${sls:stage}-tesseract.TesseractLayerArn}
+environment:
+  # Lambda ya agrega /opt/bin al PATH y /opt/lib a LD_LIBRARY_PATH por
+  # defecto para cualquier función (verificado en un contenedor real de
+  # la imagen base de Lambda); lo único que tesseract necesita que no se
+  # infiere solo es dónde están los .traineddata.
+  TESSDATA_PREFIX: /opt/share/tessdata
 # S3 event source is wired via the bucket NotificationConfiguration
 # declared in serverless.yml resources. No events: block needed here.

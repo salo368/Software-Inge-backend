@@ -137,26 +137,6 @@ test('service with no src/ returns empty map', async () => {
   assert.deepEqual(fns, {});
 });
 
-test('function.yml with image: drops the auto-derived handler (container image escape hatch)', async () => {
-  const dir = makeService({
-    'src/workers/on_upload/function.yml': 'image: documentsworker\ntimeout: 60\n',
-  });
-  const fns = await buildFactory(dir)(ctx({ service: 'documents' }));
-  assert.equal(fns.on_upload.image, 'documentsworker');
-  assert.equal(fns.on_upload.handler, undefined);
-  assert.equal(fns.on_upload.name, 'cdts-dev-documents-on-upload');
-  assert.equal(fns.on_upload.timeout, 60);
-});
-
-test('function.yml without image: still gets the auto-derived handler', async () => {
-  const dir = makeService({
-    'src/handlers/plain/function.yml': 'timeout: 10\n',
-  });
-  const fns = await buildFactory(dir)(ctx({ service: 'documents' }));
-  assert.equal(fns.plain.handler, 'src/handlers/plain/handler.handler');
-  assert.equal(fns.plain.image, undefined);
-});
-
 test('stage defaults to dev when not provided', async () => {
   const dir = makeService({
     'src/handlers/ping/function.yml': '',

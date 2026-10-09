@@ -20,10 +20,14 @@ services:
     dependsOn:
       - migrations
 
+  tesseract:
+    path: layers/tesseract
+
   documents:
     path: services/documents
     dependsOn:
       - migrations
+      - tesseract
 
   forms:
     path: services/forms

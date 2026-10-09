@@ -1,8 +1,0 @@
-# Mantiene el contexto de build de Docker chico; el Dockerfile ya excluye
-# test.py/integration.py/conftest.py con find+delete después del COPY (así
-# el filtro queda en un solo lugar, igual de legible que package.patterns
-# en serverless.yml para el empaquetado zip de las otras cuatro funciones).
-__pycache__/
-*.pyc
-.pytest_cache/
-node_modules/
