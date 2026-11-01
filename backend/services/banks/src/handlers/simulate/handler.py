@@ -14,7 +14,6 @@ def _get_banks_data():
     banks_data = {}
     for bank in banks:
         data = {
-            "id": bank.id,
             "code": bank.code,
             "name": bank.name,
             "logo_url": f"{ASSETS_BASE_URL.rstrip('/')}/{bank.logo_key}" if ASSETS_BASE_URL else bank.logo_key,
@@ -53,7 +52,7 @@ def handler(event, context):
 
     banks_data = _get_banks_data()
 
-    banks_data_ranked = []
+    banks_data_ranked = {}
 
     for bank_id, rate in ranked:
         if bank_id in banks_data:
@@ -61,7 +60,7 @@ def handler(event, context):
             banks_data[bank_id]["rate"] = float(rate)
             banks_data[bank_id]["interest"] = float(interest)
             banks_data[bank_id]["final"] = float(final)
-            banks_data_ranked.append(banks_data[bank_id])
+            banks_data_ranked[bank_id] = banks_data[bank_id]
 
     response = {
         "amount": float(amount),
