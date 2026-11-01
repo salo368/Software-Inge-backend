@@ -83,7 +83,7 @@ Toda Lambda se nombra `cdts-<stage>-<service>-<function>`. Ver
 ## Requisitos locales
 
 - Node.js 20 LTS (ver `backend/.nvmrc`)
-- Python 3.11 (ver `backend/.python-version`)
+- Python 3.12 (ver `backend/.python-version`)
 - Serverless Framework v3 -> se instala con `npm install` dentro de `backend/`
 - AWS CLI v2 (solo para dev local)
 
