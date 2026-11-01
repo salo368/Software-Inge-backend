@@ -48,7 +48,7 @@ def _process(**overrides):
         "id": "abcd1234-ef56-7890-abcd-ef1234567890",
         "amount": Decimal("5000000"),
         "rate": Decimal("12.50"),
-        "term_days": 180,
+        "term": 180,
         "created_at": now,
     }
     defaults.update(overrides)

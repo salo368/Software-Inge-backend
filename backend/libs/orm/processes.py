@@ -26,7 +26,7 @@ class Processes(Base):
     )
     bank_id: Mapped[int] = mapped_column(Integer, ForeignKey("banks.id"))
     amount: Mapped[Decimal] = mapped_column(Numeric(15, 2))
-    term_days: Mapped[int] = mapped_column(Integer)
+    term: Mapped[int] = mapped_column(Integer)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     stage: Mapped[str] = mapped_column(String(20), default="form")
     form_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
@@ -47,7 +47,7 @@ class Processes(Base):
             "id": str(self.id),
             "bank_id": self.bank_id,
             "amount": float(self.amount),
-            "term_days": self.term_days,
+            "term": self.term,
             "rate": float(self.rate),
             "stage": self.stage,
             "form_snapshot": self.form_snapshot,
@@ -79,8 +79,8 @@ class Processes(Base):
         return list(db_session.session.execute(stmt).scalars().all())
 
     @classmethod
-    def create(cls, *, user_id: UUID, bank_id: int, amount: Decimal, term_days: int, rate: Decimal):
-        row = cls(user_id=user_id, bank_id=bank_id, amount=amount, term_days=term_days, rate=rate)
+    def create(cls, *, user_id: UUID, bank_id: int, amount: Decimal, term: int, rate: Decimal):
+        row = cls(user_id=user_id, bank_id=bank_id, amount=amount, term=term, rate=rate)
         db_session.session.add(row)
         db_session.session.flush()
         return row

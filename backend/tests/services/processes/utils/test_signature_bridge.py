@@ -174,7 +174,7 @@ def _fake_process(**overrides):
         "id": uuid4(),
         "amount": Decimal("5000000"),
         "rate": Decimal("12.5"),
-        "term_days": 180,
+        "term": 180,
         "form_snapshot": {"full_name": "Ada"},
     }
     defaults.update(overrides)
