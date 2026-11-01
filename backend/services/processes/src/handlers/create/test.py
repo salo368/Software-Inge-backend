@@ -33,7 +33,7 @@ def test_processes_create_happy_path(load_handler, monkeypatch):
     monkeypatch.setattr(h, "Processes", MagicMock(create=MagicMock(return_value=saved)))
 
     resp = h.handler(
-        _authed_event({"bank_id": 1, "amount": "1000000", "term_days": 180, "rate": "12.5"}), None
+        _authed_event({"bank_id": 1, "amount": "1000000", "term": 180, "rate": "12.5"}), None
     )
 
     assert resp["statusCode"] == 201
@@ -47,7 +47,7 @@ def test_processes_create_amount_out_of_range_returns_400(load_handler, monkeypa
     monkeypatch.setattr(h, "Processes", MagicMock(create=MagicMock(side_effect=AssertionError)))
 
     resp = h.handler(
-        _authed_event({"bank_id": 1, "amount": "1", "term_days": 180, "rate": "10"}), None
+        _authed_event({"bank_id": 1, "amount": "1", "term": 180, "rate": "10"}), None
     )
 
     assert resp["statusCode"] == 400
@@ -65,7 +65,7 @@ def test_processes_create_inactive_bank_returns_404(load_handler, monkeypatch):
     monkeypatch.setattr(h, "Processes", MagicMock(create=MagicMock(side_effect=AssertionError)))
 
     resp = h.handler(
-        _authed_event({"bank_id": 999, "amount": "1000000", "term_days": 180, "rate": "10"}), None
+        _authed_event({"bank_id": 999, "amount": "1000000", "term": 180, "rate": "10"}), None
     )
 
     assert resp["statusCode"] == 404

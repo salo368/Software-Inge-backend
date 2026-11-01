@@ -29,11 +29,11 @@ def handler(event, context):
         raise HandledError("amount out of range", 400)
 
     try:
-        term_days = int(body.get("term_days"))
+        term = int(body.get("term"))
     except (TypeError, ValueError):
-        raise HandledError("term_days must be an integer", 400)
-    if term_days not in VALID_TERMS:
-        raise HandledError(f"term_days must be one of {sorted(VALID_TERMS)}", 400)
+        raise HandledError("term must be an integer", 400)
+    if term not in VALID_TERMS:
+        raise HandledError(f"term must be one of {sorted(VALID_TERMS)}", 400)
 
     try:
         rate = Decimal(str(body.get("rate")))
@@ -50,7 +50,7 @@ def handler(event, context):
         user_id=event["user"].id,
         bank_id=bank_id,
         amount=amount,
-        term_days=term_days,
+        term=term,
         rate=rate,
     )
     return generate_response({"process": row.public_dict()}, 201)

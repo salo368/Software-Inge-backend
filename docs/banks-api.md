@@ -106,7 +106,7 @@ curl "{{base_url}}/banks"
 
 ### 3.2 `GET /banks/simulate`
 
-Simula una inversión CDT: dado `amount` + `term_days`, devuelve solo los
+Simula una inversión CDT: dado `amount` + `term`, devuelve solo los
 bancos cuya banda de monto **y** banda de plazo cubren esos valores, con la
 tasa aplicable, ordenados de mejor a peor tasa.
 
@@ -114,29 +114,29 @@ Es `GET` por query params (no `POST` con body) porque es una operación de
 solo lectura sin efectos secundarios — más coherente con `GET /banks` y
 cacheable/compartible como URL.
 
-> Verificado en `dev` el 2026-11-01: `GET` con query params devuelve la
-> misma respuesta que se documenta abajo, y el `POST` anterior ya no existe
-> (responde `404`).
+> El campo se llama `term` (no `term_days`) — la unidad siempre fue días en
+> todo el backend, el sufijo era redundante. Las capturas de abajo son de
+> antes de ese rename; **no están re-verificadas en `dev` todavía**.
 
 **Auth requerida:** no.
 
 **Request**
 
 ```http
-GET {{base_url}}/banks/simulate?amount=1000000&term_days=180
+GET {{base_url}}/banks/simulate?amount=1000000&term=180
 ```
 
 | Query param | Tipo | Reglas |
 |---|---|---|
 | `amount` | string numérica | > 0; se castea a `Decimal(str(amount))` — 400 `invalid_amount` si falta, no es numérico o es ≤ 0 |
-| `term_days` | string entera | > 0; se castea a `int(term_days)` — 400 `invalid_term_days` si falta, no es entero o es ≤ 0 |
+| `term` | string entera (días) | > 0; se castea a `int(term)` — 400 `invalid_term` si falta, no es entero o es ≤ 0 |
 
-**Response — 200 OK** (captura real, `amount=1000000, term_days=180`; 3 de 12 bancos, recortado)
+**Response — 200 OK** (captura real previa al rename, `amount=1000000, term=180`; 3 de 12 bancos, recortado)
 
 ```json
 {
   "amount": 1000000.0,
-  "term_days": 180,
+  "term": 180,
   "banks": [
     {
       "id": 12, "code": "nu", "name": "Nu Colombia",
@@ -162,16 +162,16 @@ campos que `GET /banks`), más:
 
 | Campo | Tipo | Significado |
 |---|---|---|
-| `rate` | float | tasa efectiva anual (EA %) aplicable a ese `(amount, term_days)` |
+| `rate` | float | tasa efectiva anual (EA %) aplicable a ese `(amount, term)` |
 | `interest` | float | interés ganado al final del plazo (COP) |
 | `final` | float | `amount + interest` (COP) |
 
 **Bancos que no aparecen:** si un banco no tiene una banda de monto o de
 plazo que cubra lo pedido, simplemente **no sale en el array** — no es un
-error. Confirmado contra un caso extremo real (`amount=1, term_days=1`):
+error. Confirmado contra un caso extremo real antes del rename (`amount=1, term=1`):
 
 ```json
-{"amount": 1.0, "term_days": 1, "banks": []}
+{"amount": 1.0, "term": 1, "banks": []}
 ```
 
 **Errores**
@@ -179,15 +179,15 @@ error. Confirmado contra un caso extremo real (`amount=1, term_days=1`):
 | status | `error` | Cuándo |
 |---|---|---|
 | 400 | `invalid_amount` | `amount` falta, no es numérico, o es ≤ 0 |
-| 400 | `invalid_term_days` | `term_days` falta, no es entero, o es ≤ 0 |
+| 400 | `invalid_term` | `term` falta, no es entero, o es ≤ 0 |
 
-Confirmado real con `?amount=-5&term_days=180` → `400` +
+Confirmado real (antes del rename) con `?amount=-5&term=180` → `400` +
 `{"error": "invalid_amount"}`.
 
 **curl**
 
 ```bash
-curl "{{base_url}}/banks/simulate?amount=1000000&term_days=180"
+curl "{{base_url}}/banks/simulate?amount=1000000&term=180"
 ```
 
 ---

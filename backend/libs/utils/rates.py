@@ -6,12 +6,12 @@ from libs.orm.rates_amount_band import AmountBand
 from libs.orm.rates_term_band import TermBand
 
 
-def get_ranked_rates(amount: Decimal, term_days: int) -> list[tuple[int, Decimal]]:
+def get_ranked_rates(amount: Decimal, term: int) -> list[tuple[int, Decimal]]:
     """[(bank_id, rate), ...] best rate first, for banks whose amount_band
-    and term_band both cover (amount, term_days)."""
+    and term_band both cover (amount, term)."""
 
     amount_band_by_bank = {ab.bank_id: ab.id for ab in AmountBand.get_all_by_amount(amount)}
-    term_band_by_bank = {tb.bank_id: tb.id for tb in TermBand.get_all_by_term(term_days)}
+    term_band_by_bank = {tb.bank_id: tb.id for tb in TermBand.get_all_by_term(term)}
 
     band_pairs = [
         (amount_band_by_bank[bank_id], term_band_by_bank[bank_id])
