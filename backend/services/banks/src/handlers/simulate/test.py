@@ -6,8 +6,8 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 
-def _event(body: dict | None) -> dict:
-    return {"body": json.dumps(body) if body is not None else None}
+def _event(params: dict | None) -> dict:
+    return {"queryStringParameters": params}
 
 
 def _fake_bank(**overrides):
@@ -45,7 +45,7 @@ def test_simulate_happy_path_sorts_by_rate_desc(load_handler, monkeypatch):
         MagicMock(return_value=[(2, Decimal("12.5")), (3, Decimal("11.0")), (1, Decimal("10.0"))]),
     )
 
-    resp = h.handler(_event({"amount": "1000000", "term_days": 120}), None)
+    resp = h.handler(_event({"amount": "1000000", "term_days": "120"}), None)
 
     assert resp["statusCode"] == 200
 
@@ -68,7 +68,7 @@ def test_simulate_invalid_amount_returns_400(load_handler, monkeypatch):
 
     monkeypatch.setattr(h, "get_ranked_rates", MagicMock(side_effect=AssertionError))
 
-    resp = h.handler(_event({"amount": "-5", "term_days": 180}), None)
+    resp = h.handler(_event({"amount": "-5", "term_days": "180"}), None)
 
     assert resp["statusCode"] == 400
     assert json.loads(resp["body"]) == {"error": "invalid_amount"}
@@ -81,7 +81,7 @@ def test_simulate_invalid_term_returns_400(load_handler):
 
     h = load_handler(__file__)
 
-    resp = h.handler(_event({"amount": "1000000", "term_days": 0}), None)
+    resp = h.handler(_event({"amount": "1000000", "term_days": "0"}), None)
 
     assert resp["statusCode"] == 400
     assert json.loads(resp["body"]) == {"error": "invalid_term_days"}

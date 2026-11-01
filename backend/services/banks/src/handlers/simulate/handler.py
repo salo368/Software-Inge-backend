@@ -1,4 +1,3 @@
-import json
 import os
 from decimal import Decimal, InvalidOperation
 
@@ -32,9 +31,9 @@ def _get_banks_data():
 @handle_exceptions
 def handler(event, context):
 
-    body = json.loads(event.get("body") or "{}")
-    amount = body.get("amount")
-    term_days = body.get("term_days")
+    params = event.get("queryStringParameters") or {}
+    amount = params.get("amount")
+    term_days = params.get("term_days")
 
     try:
         amount = Decimal(str(amount))
