@@ -114,12 +114,9 @@ Es `GET` por query params (no `POST` con body) porque es una operación de
 solo lectura sin efectos secundarios — más coherente con `GET /banks` y
 cacheable/compartible como URL.
 
-> Las capturas de response de esta sección se tomaron contra el endpoint
-> cuando todavía era `POST` (mismo cálculo, mismo shape de salida; solo
-> cambió cómo entran `amount`/`term_days`). Este cambio a `GET` todavía
-> **no está desplegado** — hasta que no se haga `deploy`, `dev` sigue
-> respondiendo al viejo `POST`. Re-verificar con un curl real después del
-> deploy antes de dar esto por confirmado.
+> Verificado en `dev` el 2026-11-01: `GET` con query params devuelve la
+> misma respuesta que se documenta abajo, y el `POST` anterior ya no existe
+> (responde `404`).
 
 **Auth requerida:** no.
 
