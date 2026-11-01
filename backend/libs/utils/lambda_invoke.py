@@ -9,26 +9,34 @@ repo already uses (`cdts-<stage>-<service>-<kebab-fn>`).
 
 # (pipeline test: touching libs/ must trigger a transversal fan-out.)
 
-Two invocation modes:
+Two invocation modes. Both take `function_key` (the snake_case folder name
+of the target handler, e.g. `"simulate"`, `"sign"`) and resolve it to the
+conventional Lambda name internally -- no separate naming step needed:
 
-* `invoke_sync(function_name, payload, timeout_s=25) -> dict`
+* `invoke_sync(function_key, payload=None, *, service=None) -> dict`
     Waits for the callee to finish, returns the parsed JSON payload it
     produced. Raises `LambdaInvokeError` if the callee returned a
     FunctionError, if the HTTP status was non-2xx, or if the response was
     not valid JSON.
 
-* `invoke_async(function_name, payload) -> None`
+* `invoke_async(function_key, payload=None, *, service=None) -> None`
     Fire-and-forget. Returns as soon as AWS accepts the invocation. Raises
     `LambdaInvokeError` only if the *submission* itself failed (StatusCode
     other than 202); the callee's outcome is not observed.
+
+`service` defaults to the CALLER's own service (the `SERVICE` env var) when
+omitted -- the common case of one handler invoking a sibling in the same
+block. Pass it explicitly for a cross-service call, e.g.
+`invoke_sync("simulate", event, service="banks")`.
 
 Naming:
 
 * `resolve_function_name(service, function_key, stage=None)` builds the
     conventional name `cdts-{stage}-{service}-{function_key_with_dashes}`.
-    `function_key` is the snake_case folder name of the target Lambda
-    (matches `build-functions.js`); `_` is converted to `-`. `stage`
-    defaults to `os.environ["STAGE"]`.
+    `service=None` falls back to `os.environ["SERVICE"]`; `stage` falls
+    back to `os.environ["STAGE"]`. Exposed for callers that need the
+    resolved name without invoking (e.g. for logging); `invoke_sync`/
+    `invoke_async` call it internally, so most callers never need it.
 
 IAM requirement:
 
@@ -102,19 +110,28 @@ def _reset_client_for_tests() -> None:
 # Naming
 # ---------------------------------------------------------------------------
 def resolve_function_name(
-    service: str, function_key: str, stage: Optional[str] = None
+    service: Optional[str], function_key: str, stage: Optional[str] = None
 ) -> str:
     """Builds the conventional Lambda name for a handler in this repo.
 
     Matches `build-functions.js`: `cdts-{stage}-{service}-{folder-with-dashes}`.
     `function_key` is the snake_case folder name of the target handler; it
-    is converted to kebab-case.
+    is converted to kebab-case. `service=None` means "the caller's own
+    service" and falls back to the `SERVICE` env var.
 
-    Raises RuntimeError if `stage` was not passed and `STAGE` env var is
-    absent (defensive: silently defaulting would deploy to the wrong stage).
+    Raises RuntimeError if `service`/`stage` were not passed and the
+    matching env var is absent (defensive: silently defaulting would
+    invoke the wrong Lambda or deploy to the wrong stage).
     """
-    if not service or not function_key:
-        raise ValueError("service and function_key are required")
+    if not function_key:
+        raise ValueError("function_key is required")
+    resolved_service = service or os.environ.get("SERVICE")
+    if not resolved_service:
+        raise RuntimeError(
+            "no service was passed and the SERVICE env var is not set; "
+            "refusing to guess. Pass service=... explicitly for a "
+            "cross-service call."
+        )
     resolved_stage = stage or os.environ.get("STAGE")
     if not resolved_stage:
         raise RuntimeError(
@@ -122,24 +139,15 @@ def resolve_function_name(
             "resolve_function_name; refusing to guess."
         )
     fn_kebab = function_key.replace("_", "-")
-    return f"cdts-{resolved_stage}-{service}-{fn_kebab}"
+    return f"cdts-{resolved_stage}-{resolved_service}-{fn_kebab}"
 
 
 # ---------------------------------------------------------------------------
 # Invocation
 # ---------------------------------------------------------------------------
-def invoke_sync(function_name: str, payload: Optional[dict] = None) -> dict:
-    """Invokes `function_name` synchronously and returns its JSON payload.
-
-    Client-side read timeout is fixed to 30s (see `_default_config`). The
-    target Lambda's own configured timeout still applies. If a caller needs
-    to wait longer, extend the client config there rather than adding a
-    per-call parameter that would bypass the monkeypatched client during
-    tests.
-
-    Raises `LambdaInvokeError` on any failure. Success returns the decoded
-    JSON dict the callee wrote to its response.
-    """
+def invoke_sync(function_key, payload = None, *, service = None) -> dict:
+   
+    function_name = resolve_function_name(service, function_key)
     body = json.dumps(payload or {}, default=str).encode("utf-8")
     Logger.log("INFO", f"invoke_sync -> {function_name} ({len(body)}B)")
 
@@ -155,14 +163,10 @@ def invoke_sync(function_name: str, payload: Optional[dict] = None) -> dict:
 
     status = resp.get("StatusCode")
     if status != 200:
-        # 200 is the normal RequestResponse status; 202 is async-only, 4xx/5xx
-        # are transport failures (throttled, ResourceNotFound, etc.).
         raise LambdaInvokeError(
             function_name, "bad_status", f"StatusCode={status}"
         )
 
-    # FunctionError is set when the callee raised an unhandled exception.
-    # The payload then contains {"errorMessage": ..., "errorType": ..., ...}.
     fn_error = resp.get("FunctionError")
     raw = resp["Payload"].read()
     try:
@@ -180,15 +184,15 @@ def invoke_sync(function_name: str, payload: Optional[dict] = None) -> dict:
 
     Logger.log("INFO", f"invoke_sync <- {function_name} ok")
     if not isinstance(parsed, dict):
-        # Callees SHOULD return dicts; wrapping any non-dict in {"result": ...}
-        # keeps this function's return type honest without silently dropping
-        # data.
         return {"result": parsed}
     return parsed
 
 
-def invoke_async(function_name: str, payload: Optional[dict] = None) -> None:
-    """Invokes `function_name` in fire-and-forget mode.
+def invoke_async(
+    function_key: str, payload: Optional[dict] = None, *, service: Optional[str] = None
+) -> None:
+    """Resolves `function_key` (defaulting `service` to the caller's own,
+    see module docstring) and invokes it in fire-and-forget mode.
 
     Returns as soon as AWS accepts the invocation (StatusCode 202). Does
     not observe the callee's outcome; use CloudWatch or an explicit
@@ -196,6 +200,7 @@ def invoke_async(function_name: str, payload: Optional[dict] = None) -> None:
 
     Raises `LambdaInvokeError` only if the submission itself failed.
     """
+    function_name = resolve_function_name(service, function_key)
     body = json.dumps(payload or {}, default=str).encode("utf-8")
     Logger.log("INFO", f"invoke_async -> {function_name} ({len(body)}B)")
 

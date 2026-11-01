@@ -25,6 +25,9 @@ provider:
 
   environment:
     STAGE: ${sls:stage}
+    # Lets verify_otp invoke its sibling `sign` Lambda via libs.utils.lambda_invoke
+    # without naming "signatures" again at the call site.
+    SERVICE: signatures
     # DB + SMTP + frontend URL are shared infra; each has its own SSM path.
     SSM_DB_PATH: /cdts/${sls:stage}/db
     SSM_SMTP_PATH: /cdts/${sls:stage}/smtp

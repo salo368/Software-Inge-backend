@@ -18,20 +18,6 @@ provider:
   environment:
     STAGE: ${sls:stage}
     SSM_DB_PATH: /cdts/${sls:stage}/db
-    # `advance` uploads the rendered investment-order PDF to the files
-    # bucket and then hands a presigned GET URL to signatures.create.
-    FILES_BUCKET: cdts-${sls:stage}-files
-    # M2M shared secret used to call `signatures.create` (only that
-    # endpoint enforces `X-Service-Key`; everything else in signatures
-    # is either sign_id-scoped or fully public).
-    SSM_SIGNATURES_SERVICE_KEY: /cdts/${sls:stage}/signatures/service-key
-    # This block's own HTTP API base URL. Populated at deploy time by
-    # the AWS::SSM::Parameter resource at the bottom of this file. The
-    # bridge reads it to build callback_url for signatures.create. If
-    # the param is missing (first-ever deploy), the bridge silently
-    # opens ceremonies with callback_url=null and the frontend polls
-    # to detect signing -- both paths are supported.
-    SSM_PROCESSES_API_URL: /cdts/${sls:stage}/processes-api/url
 
   iam:
     role:
@@ -44,8 +30,6 @@ provider:
           Resource:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/service-key
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/processes-api/url
         # SecureString param above is KMS-encrypted; SSM decrypts on read
         # but only if we can invoke Decrypt. Same rationale as the other
         # blocks; scoping is enforced by the ssm:GetParameter Resource.
@@ -53,22 +37,14 @@ provider:
           Action:
             - kms:Decrypt
           Resource: '*'
-        # Files bucket, only under processes/ so we can't accidentally
-        # touch other services' objects.
-        - Effect: Allow
-          Action:
-            - s3:PutObject
-            - s3:GetObject
-          Resource:
-            - arn:aws:s3:::cdts-${sls:stage}-files/processes/*
-        # Direct Lambda invoke of signatures.create (bypasses API
-        # Gateway; the service key still travels in the synthetic HTTP
-        # event so signatures.create's auth decorator runs unchanged).
+        # `create_process` corroborates (amount, term) against the live
+        # rate bands by invoking banks.simulate directly instead of
+        # trusting a client-supplied rate.
         - Effect: Allow
           Action:
             - lambda:InvokeFunction
           Resource:
-            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-create
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-banks-simulate
 
 plugins:
   - serverless-python-requirements
@@ -84,7 +60,7 @@ package:
     - '!**'
     - 'src/**'
     - 'libs/**'
-    # Block-local helpers under processes/utils/ (e.g. investment_order.py).
+    # Block-local helpers under processes/utils/.
     - 'utils/**'
     - '!**/__pycache__/**'
     - '!**/*.pyc'
@@ -94,28 +70,3 @@ package:
     - '!**/conftest.py'
 
 functions: ${file(./functions.js):build}
-
-# The processes HTTP API base URL is expected at
-#   /cdts/${sls:stage}/processes-api/url  (String, plain)
-# and is read at runtime by utils/signature_bridge.py to build the
-# callback_url handed to signatures.create. We deliberately do NOT
-# create it from this stack:
-#
-#   * the CI deploy role only has the IAM it needs for Lambda + IAM
-#     roles + HTTP API; granting ssm:PutParameter to CloudFormation
-#     would broaden the blast radius unnecessarily.
-#   * the URL contains the CloudFormation-generated HttpApi id, so it
-#     is stack-scoped -- it lives naturally in SSM as a piece of
-#     stack output metadata.
-#
-# One-time bootstrap after the first deploy (or after a stack recreate):
-#
-#   aws ssm put-parameter \
-#       --name  /cdts/dev/processes-api/url \
-#       --type  String \
-#       --value "https://<api-id>.execute-api.us-east-1.amazonaws.com"
-#
-# The `<api-id>` comes from the "HttpApiUrl" output of this stack.
-# Until the param exists, ceremonies open with callback_url=null and
-# the frontend polls to detect signing -- both paths still work.
-# Fase 7 (docs) covers this step in detail.
