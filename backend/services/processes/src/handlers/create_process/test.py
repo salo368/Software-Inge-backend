@@ -67,15 +67,19 @@ def test_create_process_simulation_unavailable_returns_502(load_handler, monkeyp
     assert json.loads(resp["body"]) == {"error": "simulation_unavailable"}
 
 
-def test_create_process_invalid_amount_or_term_returns_400(load_handler, monkeypatch):
+def test_create_process_propagates_simulation_error(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    monkeypatch.setattr(h, "invoke_sync", MagicMock(return_value=_simulate_response({}, status_code=400)))
+    monkeypatch.setattr(
+        h,
+        "invoke_sync",
+        MagicMock(return_value={"statusCode": 400, "body": json.dumps({"error": "invalid_amount"})}),
+    )
 
     resp = h.handler(_authed_event({"bank_id": 1, "amount": "1", "term": 180}), None)
 
     assert resp["statusCode"] == 400
-    assert json.loads(resp["body"]) == {"error": "invalid_amount_or_term"}
+    assert json.loads(resp["body"]) == {"error": "invalid_amount"}
 
 
 def test_create_process_bank_not_available_returns_400(load_handler, monkeypatch):

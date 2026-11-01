@@ -35,7 +35,9 @@ def handler(event, context):
         raise HandledError("simulation_unavailable", 502) from e
 
     if simulation_response.get("statusCode") != 200:
-        raise HandledError("invalid_amount_or_term", 400)
+        error_message = json.loads(simulation_response.get("body") or "{}").get("error")
+        error_code = simulation_response.get("statusCode", 502)
+        raise HandledError(error_message, error_code)
 
     simulation_result = json.loads(simulation_response["body"])
     simulation_banks = simulation_result.get("banks", {})
