@@ -83,9 +83,6 @@ def _wire(
     monkeypatch.setattr(h, "_utcnow", lambda: now)
     invoke_mock = MagicMock(side_effect=invoke_raises)
     monkeypatch.setattr(h, "invoke_async", invoke_mock)
-    monkeypatch.setattr(
-        h, "resolve_function_name", lambda service, key: f"cdts-test-{service}-{key}"
-    )
     return invoke_mock
 
 
@@ -239,11 +236,7 @@ class TestSuccessFlagOn:
         invoke_mock = _wire(h, monkeypatch, row=row, sign_lambda_ready=True)
         resp = h.handler(_event("sign_abc", {"code": "123456"}), None)
         assert resp["statusCode"] == 200
-        invoke_mock.assert_called_once()
-        # Function name resolved through resolve_function_name shim.
-        fn, payload = invoke_mock.call_args.args
-        assert fn == "cdts-test-signatures-sign"
-        assert payload == {"sign_id": "sign_abc"}
+        invoke_mock.assert_called_once_with("sign", {"sign_id": "sign_abc"})
 
     def test_invoke_failure_returns_502(self, load_handler, monkeypatch):
         h = load_handler(__file__)

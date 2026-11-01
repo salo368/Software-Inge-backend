@@ -53,8 +53,8 @@ def test_simulate_happy_path_sorts_by_rate_desc(load_handler, monkeypatch):
     assert body["amount"] == 1000000
     assert body["term"] == 120
     # Order preserved as returned by get_ranked_rates; bank 3 dropped.
-    assert [b["id"] for b in body["banks"]] == [2, 1]
-    for b in body["banks"]:
+    assert list(body["banks"].keys()) == ["2", "1"]
+    for b in body["banks"].values():
         assert b["interest"] > 0
         assert b["final"] > b["interest"]
 
