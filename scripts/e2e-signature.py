@@ -405,7 +405,7 @@ def main() -> None:
             json_body={
                 "bank_id": bank["id"],
                 "amount": 5000000,
-                "term_days": 180,
+                "term": 180,
                 "rate": 12.5,
             },
         ),

@@ -71,9 +71,9 @@ def _date(value: date | datetime | None) -> str:
     return value.strftime("%d/%m/%Y")
 
 
-def maturity_value(amount: Decimal, rate: Decimal, term_days: int) -> tuple[float, float]:
+def maturity_value(amount: Decimal, rate: Decimal, term: int) -> tuple[float, float]:
     """Compound EA over a 365-day base, same formula the simulator shows."""
-    factor = (1 + float(rate) / 100) ** (term_days / 365) - 1
+    factor = (1 + float(rate) / 100) ** (term / 365) - 1
     interest = round(float(amount) * factor)
     return interest, float(amount) + interest
 
@@ -251,8 +251,8 @@ def build_investment_order(*, process, form, user, bank_name: str) -> bytes:
     """`form` may be None if the snapshot is missing; the doc degrades to dashes."""
     issued_at = datetime.now(timezone.utc)
     order_number = str(process.id)[:8].upper()
-    interest, final_amount = maturity_value(process.amount, process.rate, process.term_days)
-    maturity_date = issued_at.date() + timedelta(days=process.term_days)
+    interest, final_amount = maturity_value(process.amount, process.rate, process.term)
+    maturity_date = issued_at.date() + timedelta(days=process.term)
     snapshot = form or {}
 
     def field(key: str, default: str = "-") -> str:
@@ -271,7 +271,7 @@ def build_investment_order(*, process, form, user, bank_name: str) -> bytes:
     y = _section_title(c, y, "Condiciones de la inversión")
     y = _rows(c, y, [
         ("Entidad", bank_name),
-        ("Plazo", f"{process.term_days} días"),
+        ("Plazo", f"{process.term} días"),
         ("Tasa efectiva anual", _pct(process.rate)),
         ("Modalidad", "Interés compuesto, base 365"),
         ("Fecha de apertura", _date(issued_at)),
@@ -314,7 +314,7 @@ def build_investment_order(*, process, form, user, bank_name: str) -> bytes:
     _legal(c, y, [
         "El titular declara que los recursos objeto de esta orden provienen de actividades lícitas y que la información aquí",
         "consignada es veraz, completa y verificable. Acepta las condiciones del depósito a término fijo: el capital permanecerá",
-        f"invertido durante {process.term_days} días y los rendimientos se liquidarán al vencimiento a la tasa del {_pct(process.rate)} efectiva anual.",
+        f"invertido durante {process.term} días y los rendimientos se liquidarán al vencimiento a la tasa del {_pct(process.rate)} efectiva anual.",
         "La cancelación anticipada está sujeta a las políticas de la entidad receptora y puede implicar la pérdida de rendimientos.",
         "Los valores de rendimiento son estimados y no incluyen la retención en la fuente aplicable.",
     ])
