@@ -65,6 +65,13 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+      # serverless-python-requirements spawns `python<runtime>` (python3.12);
+      # never rely on whatever Python the runner image happens to ship.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
       - name: Install Node dependencies
         working-directory: backend
         run: npm ci
