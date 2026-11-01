@@ -5,52 +5,53 @@ from libs.core.responses import HandledError, generate_response, handle_exceptio
 from libs.orm.banks import Banks
 from libs.orm.processes import Processes
 from libs.utils.auth import require_auth
-
-MIN_AMOUNT = Decimal("100000")
-MAX_AMOUNT = Decimal("5000000000")
-VALID_TERMS = {30, 60, 90, 120, 180, 270, 360, 540, 720}
+from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
 
 
 @handle_exceptions
 @require_auth
 def handler(event, context):
+
+    user = event.get("user")
+
     body = json.loads(event.get("body") or "{}")
 
-    try:
-        bank_id = int(body.get("bank_id"))
-    except (TypeError, ValueError):
-        raise HandledError("bank_id must be an integer", 400)
+    bank_id = body.get("bank_id")
+    amount = body.get("amount")
+    term = body.get("term")
+
+    if not bank_id or not amount or not term:
+        raise HandledError("Missing required fields", 400)
 
     try:
-        amount = Decimal(str(body.get("amount")))
-    except (TypeError, InvalidOperation):
-        raise HandledError("amount must be a number", 400)
-    if amount < MIN_AMOUNT or amount > MAX_AMOUNT:
-        raise HandledError("amount out of range", 400)
+        simulation_response = invoke_sync(
+            function_key="simulate",
+            payload={
+                "queryStringParameters": {"amount": str(amount), "term": str(term)}
+            },
+            service="banks",
+        )
+    except LambdaInvokeError as e:
+        raise HandledError("simulation_unavailable", 502) from e
 
-    try:
-        term = int(body.get("term"))
-    except (TypeError, ValueError):
-        raise HandledError("term must be an integer", 400)
-    if term not in VALID_TERMS:
-        raise HandledError(f"term must be one of {sorted(VALID_TERMS)}", 400)
+    if simulation_response.get("statusCode") != 200:
+        error_message = json.loads(simulation_response.get("body") or "{}").get("error")
+        error_code = simulation_response.get("statusCode", 502)
+        raise HandledError(error_message, error_code)
 
-    try:
-        rate = Decimal(str(body.get("rate")))
-    except (TypeError, InvalidOperation):
-        raise HandledError("rate must be a number", 400)
-    if rate <= 0 or rate > 30:
-        raise HandledError("rate out of range", 400)
+    simulation_result = json.loads(simulation_response["body"])
+    simulation_banks = simulation_result.get("banks", {})
 
-    bank = Banks.get_by_id(bank_id)
-    if bank is None or not bank.is_active:
-        raise HandledError("bank_not_found", 404)
+    simulation = simulation_banks.get(str(bank_id))
+    if not simulation:
+        raise HandledError("Bank not available for the given amount and term", 400)
 
-    row = Processes.create(
-        user_id=event["user"].id,
-        bank_id=bank_id,
-        amount=amount,
-        term=term,
-        rate=rate,
-    )
-    return generate_response({"process": row.public_dict()}, 201)
+    # Pause
+
+    response = {
+        "amount": float(amount),
+        "term": term,
+        "valid": True,
+    }
+
+    return generate_response(response, 200)

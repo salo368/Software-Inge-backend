@@ -44,11 +44,7 @@ import re
 
 from libs.core.logger import Logger
 from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.utils.lambda_invoke import (
-    LambdaInvokeError,
-    invoke_async,
-    resolve_function_name,
-)
+from libs.utils.lambda_invoke import LambdaInvokeError, invoke_async
 
 from utils.auth import ensure_stage_allows, require_sign_id
 
@@ -120,10 +116,7 @@ def handler(event, context):
 
     if SIGN_LAMBDA_READY:
         try:
-            invoke_async(
-                resolve_function_name("signatures", "sign"),
-                {"sign_id": row.sign_id},
-            )
+            invoke_async("sign", {"sign_id": row.sign_id})
         except LambdaInvokeError as e:
             # AWS rejected the submission (throttled, sign Lambda not
             # deployed, IAM issue). The row is already at 'signing';
