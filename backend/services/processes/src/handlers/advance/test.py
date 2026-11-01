@@ -27,9 +27,11 @@ def _authed_event(pid: str) -> dict:
 def _patch_auth(monkeypatch, user_id="u-1", email="titular@example.com", full_name="Ada"):
     user = MagicMock(id=user_id, email=email, full_name=full_name)
     monkeypatch.setattr(
-        "libs.utils.auth.verify_token",
-        MagicMock(return_value=(user, MagicMock())),
+        "libs.utils.auth.BearerTokens",
+        MagicMock(get_by_hash=MagicMock(return_value=MagicMock(revoked_at=None))),
     )
+    monkeypatch.setattr("libs.utils.auth.is_alive", MagicMock(return_value=True))
+    monkeypatch.setattr("libs.utils.auth.Users", MagicMock(get_by_id=MagicMock(return_value=user)))
     return user
 
 

@@ -1,5 +1,6 @@
 sqlalchemy==2.0.34
 pg8000==1.31.2
+scramp==1.4.17
 # utils/investment_order.py renders the CDT investment-order PDF that
 # gets handed off to `signatures` for signing.
 reportlab==4.2.5
