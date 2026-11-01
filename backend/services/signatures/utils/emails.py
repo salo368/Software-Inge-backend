@@ -21,7 +21,7 @@ def _money(value) -> str:
     return "$" + f"{float(value):,.0f}".replace(",", ".")
 
 
-def sign_request_html(*, name: str, bank_name: str, amount, term_days: int,
+def sign_request_html(*, name: str, bank_name: str, amount, term: int,
                       rate, sign_url: str) -> str:
     body = f"""
       <p style="margin:0 0 14px;">Hola <b>{name}</b>,</p>
@@ -33,7 +33,7 @@ def sign_request_html(*, name: str, bank_name: str, amount, term_days: int,
         <tr><td style="padding:10px 14px;color:#6b7280;font-size:12px;">Monto</td>
             <td style="padding:10px 14px;text-align:right;font-weight:700;">{_money(amount)}</td></tr>
         <tr><td style="padding:10px 14px;color:#6b7280;font-size:12px;">Plazo y tasa</td>
-            <td style="padding:10px 14px;text-align:right;font-weight:700;">{term_days} días · {float(rate):.2f}% E.A.</td></tr>
+            <td style="padding:10px 14px;text-align:right;font-weight:700;">{term} días · {float(rate):.2f}% E.A.</td></tr>
       </table>
       <p style="text-align:center;margin:26px 0 8px;">
         <a href="{sign_url}" style="background:#7c3aed;color:#fff;padding:13px 30px;border-radius:10px;

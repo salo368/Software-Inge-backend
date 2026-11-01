@@ -78,7 +78,7 @@ def _insert_process_directly(*, user_id: str, bank_id: int) -> str:
         # is entered from the 'documents' stage.
         c.run(
             "INSERT INTO processes "
-            "(id, user_id, bank_id, amount, term_days, rate, stage, created_at) "
+            "(id, user_id, bank_id, amount, term, rate, stage, created_at) "
             "VALUES (:id, :uid, :bid, :amt, :term, :rate, :st, :now)",
             id=pid, uid=uuid.UUID(user_id), bid=bank_id,
             amt=Decimal("1000000"), term=180, rate=Decimal("12.5"),
