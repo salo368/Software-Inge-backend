@@ -1,0 +1,39 @@
+FROM amazonlinux:2023 AS build
+
+RUN dnf install -y \
+      gcc gcc-c++ make autoconf automake libtool pkgconfig \
+      wget tar gzip \
+      libjpeg-turbo-devel libpng-devel zlib-devel libtiff-devel libwebp-devel \
+    && dnf clean all
+
+WORKDIR /src
+
+# Leptonica (imaging primitives tesseract depends on). Official releases.
+ARG LEPTONICA_VERSION=1.84.1
+RUN wget -q https://github.com/DanBloomberg/leptonica/releases/download/${LEPTONICA_VERSION}/leptonica-${LEPTONICA_VERSION}.tar.gz \
+    && tar xzf leptonica-${LEPTONICA_VERSION}.tar.gz
+WORKDIR /src/leptonica-1.84.1
+RUN ./configure --prefix=/opt/out \
+    && make -j$(nproc) \
+    && make install
+
+# Tesseract OCR engine, official source tarball from the tesseract-ocr org.
+WORKDIR /src
+ARG TESSERACT_VERSION=5.4.1
+RUN wget -q https://github.com/tesseract-ocr/tesseract/archive/refs/tags/${TESSERACT_VERSION}.tar.gz -O tesseract-${TESSERACT_VERSION}.tar.gz \
+    && tar xzf tesseract-${TESSERACT_VERSION}.tar.gz
+WORKDIR /src/tesseract-5.4.1
+ENV PKG_CONFIG_PATH=/opt/out/lib/pkgconfig
+ENV LD_LIBRARY_PATH=/opt/out/lib
+RUN ./autogen.sh \
+    && ./configure --prefix=/opt/out --disable-openmp \
+    && make -j$(nproc) \
+    && make install
+
+# Trained language data (official tessdata_fast -- small, Apache-2.0 licensed).
+WORKDIR /opt/out/share/tessdata
+RUN wget -q https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata \
+    && wget -q https://github.com/tesseract-ocr/tessdata_fast/raw/main/spa.traineddata
+
+# Sanity check inside the SAME build environment before we ever copy anything out.
+RUN TESSDATA_PREFIX=/opt/out/share/tessdata LD_LIBRARY_PATH=/opt/out/lib /opt/out/bin/tesseract --version
