@@ -41,5 +41,6 @@ def open_connection(cfg: Dict[str, str]) -> pg8000.native.Connection:
         database=cfg["name"],
         user=cfg["user"],
         password=cfg["password"],
+        ssl_context=True,
         timeout=30,
     )
