@@ -68,3 +68,6 @@ build/
 *.zip
 
 .legacy_tmp/
+
+# --- Scratch files (test fixtures, curl evidence, etc.) ---
+temp/
