@@ -110,7 +110,8 @@ def test_upsert_form_happy_path_full_payload(load_handler, monkeypatch):
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])["form"]
     assert body["name"] == "Foo"
-    assert body["birth_date"] == "1990-05-01 00:00:00+00:00"
+    assert body["birth_date"] == "01/05/1990"
+    assert body["document_issuance_date"] == "01/01/2010"
     assert body["is_pep"] is False
     assert body["monthly_income"] == 1000.0
 
