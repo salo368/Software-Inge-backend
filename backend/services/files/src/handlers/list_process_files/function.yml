@@ -1,0 +1,4 @@
+description: >
+  Internal lookup: returns every file registered for a process. Invoked
+  directly by processes.get_required_files; no HTTP event -- IAM invoke
+  only.
