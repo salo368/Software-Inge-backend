@@ -1,0 +1,3 @@
+description: Public endpoint that analyzes an already-uploaded biometric evidence image (ID_FRONT, ID_BACK or FACE) via Rekognition and persists its S3 key only if valid; always returns is_valid/reason so the front knows whether it needs a re-upload.
+events:
+  - httpApi: { method: POST, path: /signatures/set-biometrics }
