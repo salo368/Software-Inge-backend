@@ -40,7 +40,7 @@ class Processes(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(15, 2))
     term: Mapped[int] = mapped_column(Integer)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
-    stage: Mapped[str] = mapped_column(String(20), default=ProcessStage.FORM.value)
+    stage: Mapped[str] = mapped_column(String(20))
     form_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     sign_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
