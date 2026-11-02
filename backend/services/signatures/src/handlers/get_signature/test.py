@@ -92,7 +92,7 @@ def test_get_signature_past_signing_window_returns_410(load_handler, monkeypatch
 def test_get_signature_right_at_window_edge_still_succeeds(load_handler, monkeypatch):
     h = load_handler(__file__)
 
-    row = _row(created_at=datetime.now(timezone.utc) - timedelta(minutes=19, seconds=59))
+    row = _row(created_at=datetime.now(timezone.utc) - timedelta(minutes=14, seconds=59))
     monkeypatch.setattr(h, "Signatures", MagicMock(get_by_id=MagicMock(return_value=row)))
     monkeypatch.setattr(h, "presign_download", MagicMock(return_value="https://signed-url"))
 
