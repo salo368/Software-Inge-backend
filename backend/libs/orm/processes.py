@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, Numeric, String, insert, select
+from sqlalchemy import DateTime, Integer, Numeric, String, insert, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -35,7 +35,7 @@ class Processes(Base):
     term: Mapped[int] = mapped_column(Integer)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     stage: Mapped[str] = mapped_column(String(20))
-    form_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    submitted_form: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     sign_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -80,4 +80,17 @@ class Processes(Base):
 
         return db_session.query(statement=statement, many=True)
 
-    
+    def set_submitted_form(process_id, submitted_form):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                submitted_form=submitted_form,
+                stage=ProcessStage.DOCUMENTS.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)

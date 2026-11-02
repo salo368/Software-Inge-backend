@@ -1,0 +1,3 @@
+description: Snapshots the current user's form onto the process and advances its stage to DOCUMENTS.
+events:
+  - httpApi: { method: POST, path: /processes/set-process-form }
