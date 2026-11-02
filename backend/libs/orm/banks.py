@@ -14,6 +14,7 @@ class Banks(Base):
     code: Mapped[str] = mapped_column(String())
     name: Mapped[str] = mapped_column(String())
     logo_key: Mapped[str] = mapped_column(String())
+    io_key: Mapped[str] = mapped_column(String(), nullable=True)
     description: Mapped[str] = mapped_column(String())
     tier: Mapped[str] = mapped_column(String())
     rating_by: Mapped[str] = mapped_column(String())
