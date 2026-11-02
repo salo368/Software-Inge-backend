@@ -1,8 +1,9 @@
+from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import String, insert
+from sqlalchemy import DateTime, String, insert, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,13 +26,28 @@ class Signatures(Base):
     stage: Mapped[str] = mapped_column(String(20))
     doc_s3_key: Mapped[str] = mapped_column(String(300), unique=True)
     sign_location: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    def create(doc_s3_key):
+    def create(doc_s3_key, sign_location):
 
         statement = (
             insert(Signatures)
-            .values(doc_s3_key=doc_s3_key, stage=SignatureStage.FORM.value)
+            .values(
+                doc_s3_key=doc_s3_key,
+                sign_location=sign_location,
+                stage=SignatureStage.FORM.value,
+            )
             .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def get_by_id(signature_id):
+
+        statement = (
+            select(Signatures)
+            .where(Signatures.id == signature_id)
+            .limit(1)
         )
 
         return db_session.query(statement=statement)
