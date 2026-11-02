@@ -50,10 +50,13 @@ def handler(event, context):
         raise HandledError("otp_expired", 401)
 
     if _hash(code) != row.otp_hash:
+        
         updated = Signatures.register_failed_otp_attempt(signature_id)
+
         if updated.otp_tries >= MAX_OTP_TRIES:
             Signatures.mark_failed(signature_id)
-            raise HandledError("otp_max_attempts", 429)
+            return generate_response({"error": "otp_max_attempts"}, 429)
+        
         attempts_left = MAX_OTP_TRIES - updated.otp_tries
         return generate_response({"error": "otp_invalid", "attempts_left": attempts_left}, 401)
 

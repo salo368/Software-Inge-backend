@@ -90,11 +90,21 @@ def test_resolve_otp_third_wrong_attempt_marks_failed(load_handler, monkeypatch)
     )
     monkeypatch.setattr(h, "Signatures", signatures_mock)
 
+    # Regression guard: handle_exceptions rolls back the whole transaction
+    # on a `raise HandledError`, which would silently undo mark_failed()'s
+    # write along with it. The handler must return the 429 normally (not
+    # raise) so the wrapper commits instead of rolling back.
+    import libs.core.responses as responses_module
+    fake_db_session = MagicMock()
+    monkeypatch.setattr(responses_module, "db_session", fake_db_session)
+
     resp = h.handler(_event(row.id, "000000"), None)
 
     assert resp["statusCode"] == 429
     assert json.loads(resp["body"]) == {"error": "otp_max_attempts"}
     signatures_mock.mark_failed.assert_called_once_with(UUID(row.id))
+    fake_db_session.commit.assert_called_once()
+    fake_db_session.rollback.assert_not_called()
 
 
 def test_resolve_otp_missing_signature_id_returns_400(load_handler, monkeypatch):
