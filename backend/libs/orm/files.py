@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import BigInteger, DateTime, String, Text, insert
+from sqlalchemy import BigInteger, DateTime, String, Text, insert, select
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -46,3 +46,13 @@ class Files(Base):
         )
 
         return db_session.query(statement=statement)
+
+    def list_by_process(process_id):
+
+        statement = (
+            select(Files)
+            .where(Files.process_id == process_id)
+            .order_by(Files.uploaded_at.desc())
+        )
+
+        return db_session.query(statement=statement, many=True)
