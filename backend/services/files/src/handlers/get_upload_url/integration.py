@@ -110,7 +110,7 @@ def test_upload_flow_registers_file_row_and_s3_object():
             headers=hdrs,
             json={
                 "process_id": process_id,
-                "file_type": "declaracion_renta",
+                "file_type": "tax_declaration",
                 "content_type": "application/pdf",
                 "original_name": original_name,
             },
@@ -151,7 +151,7 @@ def test_upload_flow_registers_file_row_and_s3_object():
         assert row is not None, (
             f"on_upload worker did not register {s3_key} in files table within 30s"
         )
-        assert row["file_type"] == "declaracion_renta"
+        assert row["file_type"] == "tax_declaration"
         assert row["size_bytes"] == len(payload_bytes)
         assert row["content_type"] == "application/pdf"
         # original_name is stored percent-decoded by the worker.

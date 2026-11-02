@@ -2,7 +2,9 @@
 
 Keys look like: processes/{process_id}/{file_type}/{file_uuid}.{ext}
 The worker parses the key, fetches HEAD metadata, and registers a row in
-`files`. Idempotent: if the key already exists we skip.
+`files`. `s3_key` is UNIQUE at the DB level, so a duplicate delivery of the
+same event (S3 only guarantees at-least-once) fails the insert instead of
+creating a second row; the per-record try/except in `handler` just logs it.
 """
 from urllib.parse import unquote, unquote_plus
 from uuid import UUID
@@ -40,17 +42,13 @@ def _process_record(record: dict) -> None:
         Logger.log("WARNING", f"invalid process_id in key {key}")
         return
 
-    if Files.get_by_key(key) is not None:
-        Logger.log("INFO", f"file already registered: {key}")
-        return
-
     head = head_object(bucket, key)
     # get_upload_url stores the user-facing name here percent-encoded, since
     # the key itself is a uuid. Fall back to the key's filename.
     stored_name = (head.get("Metadata") or {}).get("original-name")
     original_name = unquote(stored_name) if stored_name else filename
 
-    Files.register_from_s3(
+    Files.create(
         process_id=process_id,
         file_type=file_type,
         s3_key=key,
@@ -58,4 +56,5 @@ def _process_record(record: dict) -> None:
         size_bytes=head.get("ContentLength"),
         content_type=head.get("ContentType"),
     )
+
     Logger.log("INFO", f"registered file {key} for process {process_id}")
