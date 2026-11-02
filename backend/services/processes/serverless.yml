@@ -45,6 +45,9 @@ provider:
             - lambda:InvokeFunction
           Resource:
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-banks-simulate
+            # `set_process_form` fetches the user's form by invoking
+            # forms.get_form directly instead of duplicating that lookup.
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-forms-get-form
 
 plugins:
   - serverless-python-requirements
