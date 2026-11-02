@@ -1,0 +1,4691 @@
+{
+  "ANTIOQUIA": {
+    "label": "Antioquia",
+    "cities": {
+      "ABEJORRAL": {
+        "label": "Abejorral",
+        "dane_code": "05002"
+      },
+      "ABRIAQUI": {
+        "label": "Abriaquí",
+        "dane_code": "05004"
+      },
+      "ALEJANDRIA": {
+        "label": "Alejandría",
+        "dane_code": "05021"
+      },
+      "AMAGA": {
+        "label": "Amagá",
+        "dane_code": "05030"
+      },
+      "AMALFI": {
+        "label": "Amalfi",
+        "dane_code": "05031"
+      },
+      "ANDES": {
+        "label": "Andes",
+        "dane_code": "05034"
+      },
+      "ANGELOPOLIS": {
+        "label": "Angelópolis",
+        "dane_code": "05036"
+      },
+      "ANGOSTURA": {
+        "label": "Angostura",
+        "dane_code": "05038"
+      },
+      "ANORI": {
+        "label": "Anorí",
+        "dane_code": "05040"
+      },
+      "ANZA": {
+        "label": "Anzá",
+        "dane_code": "05044"
+      },
+      "APARTADO": {
+        "label": "Apartadó",
+        "dane_code": "05045"
+      },
+      "ARBOLETES": {
+        "label": "Arboletes",
+        "dane_code": "05051"
+      },
+      "ARGELIA": {
+        "label": "Argelia",
+        "dane_code": "05055"
+      },
+      "ARMENIA": {
+        "label": "Armenia",
+        "dane_code": "05059"
+      },
+      "BARBOSA": {
+        "label": "Barbosa",
+        "dane_code": "05079"
+      },
+      "BELLO": {
+        "label": "Bello",
+        "dane_code": "05088"
+      },
+      "BELMIRA": {
+        "label": "Belmira",
+        "dane_code": "05086"
+      },
+      "BETANIA": {
+        "label": "Betania",
+        "dane_code": "05091"
+      },
+      "BETULIA": {
+        "label": "Betulia",
+        "dane_code": "05093"
+      },
+      "BRICENO": {
+        "label": "Briceño",
+        "dane_code": "05107"
+      },
+      "BURITICA": {
+        "label": "Buriticá",
+        "dane_code": "05113"
+      },
+      "CACERES": {
+        "label": "Cáceres",
+        "dane_code": "05120"
+      },
+      "CAICEDO": {
+        "label": "Caicedo",
+        "dane_code": "05125"
+      },
+      "CALDAS": {
+        "label": "Caldas",
+        "dane_code": "05129"
+      },
+      "CAMPAMENTO": {
+        "label": "Campamento",
+        "dane_code": "05134"
+      },
+      "CANASGORDAS": {
+        "label": "Cañasgordas",
+        "dane_code": "05138"
+      },
+      "CARACOLI": {
+        "label": "Caracolí",
+        "dane_code": "05142"
+      },
+      "CARAMANTA": {
+        "label": "Caramanta",
+        "dane_code": "05145"
+      },
+      "CAREPA": {
+        "label": "Carepa",
+        "dane_code": "05147"
+      },
+      "CAROLINA": {
+        "label": "Carolina",
+        "dane_code": "05150"
+      },
+      "CAUCASIA": {
+        "label": "Caucasia",
+        "dane_code": "05154"
+      },
+      "CHIGORODO": {
+        "label": "Chigorodó",
+        "dane_code": "05172"
+      },
+      "CISNEROS": {
+        "label": "Cisneros",
+        "dane_code": "05190"
+      },
+      "CIUDAD_BOLIVAR": {
+        "label": "Ciudad Bolívar",
+        "dane_code": "05101"
+      },
+      "COCORNA": {
+        "label": "Cocorná",
+        "dane_code": "05197"
+      },
+      "CONCEPCION": {
+        "label": "Concepción",
+        "dane_code": "05206"
+      },
+      "CONCORDIA": {
+        "label": "Concordia",
+        "dane_code": "05209"
+      },
+      "COPACABANA": {
+        "label": "Copacabana",
+        "dane_code": "05212"
+      },
+      "DABEIBA": {
+        "label": "Dabeiba",
+        "dane_code": "05234"
+      },
+      "DON_MATIAS": {
+        "label": "Don Matías",
+        "dane_code": "05237"
+      },
+      "EBEJICO": {
+        "label": "Ebéjico",
+        "dane_code": "05240"
+      },
+      "EL_BAGRE": {
+        "label": "El Bagre",
+        "dane_code": "05250"
+      },
+      "EL_CARMEN_DE_VIBORAL": {
+        "label": "El Carmen de Viboral",
+        "dane_code": "05148"
+      },
+      "EL_SANTUARIO": {
+        "label": "El Santuario",
+        "dane_code": "05697"
+      },
+      "ENTRERRIOS": {
+        "label": "Entrerríos",
+        "dane_code": "05264"
+      },
+      "ENVIGADO": {
+        "label": "Envigado",
+        "dane_code": "05266"
+      },
+      "FREDONIA": {
+        "label": "Fredonia",
+        "dane_code": "05282"
+      },
+      "FRONTINO": {
+        "label": "Frontino",
+        "dane_code": "05284"
+      },
+      "GIRALDO": {
+        "label": "Giraldo",
+        "dane_code": "05306"
+      },
+      "GIRARDOTA": {
+        "label": "Girardota",
+        "dane_code": "05308"
+      },
+      "GOMEZ_PLATA": {
+        "label": "Gómez Plata",
+        "dane_code": "05310"
+      },
+      "GRANADA": {
+        "label": "Granada",
+        "dane_code": "05313"
+      },
+      "GUADALUPE": {
+        "label": "Guadalupe",
+        "dane_code": "05315"
+      },
+      "GUARNE": {
+        "label": "Guarne",
+        "dane_code": "05318"
+      },
+      "GUATAPE": {
+        "label": "Guatapé",
+        "dane_code": "05321"
+      },
+      "HELICONIA": {
+        "label": "Heliconia",
+        "dane_code": "05347"
+      },
+      "HISPANIA": {
+        "label": "Hispania",
+        "dane_code": "05353"
+      },
+      "ITAGUI": {
+        "label": "Itagüí",
+        "dane_code": "05360"
+      },
+      "ITUANGO": {
+        "label": "Ituango",
+        "dane_code": "05361"
+      },
+      "JARDIN": {
+        "label": "Jardín",
+        "dane_code": "05364"
+      },
+      "JERICO": {
+        "label": "Jericó",
+        "dane_code": "05368"
+      },
+      "LA_CEJA": {
+        "label": "La Ceja",
+        "dane_code": "05376"
+      },
+      "LA_ESTRELLA": {
+        "label": "La Estrella",
+        "dane_code": "05380"
+      },
+      "LA_PINTADA": {
+        "label": "La Pintada",
+        "dane_code": "05390"
+      },
+      "LA_UNION": {
+        "label": "La Unión",
+        "dane_code": "05400"
+      },
+      "LIBORINA": {
+        "label": "Liborina",
+        "dane_code": "05411"
+      },
+      "MACEO": {
+        "label": "Maceo",
+        "dane_code": "05425"
+      },
+      "MARINILLA": {
+        "label": "Marinilla",
+        "dane_code": "05440"
+      },
+      "MEDELLIN": {
+        "label": "Medellín",
+        "dane_code": "05001",
+        "localities": {
+          "SAN_ANTONIO_DE_PRADO": {
+            "label": "San Antonio de Prado"
+          }
+        }
+      },
+      "MONTEBELLO": {
+        "label": "Montebello",
+        "dane_code": "05467"
+      },
+      "MURINDO": {
+        "label": "Murindó",
+        "dane_code": "05475"
+      },
+      "MUTATA": {
+        "label": "Mutatá",
+        "dane_code": "05480"
+      },
+      "NARINO": {
+        "label": "Nariño",
+        "dane_code": "05483"
+      },
+      "NECHI": {
+        "label": "Nechí",
+        "dane_code": "05495"
+      },
+      "NECOCLI": {
+        "label": "Necoclí",
+        "dane_code": "05490"
+      },
+      "OLAYA": {
+        "label": "Olaya",
+        "dane_code": "05501"
+      },
+      "PENOL": {
+        "label": "Peñol",
+        "dane_code": "05541"
+      },
+      "PEQUE": {
+        "label": "Peque",
+        "dane_code": "05543"
+      },
+      "PUEBLORRICO": {
+        "label": "Pueblorrico",
+        "dane_code": "05576"
+      },
+      "PUERTO_BERRIO": {
+        "label": "Puerto Berrío",
+        "dane_code": "05579"
+      },
+      "PUERTO_NARE": {
+        "label": "Puerto Nare",
+        "dane_code": "05585"
+      },
+      "PUERTO_TRIUNFO": {
+        "label": "Puerto Triunfo",
+        "dane_code": "05591"
+      },
+      "REMEDIOS": {
+        "label": "Remedios",
+        "dane_code": "05604"
+      },
+      "RETIRO": {
+        "label": "Retiro",
+        "dane_code": "05607"
+      },
+      "RIONEGRO": {
+        "label": "Rionegro",
+        "dane_code": "05615"
+      },
+      "SABANALARGA": {
+        "label": "Sabanalarga",
+        "dane_code": "05628"
+      },
+      "SABANETA": {
+        "label": "Sabaneta",
+        "dane_code": "05631"
+      },
+      "SALGAR": {
+        "label": "Salgar",
+        "dane_code": "05642"
+      },
+      "SAN_ANDRES_DE_CUERQUIA": {
+        "label": "San Andrés de Cuerquía",
+        "dane_code": "05647"
+      },
+      "SAN_CARLOS": {
+        "label": "San Carlos",
+        "dane_code": "05649"
+      },
+      "SAN_FRANCISCO": {
+        "label": "San Francisco",
+        "dane_code": "05652"
+      },
+      "SAN_JERONIMO": {
+        "label": "San Jerónimo",
+        "dane_code": "05656"
+      },
+      "SAN_JOSE_DE_LA_MONTANA": {
+        "label": "San José de la Montaña",
+        "dane_code": "05658"
+      },
+      "SAN_JUAN_DE_URABA": {
+        "label": "San Juan de Urabá",
+        "dane_code": "05659"
+      },
+      "SAN_LUIS": {
+        "label": "San Luis",
+        "dane_code": "05660"
+      },
+      "SAN_PEDRO": {
+        "label": "San Pedro",
+        "dane_code": "05664"
+      },
+      "SAN_PEDRO_DE_URABA": {
+        "label": "San Pedro de Urabá",
+        "dane_code": "05665"
+      },
+      "SAN_RAFAEL": {
+        "label": "San Rafael",
+        "dane_code": "05667"
+      },
+      "SAN_ROQUE": {
+        "label": "San Roque",
+        "dane_code": "05670"
+      },
+      "SAN_VICENTE": {
+        "label": "San Vicente",
+        "dane_code": "05674"
+      },
+      "SANTA_BARBARA": {
+        "label": "Santa Bárbara",
+        "dane_code": "05679"
+      },
+      "SANTA_ROSA_DE_OSOS": {
+        "label": "Santa Rosa de Osos",
+        "dane_code": "05686"
+      },
+      "SANTA_FE_DE_ANTIOQUIA": {
+        "label": "Santa Fe de Antioquia",
+        "dane_code": "05042"
+      },
+      "SANTO_DOMINGO": {
+        "label": "Santo Domingo",
+        "dane_code": "05690"
+      },
+      "SEGOVIA": {
+        "label": "Segovia",
+        "dane_code": "05736"
+      },
+      "SONSON": {
+        "label": "Sonsón",
+        "dane_code": "05756"
+      },
+      "SOPETRAN": {
+        "label": "Sopetrán",
+        "dane_code": "05761"
+      },
+      "TAMESIS": {
+        "label": "Támesis",
+        "dane_code": "05789"
+      },
+      "TARAZA": {
+        "label": "Tarazá",
+        "dane_code": "05790"
+      },
+      "TARSO": {
+        "label": "Tarso",
+        "dane_code": "05792"
+      },
+      "TITIRIBI": {
+        "label": "Titiribí",
+        "dane_code": "05809"
+      },
+      "TOLEDO": {
+        "label": "Toledo",
+        "dane_code": "05819"
+      },
+      "TURBO": {
+        "label": "Turbo",
+        "dane_code": "05837"
+      },
+      "URAMITA": {
+        "label": "Uramita",
+        "dane_code": "05842"
+      },
+      "URRAO": {
+        "label": "Urrao",
+        "dane_code": "05847"
+      },
+      "VALDIVIA": {
+        "label": "Valdivia",
+        "dane_code": "05854"
+      },
+      "VALPARAISO": {
+        "label": "Valparaíso",
+        "dane_code": "05856"
+      },
+      "VEGACHI": {
+        "label": "Vegachí",
+        "dane_code": "05858"
+      },
+      "VENECIA": {
+        "label": "Venecia",
+        "dane_code": "05861"
+      },
+      "VIGIA_DEL_FUERTE": {
+        "label": "Vigía del Fuerte",
+        "dane_code": "05873"
+      },
+      "YALI": {
+        "label": "Yalí",
+        "dane_code": "05885"
+      },
+      "YARUMAL": {
+        "label": "Yarumal",
+        "dane_code": "05887"
+      },
+      "YOLOMBO": {
+        "label": "Yolombó",
+        "dane_code": "05890"
+      },
+      "YONDO": {
+        "label": "Yondó",
+        "dane_code": "05893"
+      },
+      "ZARAGOZA": {
+        "label": "Zaragoza",
+        "dane_code": "05895"
+      }
+    }
+  },
+  "NORTE_DE_SANTANDER": {
+    "label": "Norte de Santander",
+    "cities": {
+      "ABREGO": {
+        "label": "Abrego",
+        "dane_code": "54003"
+      },
+      "ARBOLEDAS": {
+        "label": "Arboledas",
+        "dane_code": "54051"
+      },
+      "BOCHALEMA": {
+        "label": "Bochalema",
+        "dane_code": "54099"
+      },
+      "BUCARASICA": {
+        "label": "Bucarasica",
+        "dane_code": "54109"
+      },
+      "CACHIRA": {
+        "label": "Cachirá",
+        "dane_code": "54128"
+      },
+      "CACOTA": {
+        "label": "Cácota",
+        "dane_code": "54125"
+      },
+      "CHINACOTA": {
+        "label": "Chinácota",
+        "dane_code": "54172"
+      },
+      "CHITAGA": {
+        "label": "Chitagá",
+        "dane_code": "54174"
+      },
+      "CONVENCION": {
+        "label": "Convención",
+        "dane_code": "54206"
+      },
+      "CUCUTA": {
+        "label": "Cúcuta",
+        "dane_code": "54001"
+      },
+      "CUCUTILLA": {
+        "label": "Cucutilla",
+        "dane_code": "54223"
+      },
+      "DURANIA": {
+        "label": "Durania",
+        "dane_code": "54239"
+      },
+      "EL_CARMEN": {
+        "label": "El Carmen",
+        "dane_code": "54245"
+      },
+      "EL_TARRA": {
+        "label": "El Tarra",
+        "dane_code": "54250"
+      },
+      "EL_ZULIA": {
+        "label": "El Zulia",
+        "dane_code": "54261"
+      },
+      "GRAMALOTE": {
+        "label": "Gramalote",
+        "dane_code": "54313"
+      },
+      "HACARI": {
+        "label": "Hacarí",
+        "dane_code": "54344"
+      },
+      "HERRAN": {
+        "label": "Herrán",
+        "dane_code": "54347"
+      },
+      "LA_ESPERANZA": {
+        "label": "La Esperanza",
+        "dane_code": "54385"
+      },
+      "LA_PLAYA": {
+        "label": "La Playa",
+        "dane_code": "54398"
+      },
+      "LABATECA": {
+        "label": "Labateca",
+        "dane_code": "54377"
+      },
+      "LOS_PATIOS": {
+        "label": "Los Patios",
+        "dane_code": "54405"
+      },
+      "LOURDES": {
+        "label": "Lourdes",
+        "dane_code": "54418"
+      },
+      "MUTISCUA": {
+        "label": "Mutiscua",
+        "dane_code": "54480"
+      },
+      "OCANA": {
+        "label": "Ocaña",
+        "dane_code": "54498"
+      },
+      "PAMPLONA": {
+        "label": "Pamplona",
+        "dane_code": "54518"
+      },
+      "PAMPLONITA": {
+        "label": "Pamplonita",
+        "dane_code": "54520"
+      },
+      "PUERTO_SANTANDER": {
+        "label": "Puerto Santander",
+        "dane_code": "54553"
+      },
+      "RAGONVALIA": {
+        "label": "Ragonvalia",
+        "dane_code": "54599"
+      },
+      "SALAZAR": {
+        "label": "Salazar",
+        "dane_code": "54660"
+      },
+      "SAN_CALIXTO": {
+        "label": "San Calixto",
+        "dane_code": "54670"
+      },
+      "SAN_CAYETANO": {
+        "label": "San Cayetano",
+        "dane_code": "54673"
+      },
+      "SANTIAGO": {
+        "label": "Santiago",
+        "dane_code": "54680"
+      },
+      "SARDINATA": {
+        "label": "Sardinata",
+        "dane_code": "54720"
+      },
+      "SILOS": {
+        "label": "Silos",
+        "dane_code": "54743"
+      },
+      "TEORAMA": {
+        "label": "Teorama",
+        "dane_code": "54800"
+      },
+      "TIBU": {
+        "label": "Tibú",
+        "dane_code": "54810"
+      },
+      "TOLEDO": {
+        "label": "Toledo",
+        "dane_code": "54820"
+      },
+      "VILLA_CARO": {
+        "label": "Villa Caro",
+        "dane_code": "54871"
+      },
+      "VILLA_DEL_ROSARIO": {
+        "label": "Villa del Rosario",
+        "dane_code": "54874"
+      }
+    }
+  },
+  "META": {
+    "label": "Meta",
+    "cities": {
+      "ACACIAS": {
+        "label": "Acacías",
+        "dane_code": "50006"
+      },
+      "BARRANCA_DE_UPIA": {
+        "label": "Barranca de Upía",
+        "dane_code": "50110"
+      },
+      "CABUYARO": {
+        "label": "Cabuyaro",
+        "dane_code": "50124"
+      },
+      "CASTILLA_LA_NUEVA": {
+        "label": "Castilla la Nueva",
+        "dane_code": "50150"
+      },
+      "CUBARRAL": {
+        "label": "Cubarral",
+        "dane_code": "50223"
+      },
+      "CUMARAL": {
+        "label": "Cumaral",
+        "dane_code": "50226"
+      },
+      "EL_CALVARIO": {
+        "label": "El Calvario",
+        "dane_code": "50245"
+      },
+      "EL_CASTILLO": {
+        "label": "El Castillo",
+        "dane_code": "50251"
+      },
+      "EL_DORADO": {
+        "label": "El Dorado",
+        "dane_code": "50270"
+      },
+      "FUENTE_DE_ORO": {
+        "label": "Fuente de Oro",
+        "dane_code": "50287"
+      },
+      "GRANADA": {
+        "label": "Granada",
+        "dane_code": "50313"
+      },
+      "GUAMAL": {
+        "label": "Guamal",
+        "dane_code": "50318"
+      },
+      "LA_MACARENA": {
+        "label": "La Macarena",
+        "dane_code": "50350"
+      },
+      "LEJANIAS": {
+        "label": "Lejanías",
+        "dane_code": "50400"
+      },
+      "MAPIRIPAN": {
+        "label": "Mapiripán",
+        "dane_code": "50325"
+      },
+      "MESETAS": {
+        "label": "Mesetas",
+        "dane_code": "50330"
+      },
+      "PUERTO_CONCORDIA": {
+        "label": "Puerto Concordia",
+        "dane_code": "50450"
+      },
+      "PUERTO_GAITAN": {
+        "label": "Puerto Gaitán",
+        "dane_code": "50568"
+      },
+      "PUERTO_LLERAS": {
+        "label": "Puerto Lleras",
+        "dane_code": "50577"
+      },
+      "PUERTO_LOPEZ": {
+        "label": "Puerto López",
+        "dane_code": "50573"
+      },
+      "PUERTO_RICO": {
+        "label": "Puerto Rico",
+        "dane_code": "50590"
+      },
+      "RESTREPO": {
+        "label": "Restrepo",
+        "dane_code": "50606"
+      },
+      "SAN_CARLOS_DE_GUAROA": {
+        "label": "San Carlos de Guaroa",
+        "dane_code": "50680"
+      },
+      "SAN_JUAN_DE_ARAMA": {
+        "label": "San Juan de Arama",
+        "dane_code": "50683"
+      },
+      "SAN_JUANITO": {
+        "label": "San Juanito",
+        "dane_code": "50686"
+      },
+      "SAN_MARTIN": {
+        "label": "San Martín",
+        "dane_code": "50689"
+      },
+      "URIBE": {
+        "label": "Uribe",
+        "dane_code": "50370"
+      },
+      "VILLAVICENCIO": {
+        "label": "Villavicencio",
+        "dane_code": "50001"
+      },
+      "VISTAHERMOSA": {
+        "label": "Vistahermosa",
+        "dane_code": "50711"
+      }
+    }
+  },
+  "CHOCO": {
+    "label": "Chocó",
+    "cities": {
+      "ACANDI": {
+        "label": "Acandí",
+        "dane_code": "27006"
+      },
+      "ALTO_BAUDO": {
+        "label": "Alto Baudó",
+        "dane_code": "27025"
+      },
+      "ATRATO": {
+        "label": "Atrato",
+        "dane_code": "27050"
+      },
+      "BAGADO": {
+        "label": "Bagadó",
+        "dane_code": "27073"
+      },
+      "BAHIA_SOLANO": {
+        "label": "Bahía Solano",
+        "dane_code": "27075"
+      },
+      "BAJO_BAUDO": {
+        "label": "Bajo Baudó",
+        "dane_code": "27077"
+      },
+      "BELEN_DE_BAJIRA": {
+        "label": "Belén de Bajirá",
+        "dane_code": "27493"
+      },
+      "BOJAYA": {
+        "label": "Bojayá",
+        "dane_code": "27099"
+      },
+      "CARMEN_DEL_DARIEN": {
+        "label": "Carmen del Darién",
+        "dane_code": "27150"
+      },
+      "CERTEGUI": {
+        "label": "Cértegui",
+        "dane_code": "27160"
+      },
+      "CONDOTO": {
+        "label": "Condoto",
+        "dane_code": "27205"
+      },
+      "EL_CANTON_DEL_SAN_PABLO": {
+        "label": "El Cantón del San Pablo",
+        "dane_code": "27135"
+      },
+      "EL_CARMEN_DE_ATRATO": {
+        "label": "El Carmen de Atrato",
+        "dane_code": "27245"
+      },
+      "EL_LITORAL_DEL_SAN_JUAN": {
+        "label": "El Litoral del San Juan",
+        "dane_code": "27250"
+      },
+      "ISTMINA": {
+        "label": "Istmina",
+        "dane_code": "27361"
+      },
+      "JURADO": {
+        "label": "Juradó",
+        "dane_code": "27372"
+      },
+      "LLORO": {
+        "label": "Lloró",
+        "dane_code": "27413"
+      },
+      "MEDIO_ATRATO": {
+        "label": "Medio Atrato",
+        "dane_code": "27425"
+      },
+      "MEDIO_BAUDO": {
+        "label": "Medio Baudó",
+        "dane_code": "27430"
+      },
+      "MEDIO_SAN_JUAN": {
+        "label": "Medio San Juan",
+        "dane_code": "27450"
+      },
+      "NOVITA": {
+        "label": "Nóvita",
+        "dane_code": "27491"
+      },
+      "NUQUI": {
+        "label": "Nuquí",
+        "dane_code": "27495"
+      },
+      "QUIBDO": {
+        "label": "Quibdó",
+        "dane_code": "27001"
+      },
+      "RIO_IRO": {
+        "label": "Río Iró",
+        "dane_code": "27580"
+      },
+      "RIO_QUITO": {
+        "label": "Río Quito",
+        "dane_code": "27600"
+      },
+      "RIOSUCIO": {
+        "label": "Riosucio",
+        "dane_code": "27615"
+      },
+      "SAN_JOSE_DEL_PALMAR": {
+        "label": "San José del Palmar",
+        "dane_code": "27660"
+      },
+      "SIPI": {
+        "label": "Sipí",
+        "dane_code": "27745"
+      },
+      "TADO": {
+        "label": "Tadó",
+        "dane_code": "27787"
+      },
+      "UNGUIA": {
+        "label": "Unguía",
+        "dane_code": "27800"
+      },
+      "UNION_PANAMERICANA": {
+        "label": "Unión Panamericana",
+        "dane_code": "27810"
+      }
+    }
+  },
+  "HUILA": {
+    "label": "Huila",
+    "cities": {
+      "ACEVEDO": {
+        "label": "Acevedo",
+        "dane_code": "41006"
+      },
+      "AGRADO": {
+        "label": "Agrado",
+        "dane_code": "41013"
+      },
+      "AIPE": {
+        "label": "Aipe",
+        "dane_code": "41016"
+      },
+      "ALGECIRAS": {
+        "label": "Algeciras",
+        "dane_code": "41020"
+      },
+      "ALTAMIRA": {
+        "label": "Altamira",
+        "dane_code": "41026"
+      },
+      "BARAYA": {
+        "label": "Baraya",
+        "dane_code": "41078"
+      },
+      "CAMPOALEGRE": {
+        "label": "Campoalegre",
+        "dane_code": "41132"
+      },
+      "COLOMBIA": {
+        "label": "Colombia",
+        "dane_code": "41206"
+      },
+      "ELIAS": {
+        "label": "Elías",
+        "dane_code": "41244"
+      },
+      "GARZON": {
+        "label": "Garzón",
+        "dane_code": "41298"
+      },
+      "GIGANTE": {
+        "label": "Gigante",
+        "dane_code": "41306"
+      },
+      "GUADALUPE": {
+        "label": "Guadalupe",
+        "dane_code": "41319"
+      },
+      "HOBO": {
+        "label": "Hobo",
+        "dane_code": "41349"
+      },
+      "IQUIRA": {
+        "label": "Iquira",
+        "dane_code": "41357"
+      },
+      "ISNOS": {
+        "label": "Isnos",
+        "dane_code": "41359"
+      },
+      "LA_ARGENTINA": {
+        "label": "La Argentina",
+        "dane_code": "41378"
+      },
+      "LA_PLATA": {
+        "label": "La Plata",
+        "dane_code": "41396"
+      },
+      "NATAGA": {
+        "label": "Nátaga",
+        "dane_code": "41483"
+      },
+      "NEIVA": {
+        "label": "Neiva",
+        "dane_code": "41001"
+      },
+      "OPORAPA": {
+        "label": "Oporapa",
+        "dane_code": "41503"
+      },
+      "PAICOL": {
+        "label": "Paicol",
+        "dane_code": "41518"
+      },
+      "PALERMO": {
+        "label": "Palermo",
+        "dane_code": "41524"
+      },
+      "PALESTINA": {
+        "label": "Palestina",
+        "dane_code": "41530"
+      },
+      "PITAL": {
+        "label": "Pital",
+        "dane_code": "41548"
+      },
+      "PITALITO": {
+        "label": "Pitalito",
+        "dane_code": "41551"
+      },
+      "RIVERA": {
+        "label": "Rivera",
+        "dane_code": "41615"
+      },
+      "SALADOBLANCO": {
+        "label": "Saladoblanco",
+        "dane_code": "41660"
+      },
+      "SAN_AGUSTIN": {
+        "label": "San Agustín",
+        "dane_code": "41668"
+      },
+      "SANTA_MARIA": {
+        "label": "Santa María",
+        "dane_code": "41676"
+      },
+      "SUAZA": {
+        "label": "Suaza",
+        "dane_code": "41770"
+      },
+      "TARQUI": {
+        "label": "Tarqui",
+        "dane_code": "41791"
+      },
+      "TELLO": {
+        "label": "Tello",
+        "dane_code": "41799"
+      },
+      "TERUEL": {
+        "label": "Teruel",
+        "dane_code": "41801"
+      },
+      "TESALIA": {
+        "label": "Tesalia",
+        "dane_code": "41797"
+      },
+      "TIMANA": {
+        "label": "Timaná",
+        "dane_code": "41807"
+      },
+      "VILLAVIEJA": {
+        "label": "Villavieja",
+        "dane_code": "41872"
+      },
+      "YAGUARA": {
+        "label": "Yaguará",
+        "dane_code": "41885"
+      }
+    }
+  },
+  "BOLIVAR": {
+    "label": "Bolívar",
+    "cities": {
+      "ACHI": {
+        "label": "Achí",
+        "dane_code": "13006"
+      },
+      "ALTOS_DEL_ROSARIO": {
+        "label": "Altos del Rosario",
+        "dane_code": "13030"
+      },
+      "ARENAL": {
+        "label": "Arenal",
+        "dane_code": "13042"
+      },
+      "ARJONA": {
+        "label": "Arjona",
+        "dane_code": "13052"
+      },
+      "ARROYOHONDO": {
+        "label": "Arroyohondo",
+        "dane_code": "13062"
+      },
+      "BARRANCO_DE_LOBA": {
+        "label": "Barranco de Loba",
+        "dane_code": "13074"
+      },
+      "CALAMAR": {
+        "label": "Calamar",
+        "dane_code": "13140"
+      },
+      "CANTAGALLO": {
+        "label": "Cantagallo",
+        "dane_code": "13160"
+      },
+      "CARTAGENA": {
+        "label": "Cartagena",
+        "dane_code": "13001"
+      },
+      "CICUCO": {
+        "label": "Cicuco",
+        "dane_code": "13188"
+      },
+      "CLEMENCIA": {
+        "label": "Clemencia",
+        "dane_code": "13222"
+      },
+      "CORDOBA": {
+        "label": "Córdoba",
+        "dane_code": "13212"
+      },
+      "EL_CARMEN_DE_BOLIVAR": {
+        "label": "El Carmen de Bolívar",
+        "dane_code": "13244"
+      },
+      "EL_GUAMO": {
+        "label": "El Guamo",
+        "dane_code": "13248"
+      },
+      "EL_PENON": {
+        "label": "El Peñón",
+        "dane_code": "13268"
+      },
+      "HATILLO_DE_LOBA": {
+        "label": "Hatillo de Loba",
+        "dane_code": "13300"
+      },
+      "MAGANGUE": {
+        "label": "Magangué",
+        "dane_code": "13430"
+      },
+      "MAHATES": {
+        "label": "Mahates",
+        "dane_code": "13433"
+      },
+      "MARGARITA": {
+        "label": "Margarita",
+        "dane_code": "13440"
+      },
+      "MARIA_LA_BAJA": {
+        "label": "María la Baja",
+        "dane_code": "13442"
+      },
+      "MOMPOS": {
+        "label": "Mompós",
+        "dane_code": "13468"
+      },
+      "MONTECRISTO": {
+        "label": "Montecristo",
+        "dane_code": "13458"
+      },
+      "MORALES": {
+        "label": "Morales",
+        "dane_code": "13473"
+      },
+      "PINILLOS": {
+        "label": "Pinillos",
+        "dane_code": "13549"
+      },
+      "REGIDOR": {
+        "label": "Regidor",
+        "dane_code": "13580"
+      },
+      "RIO_VIEJO": {
+        "label": "Río Viejo",
+        "dane_code": "13600"
+      },
+      "SAN_CRISTOBAL": {
+        "label": "San Cristóbal",
+        "dane_code": "13620"
+      },
+      "SAN_ESTANISLAO": {
+        "label": "San Estanislao",
+        "dane_code": "13647"
+      },
+      "SAN_FERNANDO": {
+        "label": "San Fernando",
+        "dane_code": "13650"
+      },
+      "SAN_JACINTO": {
+        "label": "San Jacinto",
+        "dane_code": "13654"
+      },
+      "SAN_JACINTO_DEL_CAUCA": {
+        "label": "San Jacinto del Cauca",
+        "dane_code": "13655"
+      },
+      "SAN_JUAN_NEPOMUCENO": {
+        "label": "San Juan Nepomuceno",
+        "dane_code": "13657"
+      },
+      "SAN_MARTIN_DE_LOBA": {
+        "label": "San Martín de Loba",
+        "dane_code": "13667"
+      },
+      "SAN_PABLO": {
+        "label": "San Pablo",
+        "dane_code": "13670"
+      },
+      "SANTA_CATALINA": {
+        "label": "Santa Catalina",
+        "dane_code": "13673"
+      },
+      "SANTA_ROSA": {
+        "label": "Santa Rosa",
+        "dane_code": "13683"
+      },
+      "SANTA_ROSA_DEL_SUR": {
+        "label": "Santa Rosa del Sur",
+        "dane_code": "13688"
+      },
+      "SIMITI": {
+        "label": "Simití",
+        "dane_code": "13744"
+      },
+      "SOPLAVIENTO": {
+        "label": "Soplaviento",
+        "dane_code": "13760"
+      },
+      "TALAIGUA_NUEVO": {
+        "label": "Talaigua Nuevo",
+        "dane_code": "13780"
+      },
+      "TIQUISIO": {
+        "label": "Tiquisio",
+        "dane_code": "13810"
+      },
+      "TURBACO": {
+        "label": "Turbaco",
+        "dane_code": "13836"
+      },
+      "TURBANA": {
+        "label": "Turbaná",
+        "dane_code": "13838"
+      },
+      "VILLANUEVA": {
+        "label": "Villanueva",
+        "dane_code": "13873"
+      },
+      "ZAMBRANO": {
+        "label": "Zambrano",
+        "dane_code": "13894"
+      }
+    }
+  },
+  "CUNDINAMARCA": {
+    "label": "Cundinamarca",
+    "cities": {
+      "AGUA_DE_DIOS": {
+        "label": "Agua de Dios",
+        "dane_code": "25001"
+      },
+      "ALBAN": {
+        "label": "Albán",
+        "dane_code": "25019"
+      },
+      "ANAPOIMA": {
+        "label": "Anapoima",
+        "dane_code": "25035"
+      },
+      "ANOLAIMA": {
+        "label": "Anolaima",
+        "dane_code": "25040"
+      },
+      "APULO": {
+        "label": "Apulo",
+        "dane_code": "25599"
+      },
+      "ARBELAEZ": {
+        "label": "Arbeláez",
+        "dane_code": "25053"
+      },
+      "BELTRAN": {
+        "label": "Beltrán",
+        "dane_code": "25086"
+      },
+      "BITUIMA": {
+        "label": "Bituima",
+        "dane_code": "25095"
+      },
+      "BOGOTA_DC": {
+        "label": "Bogotá D.C.",
+        "dane_code": "11001",
+        "localities": {
+          "ENGATIVA": {
+            "label": "Engativá"
+          },
+          "FONTIBON": {
+            "label": "Fontibón"
+          },
+          "KENNEDY": {
+            "label": "Kennedy"
+          },
+          "SUBA": {
+            "label": "Suba"
+          },
+          "USAQUEN": {
+            "label": "Usaquén"
+          },
+          "USME": {
+            "label": "Usme"
+          }
+        }
+      },
+      "BOJACA": {
+        "label": "Bojacá",
+        "dane_code": "25099"
+      },
+      "CABRERA": {
+        "label": "Cabrera",
+        "dane_code": "25120"
+      },
+      "CACHIPAY": {
+        "label": "Cachipay",
+        "dane_code": "25123"
+      },
+      "CAJICA": {
+        "label": "Cajicá",
+        "dane_code": "25126"
+      },
+      "CAPARRAPI": {
+        "label": "Caparrapí",
+        "dane_code": "25148"
+      },
+      "CAQUEZA": {
+        "label": "Cáqueza",
+        "dane_code": "25151"
+      },
+      "CARMEN_DE_CARUPA": {
+        "label": "Carmen de Carupa",
+        "dane_code": "25154"
+      },
+      "CHAGUANI": {
+        "label": "Chaguaní",
+        "dane_code": "25168"
+      },
+      "CHIA": {
+        "label": "Chía",
+        "dane_code": "25175"
+      },
+      "CHIPAQUE": {
+        "label": "Chipaque",
+        "dane_code": "25178"
+      },
+      "CHOACHI": {
+        "label": "Choachí",
+        "dane_code": "25181"
+      },
+      "CHOCONTA": {
+        "label": "Chocontá",
+        "dane_code": "25183"
+      },
+      "COGUA": {
+        "label": "Cogua",
+        "dane_code": "25200"
+      },
+      "COTA": {
+        "label": "Cota",
+        "dane_code": "25214"
+      },
+      "CUCUNUBA": {
+        "label": "Cucunubá",
+        "dane_code": "25224"
+      },
+      "EL_COLEGIO": {
+        "label": "El Colegio",
+        "dane_code": "25245"
+      },
+      "EL_PENON": {
+        "label": "El Peñón",
+        "dane_code": "25258"
+      },
+      "EL_ROSAL": {
+        "label": "El Rosal",
+        "dane_code": "25260"
+      },
+      "FACATATIVA": {
+        "label": "Facatativá",
+        "dane_code": "25269"
+      },
+      "FOMEQUE": {
+        "label": "Fómeque",
+        "dane_code": "25279"
+      },
+      "FOSCA": {
+        "label": "Fosca",
+        "dane_code": "25281"
+      },
+      "FUNZA": {
+        "label": "Funza",
+        "dane_code": "25286"
+      },
+      "FUQUENE": {
+        "label": "Fúquene",
+        "dane_code": "25288"
+      },
+      "FUSAGASUGA": {
+        "label": "Fusagasugá",
+        "dane_code": "25290"
+      },
+      "GACHALA": {
+        "label": "Gachalá",
+        "dane_code": "25293"
+      },
+      "GACHANCIPA": {
+        "label": "Gachancipá",
+        "dane_code": "25295"
+      },
+      "GACHETA": {
+        "label": "Gachetá",
+        "dane_code": "25297"
+      },
+      "GAMA": {
+        "label": "Gama",
+        "dane_code": "25299"
+      },
+      "GIRARDOT": {
+        "label": "Girardot",
+        "dane_code": "25307"
+      },
+      "GRANADA": {
+        "label": "Granada",
+        "dane_code": "25312"
+      },
+      "GUACHETA": {
+        "label": "Guachetá",
+        "dane_code": "25317"
+      },
+      "GUADUAS": {
+        "label": "Guaduas",
+        "dane_code": "25320"
+      },
+      "GUASCA": {
+        "label": "Guasca",
+        "dane_code": "25322"
+      },
+      "GUATAQUI": {
+        "label": "Guataquí",
+        "dane_code": "25324"
+      },
+      "GUATAVITA": {
+        "label": "Guatavita",
+        "dane_code": "25326"
+      },
+      "GUAYABAL_DE_SIQUIMA": {
+        "label": "Guayabal de Síquima",
+        "dane_code": "25328"
+      },
+      "GUAYABETAL": {
+        "label": "Guayabetal",
+        "dane_code": "25335"
+      },
+      "GUTIERREZ": {
+        "label": "Gutiérrez",
+        "dane_code": "25339"
+      },
+      "JERUSALEN": {
+        "label": "Jerusalén",
+        "dane_code": "25368"
+      },
+      "JUNIN": {
+        "label": "Junín",
+        "dane_code": "25372"
+      },
+      "LA_CALERA": {
+        "label": "La Calera",
+        "dane_code": "25377"
+      },
+      "LA_MESA": {
+        "label": "La Mesa",
+        "dane_code": "25386"
+      },
+      "LA_PALMA": {
+        "label": "La Palma",
+        "dane_code": "25394"
+      },
+      "LA_PENA": {
+        "label": "La Peña",
+        "dane_code": "25398"
+      },
+      "LA_VEGA": {
+        "label": "La Vega",
+        "dane_code": "25402"
+      },
+      "LENGUAZAQUE": {
+        "label": "Lenguazaque",
+        "dane_code": "25407"
+      },
+      "MACHETA": {
+        "label": "Machetá",
+        "dane_code": "25426"
+      },
+      "MADRID": {
+        "label": "Madrid",
+        "dane_code": "25430"
+      },
+      "MANTA": {
+        "label": "Manta",
+        "dane_code": "25436"
+      },
+      "MEDINA": {
+        "label": "Medina",
+        "dane_code": "25438"
+      },
+      "MOSQUERA": {
+        "label": "Mosquera",
+        "dane_code": "25473"
+      },
+      "NARINO": {
+        "label": "Nariño",
+        "dane_code": "25483"
+      },
+      "NEMOCON": {
+        "label": "Nemocón",
+        "dane_code": "25486"
+      },
+      "NILO": {
+        "label": "Nilo",
+        "dane_code": "25488"
+      },
+      "NIMAIMA": {
+        "label": "Nimaima",
+        "dane_code": "25489"
+      },
+      "NOCAIMA": {
+        "label": "Nocaima",
+        "dane_code": "25491"
+      },
+      "PACHO": {
+        "label": "Pacho",
+        "dane_code": "25513"
+      },
+      "PAIME": {
+        "label": "Paime",
+        "dane_code": "25518"
+      },
+      "PANDI": {
+        "label": "Pandi",
+        "dane_code": "25524"
+      },
+      "PARATEBUENO": {
+        "label": "Paratebueno",
+        "dane_code": "25530"
+      },
+      "PASCA": {
+        "label": "Pasca",
+        "dane_code": "25535"
+      },
+      "PUERTO_SALGAR": {
+        "label": "Puerto Salgar",
+        "dane_code": "25572"
+      },
+      "PULI": {
+        "label": "Pulí",
+        "dane_code": "25580"
+      },
+      "QUEBRADANEGRA": {
+        "label": "Quebradanegra",
+        "dane_code": "25592"
+      },
+      "QUETAME": {
+        "label": "Quetame",
+        "dane_code": "25594"
+      },
+      "QUIPILE": {
+        "label": "Quipile",
+        "dane_code": "25596"
+      },
+      "RICAURTE": {
+        "label": "Ricaurte",
+        "dane_code": "25612"
+      },
+      "SAN_ANTONIO_DEL_TEQUENDAMA": {
+        "label": "San Antonio del Tequendama",
+        "dane_code": "25645"
+      },
+      "SAN_BERNARDO": {
+        "label": "San Bernardo",
+        "dane_code": "25649"
+      },
+      "SAN_CAYETANO": {
+        "label": "San Cayetano",
+        "dane_code": "25653"
+      },
+      "SAN_FRANCISCO": {
+        "label": "San Francisco",
+        "dane_code": "25658"
+      },
+      "SAN_JUAN_DE_RIOSECO": {
+        "label": "San Juan de Rioseco",
+        "dane_code": "25662"
+      },
+      "SASAIMA": {
+        "label": "Sasaima",
+        "dane_code": "25718"
+      },
+      "SESQUILE": {
+        "label": "Sesquilé",
+        "dane_code": "25736"
+      },
+      "SIBATE": {
+        "label": "Sibaté",
+        "dane_code": "25740"
+      },
+      "SILVANIA": {
+        "label": "Silvania",
+        "dane_code": "25743"
+      },
+      "SIMIJACA": {
+        "label": "Simijaca",
+        "dane_code": "25745"
+      },
+      "SOACHA": {
+        "label": "Soacha",
+        "dane_code": "25754"
+      },
+      "SOPO": {
+        "label": "Sopó",
+        "dane_code": "25758"
+      },
+      "SUBACHOQUE": {
+        "label": "Subachoque",
+        "dane_code": "25769"
+      },
+      "SUESCA": {
+        "label": "Suesca",
+        "dane_code": "25772"
+      },
+      "SUPATA": {
+        "label": "Supatá",
+        "dane_code": "25777"
+      },
+      "SUSA": {
+        "label": "Susa",
+        "dane_code": "25779"
+      },
+      "SUTATAUSA": {
+        "label": "Sutatausa",
+        "dane_code": "25781"
+      },
+      "TABIO": {
+        "label": "Tabio",
+        "dane_code": "25785"
+      },
+      "TAUSA": {
+        "label": "Tausa",
+        "dane_code": "25793"
+      },
+      "TENA": {
+        "label": "Tena",
+        "dane_code": "25797"
+      },
+      "TENJO": {
+        "label": "Tenjo",
+        "dane_code": "25799"
+      },
+      "TIBACUY": {
+        "label": "Tibacuy",
+        "dane_code": "25805"
+      },
+      "TIBIRITA": {
+        "label": "Tibirita",
+        "dane_code": "25807"
+      },
+      "TOCAIMA": {
+        "label": "Tocaima",
+        "dane_code": "25815"
+      },
+      "TOCANCIPA": {
+        "label": "Tocancipá",
+        "dane_code": "25817"
+      },
+      "TOPAIPI": {
+        "label": "Topaipí",
+        "dane_code": "25823"
+      },
+      "UBALA": {
+        "label": "Ubalá",
+        "dane_code": "25839"
+      },
+      "UBAQUE": {
+        "label": "Ubaque",
+        "dane_code": "25841"
+      },
+      "UBATE": {
+        "label": "Ubaté",
+        "dane_code": "25843"
+      },
+      "UNE": {
+        "label": "Une",
+        "dane_code": "25845"
+      },
+      "UTICA": {
+        "label": "Útica",
+        "dane_code": "25851"
+      },
+      "VENECIA": {
+        "label": "Venecia",
+        "dane_code": "25506"
+      },
+      "VERGARA": {
+        "label": "Vergara",
+        "dane_code": "25862"
+      },
+      "VIANI": {
+        "label": "Vianí",
+        "dane_code": "25867"
+      },
+      "VILLAGOMEZ": {
+        "label": "Villagómez",
+        "dane_code": "25871"
+      },
+      "VILLAPINZON": {
+        "label": "Villapinzón",
+        "dane_code": "25873"
+      },
+      "VILLETA": {
+        "label": "Villeta",
+        "dane_code": "25875"
+      },
+      "VIOTA": {
+        "label": "Viotá",
+        "dane_code": "25878"
+      },
+      "YACOPI": {
+        "label": "Yacopí",
+        "dane_code": "25885"
+      },
+      "ZIPACON": {
+        "label": "Zipacón",
+        "dane_code": "25898"
+      },
+      "ZIPAQUIRA": {
+        "label": "Zipaquirá",
+        "dane_code": "25899"
+      }
+    }
+  },
+  "CESAR": {
+    "label": "Cesar",
+    "cities": {
+      "AGUACHICA": {
+        "label": "Aguachica",
+        "dane_code": "20011"
+      },
+      "AGUSTIN_CODAZZI": {
+        "label": "Agustín Codazzi",
+        "dane_code": "20013"
+      },
+      "ASTREA": {
+        "label": "Astrea",
+        "dane_code": "20032"
+      },
+      "BECERRIL": {
+        "label": "Becerril",
+        "dane_code": "20045"
+      },
+      "BOSCONIA": {
+        "label": "Bosconia",
+        "dane_code": "20060"
+      },
+      "CHIMICHAGUA": {
+        "label": "Chimichagua",
+        "dane_code": "20175"
+      },
+      "CHIRIGUANA": {
+        "label": "Chiriguaná",
+        "dane_code": "20178"
+      },
+      "CURUMANI": {
+        "label": "Curumaní",
+        "dane_code": "20228"
+      },
+      "EL_COPEY": {
+        "label": "El Copey",
+        "dane_code": "20238"
+      },
+      "EL_PASO": {
+        "label": "El Paso",
+        "dane_code": "20250"
+      },
+      "GAMARRA": {
+        "label": "Gamarra",
+        "dane_code": "20295"
+      },
+      "GONZALEZ": {
+        "label": "González",
+        "dane_code": "20310"
+      },
+      "LA_GLORIA": {
+        "label": "La Gloria",
+        "dane_code": "20383"
+      },
+      "LA_JAGUA_DE_IBIRICO": {
+        "label": "La Jagua de Ibirico",
+        "dane_code": "20400"
+      },
+      "LA_PAZ": {
+        "label": "La Paz",
+        "dane_code": "20621"
+      },
+      "MANAURE_BALCON_DEL_CESAR": {
+        "label": "Manaure Balcón del Cesar",
+        "dane_code": "20443"
+      },
+      "PAILITAS": {
+        "label": "Pailitas",
+        "dane_code": "20517"
+      },
+      "PELAYA": {
+        "label": "Pelaya",
+        "dane_code": "20550"
+      },
+      "PUEBLO_BELLO": {
+        "label": "Pueblo Bello",
+        "dane_code": "20570"
+      },
+      "RIO_DE_ORO": {
+        "label": "Río de Oro",
+        "dane_code": "20614"
+      },
+      "SAN_ALBERTO": {
+        "label": "San Alberto",
+        "dane_code": "20710"
+      },
+      "SAN_DIEGO": {
+        "label": "San Diego",
+        "dane_code": "20750"
+      },
+      "SAN_MARTIN": {
+        "label": "San Martín",
+        "dane_code": "20770"
+      },
+      "TAMALAMEQUE": {
+        "label": "Tamalameque",
+        "dane_code": "20787"
+      },
+      "VALLEDUPAR": {
+        "label": "Valledupar",
+        "dane_code": "20001"
+      }
+    }
+  },
+  "SANTANDER": {
+    "label": "Santander",
+    "cities": {
+      "AGUADA": {
+        "label": "Aguada",
+        "dane_code": "68013"
+      },
+      "ALBANIA": {
+        "label": "Albania",
+        "dane_code": "68020"
+      },
+      "ARATOCA": {
+        "label": "Aratoca",
+        "dane_code": "68051"
+      },
+      "BARBOSA": {
+        "label": "Barbosa",
+        "dane_code": "68077"
+      },
+      "BARICHARA": {
+        "label": "Barichara",
+        "dane_code": "68079"
+      },
+      "BARRANCABERMEJA": {
+        "label": "Barrancabermeja",
+        "dane_code": "68081"
+      },
+      "BETULIA": {
+        "label": "Betulia",
+        "dane_code": "68092"
+      },
+      "BOLIVAR": {
+        "label": "Bolívar",
+        "dane_code": "68101"
+      },
+      "BUCARAMANGA": {
+        "label": "Bucaramanga",
+        "dane_code": "68001"
+      },
+      "CABRERA": {
+        "label": "Cabrera",
+        "dane_code": "68121"
+      },
+      "CALIFORNIA": {
+        "label": "California",
+        "dane_code": "68132"
+      },
+      "CAPITANEJO": {
+        "label": "Capitanejo",
+        "dane_code": "68147"
+      },
+      "CARCASI": {
+        "label": "Carcasí",
+        "dane_code": "68152"
+      },
+      "CEPITA": {
+        "label": "Cepitá",
+        "dane_code": "68160"
+      },
+      "CERRITO": {
+        "label": "Cerrito",
+        "dane_code": "68162"
+      },
+      "CHARALA": {
+        "label": "Charalá",
+        "dane_code": "68167"
+      },
+      "CHARTA": {
+        "label": "Charta",
+        "dane_code": "68169"
+      },
+      "CHIMA": {
+        "label": "Chima",
+        "dane_code": "68176"
+      },
+      "CHIPATA": {
+        "label": "Chipatá",
+        "dane_code": "68179"
+      },
+      "CIMITARRA": {
+        "label": "Cimitarra",
+        "dane_code": "68190"
+      },
+      "CONCEPCION": {
+        "label": "Concepción",
+        "dane_code": "68207"
+      },
+      "CONFINES": {
+        "label": "Confines",
+        "dane_code": "68209"
+      },
+      "CONTRATACION": {
+        "label": "Contratación",
+        "dane_code": "68211"
+      },
+      "COROMORO": {
+        "label": "Coromoro",
+        "dane_code": "68217"
+      },
+      "CURITI": {
+        "label": "Curití",
+        "dane_code": "68229"
+      },
+      "EL_CARMEN_DE_CHUCURI": {
+        "label": "El Carmen de Chucurí",
+        "dane_code": "68235"
+      },
+      "EL_GUACAMAYO": {
+        "label": "El Guacamayo",
+        "dane_code": "68245"
+      },
+      "EL_PENON": {
+        "label": "El Peñón",
+        "dane_code": "68250"
+      },
+      "EL_PLAYON": {
+        "label": "El Playón",
+        "dane_code": "68255"
+      },
+      "ENCINO": {
+        "label": "Encino",
+        "dane_code": "68264"
+      },
+      "ENCISO": {
+        "label": "Enciso",
+        "dane_code": "68266"
+      },
+      "FLORIAN": {
+        "label": "Florián",
+        "dane_code": "68271"
+      },
+      "FLORIDABLANCA": {
+        "label": "Floridablanca",
+        "dane_code": "68276"
+      },
+      "GALAN": {
+        "label": "Galán",
+        "dane_code": "68296"
+      },
+      "GAMBITA": {
+        "label": "Gámbita",
+        "dane_code": "68298"
+      },
+      "GIRON": {
+        "label": "Girón",
+        "dane_code": "68307"
+      },
+      "GUACA": {
+        "label": "Guaca",
+        "dane_code": "68318"
+      },
+      "GUADALUPE": {
+        "label": "Guadalupe",
+        "dane_code": "68320"
+      },
+      "GUAPOTA": {
+        "label": "Guapotá",
+        "dane_code": "68322"
+      },
+      "GUAVATA": {
+        "label": "Guavatá",
+        "dane_code": "68324"
+      },
+      "GUEPSA": {
+        "label": "Güepsa",
+        "dane_code": "68327"
+      },
+      "HATO": {
+        "label": "Hato",
+        "dane_code": "68344"
+      },
+      "JESUS_MARIA": {
+        "label": "Jesús María",
+        "dane_code": "68368"
+      },
+      "JORDAN": {
+        "label": "Jordán",
+        "dane_code": "68370"
+      },
+      "LA_BELLEZA": {
+        "label": "La Belleza",
+        "dane_code": "68377"
+      },
+      "LA_PAZ": {
+        "label": "La Paz",
+        "dane_code": "68397"
+      },
+      "LANDAZURI": {
+        "label": "Landázuri",
+        "dane_code": "68385"
+      },
+      "LEBRIJA": {
+        "label": "Lebrija",
+        "dane_code": "68406"
+      },
+      "LOS_SANTOS": {
+        "label": "Los Santos",
+        "dane_code": "68418"
+      },
+      "MACARAVITA": {
+        "label": "Macaravita",
+        "dane_code": "68425"
+      },
+      "MALAGA": {
+        "label": "Málaga",
+        "dane_code": "68432"
+      },
+      "MATANZA": {
+        "label": "Matanza",
+        "dane_code": "68444"
+      },
+      "MOGOTES": {
+        "label": "Mogotes",
+        "dane_code": "68464"
+      },
+      "MOLAGAVITA": {
+        "label": "Molagavita",
+        "dane_code": "68468"
+      },
+      "OCAMONTE": {
+        "label": "Ocamonte",
+        "dane_code": "68498"
+      },
+      "OIBA": {
+        "label": "Oiba",
+        "dane_code": "68500"
+      },
+      "ONZAGA": {
+        "label": "Onzaga",
+        "dane_code": "68502"
+      },
+      "PALMAR": {
+        "label": "Palmar",
+        "dane_code": "68522"
+      },
+      "PALMAS_DEL_SOCORRO": {
+        "label": "Palmas del Socorro",
+        "dane_code": "68524"
+      },
+      "PARAMO": {
+        "label": "Páramo",
+        "dane_code": "68533"
+      },
+      "PIEDECUESTA": {
+        "label": "Piedecuesta",
+        "dane_code": "68547"
+      },
+      "PINCHOTE": {
+        "label": "Pinchote",
+        "dane_code": "68549"
+      },
+      "PUENTE_NACIONAL": {
+        "label": "Puente Nacional",
+        "dane_code": "68572"
+      },
+      "PUERTO_PARRA": {
+        "label": "Puerto Parra",
+        "dane_code": "68573"
+      },
+      "PUERTO_WILCHES": {
+        "label": "Puerto Wilches",
+        "dane_code": "68575"
+      },
+      "RIONEGRO": {
+        "label": "Rionegro",
+        "dane_code": "68615"
+      },
+      "SABANA_DE_TORRES": {
+        "label": "Sabana de Torres",
+        "dane_code": "68655"
+      },
+      "SAN_ANDRES": {
+        "label": "San Andrés",
+        "dane_code": "68669"
+      },
+      "SAN_BENITO": {
+        "label": "San Benito",
+        "dane_code": "68673"
+      },
+      "SAN_GIL": {
+        "label": "San Gil",
+        "dane_code": "68679"
+      },
+      "SAN_JOAQUIN": {
+        "label": "San Joaquín",
+        "dane_code": "68682"
+      },
+      "SAN_JOSE_DE_MIRANDA": {
+        "label": "San José de Miranda",
+        "dane_code": "68684"
+      },
+      "SAN_MIGUEL": {
+        "label": "San Miguel",
+        "dane_code": "68686"
+      },
+      "SAN_VICENTE_DE_CHUCURI": {
+        "label": "San Vicente de Chucurí",
+        "dane_code": "68689"
+      },
+      "SANTA_BARBARA": {
+        "label": "Santa Bárbara",
+        "dane_code": "68705"
+      },
+      "SANTA_HELENA_DEL_OPON": {
+        "label": "Santa Helena del Opón",
+        "dane_code": "68720"
+      },
+      "SIMACOTA": {
+        "label": "Simacota",
+        "dane_code": "68745"
+      },
+      "SOCORRO": {
+        "label": "Socorro",
+        "dane_code": "68755"
+      },
+      "SUAITA": {
+        "label": "Suaita",
+        "dane_code": "68770"
+      },
+      "SUCRE": {
+        "label": "Sucre",
+        "dane_code": "68773"
+      },
+      "SURATA": {
+        "label": "Suratá",
+        "dane_code": "68780"
+      },
+      "TONA": {
+        "label": "Tona",
+        "dane_code": "68820"
+      },
+      "VALLE_DE_SAN_JOSE": {
+        "label": "Valle de San José",
+        "dane_code": "68855"
+      },
+      "VELEZ": {
+        "label": "Vélez",
+        "dane_code": "68861"
+      },
+      "VETAS": {
+        "label": "Vetas",
+        "dane_code": "68867"
+      },
+      "VILLANUEVA": {
+        "label": "Villanueva",
+        "dane_code": "68872"
+      },
+      "ZAPATOCA": {
+        "label": "Zapatoca",
+        "dane_code": "68895"
+      }
+    }
+  },
+  "CALDAS": {
+    "label": "Caldas",
+    "cities": {
+      "AGUADAS": {
+        "label": "Aguadas",
+        "dane_code": "17013"
+      },
+      "ANSERMA": {
+        "label": "Anserma",
+        "dane_code": "17042"
+      },
+      "ARANZAZU": {
+        "label": "Aranzazu",
+        "dane_code": "17050"
+      },
+      "BELALCAZAR": {
+        "label": "Belalcázar",
+        "dane_code": "17088"
+      },
+      "CHINCHINA": {
+        "label": "Chinchiná",
+        "dane_code": "17174"
+      },
+      "FILADELFIA": {
+        "label": "Filadelfia",
+        "dane_code": "17272"
+      },
+      "LA_DORADA": {
+        "label": "La Dorada",
+        "dane_code": "17380"
+      },
+      "LA_MERCED": {
+        "label": "La Merced",
+        "dane_code": "17388"
+      },
+      "MANIZALES": {
+        "label": "Manizales",
+        "dane_code": "17001"
+      },
+      "MANZANARES": {
+        "label": "Manzanares",
+        "dane_code": "17433"
+      },
+      "MARMATO": {
+        "label": "Marmato",
+        "dane_code": "17442"
+      },
+      "MARQUETALIA": {
+        "label": "Marquetalia",
+        "dane_code": "17444"
+      },
+      "MARULANDA": {
+        "label": "Marulanda",
+        "dane_code": "17446"
+      },
+      "NEIRA": {
+        "label": "Neira",
+        "dane_code": "17486"
+      },
+      "NORCASIA": {
+        "label": "Norcasia",
+        "dane_code": "17495"
+      },
+      "PACORA": {
+        "label": "Pácora",
+        "dane_code": "17513"
+      },
+      "PALESTINA": {
+        "label": "Palestina",
+        "dane_code": "17524"
+      },
+      "PENSILVANIA": {
+        "label": "Pensilvania",
+        "dane_code": "17541"
+      },
+      "RIOSUCIO": {
+        "label": "Riosucio",
+        "dane_code": "17614"
+      },
+      "RISARALDA": {
+        "label": "Risaralda",
+        "dane_code": "17616"
+      },
+      "SALAMINA": {
+        "label": "Salamina",
+        "dane_code": "17653"
+      },
+      "SAMANA": {
+        "label": "Samaná",
+        "dane_code": "17662"
+      },
+      "SAN_JOSE": {
+        "label": "San José",
+        "dane_code": "17665"
+      },
+      "SUPIA": {
+        "label": "Supía",
+        "dane_code": "17777"
+      },
+      "VICTORIA": {
+        "label": "Victoria",
+        "dane_code": "17867"
+      },
+      "VILLAMARIA": {
+        "label": "Villamaría",
+        "dane_code": "17873"
+      },
+      "VITERBO": {
+        "label": "Viterbo",
+        "dane_code": "17877"
+      }
+    }
+  },
+  "CASANARE": {
+    "label": "Casanare",
+    "cities": {
+      "AGUAZUL": {
+        "label": "Aguazul",
+        "dane_code": "85010"
+      },
+      "CHAMEZA": {
+        "label": "Chámeza",
+        "dane_code": "85015"
+      },
+      "HATO_COROZAL": {
+        "label": "Hato Corozal",
+        "dane_code": "85125"
+      },
+      "LA_SALINA": {
+        "label": "La Salina",
+        "dane_code": "85136"
+      },
+      "MANI": {
+        "label": "Maní",
+        "dane_code": "85139"
+      },
+      "MONTERREY": {
+        "label": "Monterrey",
+        "dane_code": "85162"
+      },
+      "NUNCHIA": {
+        "label": "Nunchía",
+        "dane_code": "85225"
+      },
+      "OROCUE": {
+        "label": "Orocué",
+        "dane_code": "85230"
+      },
+      "PAZ_DE_ARIPORO": {
+        "label": "Paz de Ariporo",
+        "dane_code": "85250"
+      },
+      "PORE": {
+        "label": "Pore",
+        "dane_code": "85263"
+      },
+      "RECETOR": {
+        "label": "Recetor",
+        "dane_code": "85279"
+      },
+      "SABANALARGA": {
+        "label": "Sabanalarga",
+        "dane_code": "85300"
+      },
+      "SACAMA": {
+        "label": "Sácama",
+        "dane_code": "85315"
+      },
+      "SAN_LUIS_DE_PALENQUE": {
+        "label": "San Luis de Palenque",
+        "dane_code": "85325"
+      },
+      "TAMARA": {
+        "label": "Támara",
+        "dane_code": "85400"
+      },
+      "TAURAMENA": {
+        "label": "Tauramena",
+        "dane_code": "85410"
+      },
+      "TRINIDAD": {
+        "label": "Trinidad",
+        "dane_code": "85430"
+      },
+      "VILLANUEVA": {
+        "label": "Villanueva",
+        "dane_code": "85440"
+      },
+      "YOPAL": {
+        "label": "Yopal",
+        "dane_code": "85001"
+      }
+    }
+  },
+  "NARINO": {
+    "label": "Nariño",
+    "cities": {
+      "ALBAN": {
+        "label": "Albán",
+        "dane_code": "52019"
+      },
+      "ALDANA": {
+        "label": "Aldana",
+        "dane_code": "52022"
+      },
+      "ANCUYA": {
+        "label": "Ancuya",
+        "dane_code": "52036"
+      },
+      "ARBOLEDA": {
+        "label": "Arboleda",
+        "dane_code": "52051"
+      },
+      "BARBACOAS": {
+        "label": "Barbacoas",
+        "dane_code": "52079"
+      },
+      "BELEN": {
+        "label": "Belén",
+        "dane_code": "52083"
+      },
+      "BUESACO": {
+        "label": "Buesaco",
+        "dane_code": "52110"
+      },
+      "CHACHAGUI": {
+        "label": "Chachagüí",
+        "dane_code": "52240"
+      },
+      "COLON": {
+        "label": "Colón",
+        "dane_code": "52203"
+      },
+      "CONSACA": {
+        "label": "Consacá",
+        "dane_code": "52207"
+      },
+      "CONTADERO": {
+        "label": "Contadero",
+        "dane_code": "52210"
+      },
+      "CORDOBA": {
+        "label": "Córdoba",
+        "dane_code": "52215"
+      },
+      "CUASPUD": {
+        "label": "Cuaspud",
+        "dane_code": "52224"
+      },
+      "CUMBAL": {
+        "label": "Cumbal",
+        "dane_code": "52227"
+      },
+      "CUMBITARA": {
+        "label": "Cumbitara",
+        "dane_code": "52233"
+      },
+      "EL_CHARCO": {
+        "label": "El Charco",
+        "dane_code": "52250"
+      },
+      "EL_PENOL": {
+        "label": "El Peñol",
+        "dane_code": "52254"
+      },
+      "EL_ROSARIO": {
+        "label": "El Rosario",
+        "dane_code": "52256"
+      },
+      "EL_TABLON_DE_GOMEZ": {
+        "label": "El Tablón de Gómez",
+        "dane_code": "52258"
+      },
+      "EL_TAMBO": {
+        "label": "El Tambo",
+        "dane_code": "52260"
+      },
+      "FRANCISCO_PIZARRO": {
+        "label": "Francisco Pizarro",
+        "dane_code": "52520"
+      },
+      "FUNES": {
+        "label": "Funes",
+        "dane_code": "52287"
+      },
+      "GUACHUCAL": {
+        "label": "Guachucal",
+        "dane_code": "52317"
+      },
+      "GUAITARILLA": {
+        "label": "Guaitarilla",
+        "dane_code": "52320"
+      },
+      "GUALMATAN": {
+        "label": "Gualmatán",
+        "dane_code": "52323"
+      },
+      "ILES": {
+        "label": "Iles",
+        "dane_code": "52352"
+      },
+      "IMUES": {
+        "label": "Imués",
+        "dane_code": "52354"
+      },
+      "IPIALES": {
+        "label": "Ipiales",
+        "dane_code": "52356"
+      },
+      "LA_CRUZ": {
+        "label": "La Cruz",
+        "dane_code": "52378"
+      },
+      "LA_FLORIDA": {
+        "label": "La Florida",
+        "dane_code": "52381"
+      },
+      "LA_LLANADA": {
+        "label": "La Llanada",
+        "dane_code": "52385"
+      },
+      "LA_TOLA": {
+        "label": "La Tola",
+        "dane_code": "52390"
+      },
+      "LA_UNION": {
+        "label": "La Unión",
+        "dane_code": "52399"
+      },
+      "LEIVA": {
+        "label": "Leiva",
+        "dane_code": "52405"
+      },
+      "LINARES": {
+        "label": "Linares",
+        "dane_code": "52411"
+      },
+      "LOS_ANDES": {
+        "label": "Los Andes",
+        "dane_code": "52418"
+      },
+      "MAGUI": {
+        "label": "Magüí",
+        "dane_code": "52427"
+      },
+      "MALLAMA": {
+        "label": "Mallama",
+        "dane_code": "52435"
+      },
+      "MOSQUERA": {
+        "label": "Mosquera",
+        "dane_code": "52473"
+      },
+      "NARINO": {
+        "label": "Nariño",
+        "dane_code": "52480"
+      },
+      "OLAYA_HERRERA": {
+        "label": "Olaya Herrera",
+        "dane_code": "52490"
+      },
+      "OSPINA": {
+        "label": "Ospina",
+        "dane_code": "52506"
+      },
+      "PASTO": {
+        "label": "Pasto",
+        "dane_code": "52001"
+      },
+      "POLICARPA": {
+        "label": "Policarpa",
+        "dane_code": "52540"
+      },
+      "POTOSI": {
+        "label": "Potosí",
+        "dane_code": "52560"
+      },
+      "PROVIDENCIA": {
+        "label": "Providencia",
+        "dane_code": "52565"
+      },
+      "PUERRES": {
+        "label": "Puerres",
+        "dane_code": "52573"
+      },
+      "PUPIALES": {
+        "label": "Pupiales",
+        "dane_code": "52585"
+      },
+      "RICAURTE": {
+        "label": "Ricaurte",
+        "dane_code": "52612"
+      },
+      "ROBERTO_PAYAN": {
+        "label": "Roberto Payán",
+        "dane_code": "52621"
+      },
+      "SAMANIEGO": {
+        "label": "Samaniego",
+        "dane_code": "52678"
+      },
+      "SAN_BERNARDO": {
+        "label": "San Bernardo",
+        "dane_code": "52685"
+      },
+      "SAN_LORENZO": {
+        "label": "San Lorenzo",
+        "dane_code": "52687"
+      },
+      "SAN_PABLO": {
+        "label": "San Pablo",
+        "dane_code": "52693"
+      },
+      "SAN_PEDRO_DE_CARTAGO": {
+        "label": "San Pedro de Cartago",
+        "dane_code": "52694"
+      },
+      "SANDONA": {
+        "label": "Sandoná",
+        "dane_code": "52683"
+      },
+      "SANTA_BARBARA": {
+        "label": "Santa Bárbara",
+        "dane_code": "52696"
+      },
+      "SANTACRUZ": {
+        "label": "Santacruz",
+        "dane_code": "52699"
+      },
+      "SAPUYES": {
+        "label": "Sapuyes",
+        "dane_code": "52720"
+      },
+      "TAMINANGO": {
+        "label": "Taminango",
+        "dane_code": "52786"
+      },
+      "TANGUA": {
+        "label": "Tangua",
+        "dane_code": "52788"
+      },
+      "TUMACO": {
+        "label": "Tumaco",
+        "dane_code": "52835"
+      },
+      "TUQUERRES": {
+        "label": "Túquerres",
+        "dane_code": "52838"
+      },
+      "YACUANQUER": {
+        "label": "Yacuanquer",
+        "dane_code": "52885"
+      }
+    }
+  },
+  "LA_GUAJIRA": {
+    "label": "La Guajira",
+    "cities": {
+      "ALBANIA": {
+        "label": "Albania",
+        "dane_code": "44035"
+      },
+      "BARRANCAS": {
+        "label": "Barrancas",
+        "dane_code": "44078"
+      },
+      "DIBULLA": {
+        "label": "Dibulla",
+        "dane_code": "44090"
+      },
+      "DISTRACCION": {
+        "label": "Distracción",
+        "dane_code": "44098"
+      },
+      "EL_MOLINO": {
+        "label": "El Molino",
+        "dane_code": "44110"
+      },
+      "FONSECA": {
+        "label": "Fonseca",
+        "dane_code": "44279"
+      },
+      "HATONUEVO": {
+        "label": "Hatonuevo",
+        "dane_code": "44378"
+      },
+      "LA_JAGUA_DEL_PILAR": {
+        "label": "La Jagua del Pilar",
+        "dane_code": "44420"
+      },
+      "MAICAO": {
+        "label": "Maicao",
+        "dane_code": "44430"
+      },
+      "MANAURE": {
+        "label": "Manaure",
+        "dane_code": "44560"
+      },
+      "RIOHACHA": {
+        "label": "Riohacha",
+        "dane_code": "44001"
+      },
+      "SAN_JUAN_DEL_CESAR": {
+        "label": "San Juan del Cesar",
+        "dane_code": "44650"
+      },
+      "URIBIA": {
+        "label": "Uribia",
+        "dane_code": "44847"
+      },
+      "URUMITA": {
+        "label": "Urumita",
+        "dane_code": "44855"
+      },
+      "VILLANUEVA": {
+        "label": "Villanueva",
+        "dane_code": "44874"
+      }
+    }
+  },
+  "CAQUETA": {
+    "label": "Caquetá",
+    "cities": {
+      "ALBANIA": {
+        "label": "Albania",
+        "dane_code": "18029"
+      },
+      "BELEN_DE_LOS_ANDAQUIES": {
+        "label": "Belén de los Andaquíes",
+        "dane_code": "18094"
+      },
+      "CARTAGENA_DEL_CHAIRA": {
+        "label": "Cartagena del Chairá",
+        "dane_code": "18150"
+      },
+      "CURILLO": {
+        "label": "Curillo",
+        "dane_code": "18205"
+      },
+      "EL_DONCELLO": {
+        "label": "El Doncello",
+        "dane_code": "18247"
+      },
+      "EL_PAUJIL": {
+        "label": "El Paujíl",
+        "dane_code": "18256"
+      },
+      "FLORENCIA": {
+        "label": "Florencia",
+        "dane_code": "18001"
+      },
+      "LA_MONTANITA": {
+        "label": "La Montañita",
+        "dane_code": "18410"
+      },
+      "MILAN": {
+        "label": "Milán",
+        "dane_code": "18460"
+      },
+      "MORELIA": {
+        "label": "Morelia",
+        "dane_code": "18479"
+      },
+      "PUERTO_RICO": {
+        "label": "Puerto Rico",
+        "dane_code": "18592"
+      },
+      "SAN_JOSE_DEL_FRAGUA": {
+        "label": "San José del Fragua",
+        "dane_code": "18610"
+      },
+      "SAN_VICENTE_DEL_CAGUAN": {
+        "label": "San Vicente del Caguán",
+        "dane_code": "18753"
+      },
+      "SOLANO": {
+        "label": "Solano",
+        "dane_code": "18756"
+      },
+      "SOLITA": {
+        "label": "Solita",
+        "dane_code": "18785"
+      },
+      "VALPARAISO": {
+        "label": "Valparaíso",
+        "dane_code": "18860"
+      }
+    }
+  },
+  "VALLE": {
+    "label": "Valle del Cauca",
+    "cities": {
+      "ALCALA": {
+        "label": "Alcalá",
+        "dane_code": "76020"
+      },
+      "ANDALUCIA": {
+        "label": "Andalucía",
+        "dane_code": "76036"
+      },
+      "ANSERMANUEVO": {
+        "label": "Ansermanuevo",
+        "dane_code": "76041"
+      },
+      "ARGELIA": {
+        "label": "Argelia",
+        "dane_code": "76054"
+      },
+      "BOLIVAR": {
+        "label": "Bolívar",
+        "dane_code": "76100"
+      },
+      "BUENAVENTURA": {
+        "label": "Buenaventura",
+        "dane_code": "76109"
+      },
+      "BUGA": {
+        "label": "Buga",
+        "dane_code": "76111"
+      },
+      "BUGALAGRANDE": {
+        "label": "Bugalagrande",
+        "dane_code": "76113"
+      },
+      "CAICEDONIA": {
+        "label": "Caicedonia",
+        "dane_code": "76122"
+      },
+      "CALI": {
+        "label": "Cali",
+        "dane_code": "76001"
+      },
+      "CALIMA": {
+        "label": "Calima",
+        "dane_code": "76126"
+      },
+      "CANDELARIA": {
+        "label": "Candelaria",
+        "dane_code": "76130"
+      },
+      "CARTAGO": {
+        "label": "Cartago",
+        "dane_code": "76147"
+      },
+      "DAGUA": {
+        "label": "Dagua",
+        "dane_code": "76233"
+      },
+      "EL_AGUILA": {
+        "label": "El Águila",
+        "dane_code": "76243"
+      },
+      "EL_CAIRO": {
+        "label": "El Cairo",
+        "dane_code": "76246"
+      },
+      "EL_CERRITO": {
+        "label": "El Cerrito",
+        "dane_code": "76248"
+      },
+      "EL_DOVIO": {
+        "label": "El Dovio",
+        "dane_code": "76250"
+      },
+      "FLORIDA": {
+        "label": "Florida",
+        "dane_code": "76275"
+      },
+      "GINEBRA": {
+        "label": "Ginebra",
+        "dane_code": "76306"
+      },
+      "GUACARI": {
+        "label": "Guacarí",
+        "dane_code": "76318"
+      },
+      "JAMUNDI": {
+        "label": "Jamundí",
+        "dane_code": "76364"
+      },
+      "LA_CUMBRE": {
+        "label": "La Cumbre",
+        "dane_code": "76377"
+      },
+      "LA_UNION": {
+        "label": "La Unión",
+        "dane_code": "76400"
+      },
+      "LA_VICTORIA": {
+        "label": "La Victoria",
+        "dane_code": "76403"
+      },
+      "OBANDO": {
+        "label": "Obando",
+        "dane_code": "76497"
+      },
+      "PALMIRA": {
+        "label": "Palmira",
+        "dane_code": "76520"
+      },
+      "PRADERA": {
+        "label": "Pradera",
+        "dane_code": "76563"
+      },
+      "RESTREPO": {
+        "label": "Restrepo",
+        "dane_code": "76606"
+      },
+      "RIOFRIO": {
+        "label": "Riofrío",
+        "dane_code": "76616"
+      },
+      "ROLDANILLO": {
+        "label": "Roldanillo",
+        "dane_code": "76622"
+      },
+      "SAN_PEDRO": {
+        "label": "San Pedro",
+        "dane_code": "76670"
+      },
+      "SEVILLA": {
+        "label": "Sevilla",
+        "dane_code": "76736"
+      },
+      "TORO": {
+        "label": "Toro",
+        "dane_code": "76823"
+      },
+      "TRUJILLO": {
+        "label": "Trujillo",
+        "dane_code": "76828"
+      },
+      "TULUA": {
+        "label": "Tuluá",
+        "dane_code": "76834"
+      },
+      "ULLOA": {
+        "label": "Ulloa",
+        "dane_code": "76845"
+      },
+      "VERSALLES": {
+        "label": "Versalles",
+        "dane_code": "76863"
+      },
+      "VIJES": {
+        "label": "Vijes",
+        "dane_code": "76869"
+      },
+      "YOTOCO": {
+        "label": "Yotoco",
+        "dane_code": "76890"
+      },
+      "YUMBO": {
+        "label": "Yumbo",
+        "dane_code": "76892"
+      },
+      "ZARZAL": {
+        "label": "Zarzal",
+        "dane_code": "76895"
+      }
+    }
+  },
+  "MAGDALENA": {
+    "label": "Magdalena",
+    "cities": {
+      "ALGARROBO": {
+        "label": "Algarrobo",
+        "dane_code": "47030"
+      },
+      "ARACATACA": {
+        "label": "Aracataca",
+        "dane_code": "47053"
+      },
+      "ARIGUANI": {
+        "label": "Ariguaní",
+        "dane_code": "47058"
+      },
+      "CERRO_DE_SAN_ANTONIO": {
+        "label": "Cerro de San Antonio",
+        "dane_code": "47161"
+      },
+      "CHIBOLO": {
+        "label": "Chibolo",
+        "dane_code": "47170"
+      },
+      "CIENAGA": {
+        "label": "Ciénaga",
+        "dane_code": "47189"
+      },
+      "CONCORDIA": {
+        "label": "Concordia",
+        "dane_code": "47205"
+      },
+      "EL_BANCO": {
+        "label": "El Banco",
+        "dane_code": "47245"
+      },
+      "EL_PINON": {
+        "label": "El Piñón",
+        "dane_code": "47258"
+      },
+      "EL_RETEN": {
+        "label": "El Retén",
+        "dane_code": "47268"
+      },
+      "FUNDACION": {
+        "label": "Fundación",
+        "dane_code": "47288"
+      },
+      "GUAMAL": {
+        "label": "Guamal",
+        "dane_code": "47318"
+      },
+      "NUEVA_GRANADA": {
+        "label": "Nueva Granada",
+        "dane_code": "47460"
+      },
+      "PEDRAZA": {
+        "label": "Pedraza",
+        "dane_code": "47541"
+      },
+      "PIJINO_DEL_CARMEN": {
+        "label": "Pijiño del Carmen",
+        "dane_code": "47545"
+      },
+      "PIVIJAY": {
+        "label": "Pivijay",
+        "dane_code": "47551"
+      },
+      "PLATO": {
+        "label": "Plato",
+        "dane_code": "47555"
+      },
+      "PUEBLOVIEJO": {
+        "label": "Puebloviejo",
+        "dane_code": "47570"
+      },
+      "REMOLINO": {
+        "label": "Remolino",
+        "dane_code": "47605"
+      },
+      "SABANAS_DE_SAN_ANGEL": {
+        "label": "Sabanas de San Ángel",
+        "dane_code": "47660"
+      },
+      "SALAMINA": {
+        "label": "Salamina",
+        "dane_code": "47675"
+      },
+      "SAN_SEBASTIAN_DE_BUENAVISTA": {
+        "label": "San Sebastián de Buenavista",
+        "dane_code": "47692"
+      },
+      "SAN_ZENON": {
+        "label": "San Zenón",
+        "dane_code": "47703"
+      },
+      "SANTA_ANA": {
+        "label": "Santa Ana",
+        "dane_code": "47707"
+      },
+      "SANTA_BARBARA_DE_PINTO": {
+        "label": "Santa Bárbara de Pinto",
+        "dane_code": "47720"
+      },
+      "SANTA_MARTA": {
+        "label": "Santa Marta",
+        "dane_code": "47001"
+      },
+      "SITIONUEVO": {
+        "label": "Sitionuevo",
+        "dane_code": "47745"
+      },
+      "TENERIFE": {
+        "label": "Tenerife",
+        "dane_code": "47798"
+      },
+      "ZAPAYAN": {
+        "label": "Zapayán",
+        "dane_code": "47960"
+      },
+      "ZONA_BANANERA": {
+        "label": "Zona Bananera",
+        "dane_code": "47980"
+      }
+    }
+  },
+  "CAUCA": {
+    "label": "Cauca",
+    "cities": {
+      "ALMAGUER": {
+        "label": "Almaguer",
+        "dane_code": "19022"
+      },
+      "ARGELIA": {
+        "label": "Argelia",
+        "dane_code": "19050"
+      },
+      "BALBOA": {
+        "label": "Balboa",
+        "dane_code": "19075"
+      },
+      "BOLIVAR": {
+        "label": "Bolívar",
+        "dane_code": "19100"
+      },
+      "BUENOS_AIRES": {
+        "label": "Buenos Aires",
+        "dane_code": "19110"
+      },
+      "CAJIBIO": {
+        "label": "Cajibío",
+        "dane_code": "19130"
+      },
+      "CALDONO": {
+        "label": "Caldono",
+        "dane_code": "19137"
+      },
+      "CALOTO": {
+        "label": "Caloto",
+        "dane_code": "19142"
+      },
+      "CORINTO": {
+        "label": "Corinto",
+        "dane_code": "19212"
+      },
+      "EL_TAMBO": {
+        "label": "El Tambo",
+        "dane_code": "19256"
+      },
+      "FLORENCIA": {
+        "label": "Florencia",
+        "dane_code": "19290"
+      },
+      "GUACHENE": {
+        "label": "Guachené",
+        "dane_code": "19300"
+      },
+      "GUAPI": {
+        "label": "Guapi",
+        "dane_code": "19318"
+      },
+      "INZA": {
+        "label": "Inzá",
+        "dane_code": "19355"
+      },
+      "JAMBALO": {
+        "label": "Jambaló",
+        "dane_code": "19364"
+      },
+      "LA_SIERRA": {
+        "label": "La Sierra",
+        "dane_code": "19392"
+      },
+      "LA_VEGA": {
+        "label": "La Vega",
+        "dane_code": "19397"
+      },
+      "LOPEZ": {
+        "label": "López de Micay",
+        "dane_code": "19418"
+      },
+      "MERCADERES": {
+        "label": "Mercaderes",
+        "dane_code": "19450"
+      },
+      "MIRANDA": {
+        "label": "Miranda",
+        "dane_code": "19455"
+      },
+      "MORALES": {
+        "label": "Morales",
+        "dane_code": "19473"
+      },
+      "PADILLA": {
+        "label": "Padilla",
+        "dane_code": "19513"
+      },
+      "PAEZ": {
+        "label": "Páez",
+        "dane_code": "19517"
+      },
+      "PATIA": {
+        "label": "Patía",
+        "dane_code": "19532"
+      },
+      "PIAMONTE": {
+        "label": "Piamonte",
+        "dane_code": "19533"
+      },
+      "PIENDAMO": {
+        "label": "Piendamó",
+        "dane_code": "19548"
+      },
+      "POPAYAN": {
+        "label": "Popayán",
+        "dane_code": "19001"
+      },
+      "PUERTO_TEJADA": {
+        "label": "Puerto Tejada",
+        "dane_code": "19573"
+      },
+      "PURACE": {
+        "label": "Puracé",
+        "dane_code": "19585"
+      },
+      "ROSAS": {
+        "label": "Rosas",
+        "dane_code": "19622"
+      },
+      "SAN_SEBASTIAN": {
+        "label": "San Sebastián",
+        "dane_code": "19693"
+      },
+      "SANTA_ROSA": {
+        "label": "Santa Rosa",
+        "dane_code": "19701"
+      },
+      "SANTANDER_DE_QUILICHAO": {
+        "label": "Santander de Quilichao",
+        "dane_code": "19698"
+      },
+      "SILVIA": {
+        "label": "Silvia",
+        "dane_code": "19743"
+      },
+      "SOTARA": {
+        "label": "Sotará",
+        "dane_code": "19760"
+      },
+      "SUAREZ": {
+        "label": "Suárez",
+        "dane_code": "19780"
+      },
+      "SUCRE": {
+        "label": "Sucre",
+        "dane_code": "19785"
+      },
+      "TIMBIO": {
+        "label": "Timbío",
+        "dane_code": "19807"
+      },
+      "TIMBIQUI": {
+        "label": "Timbiquí",
+        "dane_code": "19809"
+      },
+      "TORIBIO": {
+        "label": "Toribío",
+        "dane_code": "19821"
+      },
+      "TOTORO": {
+        "label": "Totoró",
+        "dane_code": "19824"
+      },
+      "VILLA_RICA": {
+        "label": "Villa Rica",
+        "dane_code": "19845"
+      }
+    }
+  },
+  "BOYACA": {
+    "label": "Boyacá",
+    "cities": {
+      "ALMEIDA": {
+        "label": "Almeida",
+        "dane_code": "15022"
+      },
+      "AQUITANIA": {
+        "label": "Aquitania",
+        "dane_code": "15047"
+      },
+      "ARCABUCO": {
+        "label": "Arcabuco",
+        "dane_code": "15051"
+      },
+      "BELEN": {
+        "label": "Belén",
+        "dane_code": "15087"
+      },
+      "BERBEO": {
+        "label": "Berbeo",
+        "dane_code": "15090"
+      },
+      "BETEITIVA": {
+        "label": "Betéitiva",
+        "dane_code": "15092"
+      },
+      "BOAVITA": {
+        "label": "Boavita",
+        "dane_code": "15097"
+      },
+      "BOYACA": {
+        "label": "Boyacá",
+        "dane_code": "15104"
+      },
+      "BRICENO": {
+        "label": "Briceño",
+        "dane_code": "15106"
+      },
+      "BUENAVISTA": {
+        "label": "Buenavista",
+        "dane_code": "15109"
+      },
+      "BUSBANZA": {
+        "label": "Busbanzá",
+        "dane_code": "15114"
+      },
+      "CALDAS": {
+        "label": "Caldas",
+        "dane_code": "15131"
+      },
+      "CAMPOHERMOSO": {
+        "label": "Campohermoso",
+        "dane_code": "15135"
+      },
+      "CERINZA": {
+        "label": "Cerinza",
+        "dane_code": "15162"
+      },
+      "CHINAVITA": {
+        "label": "Chinavita",
+        "dane_code": "15172"
+      },
+      "CHIQUINQUIRA": {
+        "label": "Chiquinquirá",
+        "dane_code": "15176"
+      },
+      "CHIQUIZA": {
+        "label": "Chíquiza",
+        "dane_code": "15232"
+      },
+      "CHISCAS": {
+        "label": "Chiscas",
+        "dane_code": "15180"
+      },
+      "CHITA": {
+        "label": "Chita",
+        "dane_code": "15183"
+      },
+      "CHITARAQUE": {
+        "label": "Chitaraque",
+        "dane_code": "15185"
+      },
+      "CHIVATA": {
+        "label": "Chivatá",
+        "dane_code": "15187"
+      },
+      "CHIVOR": {
+        "label": "Chivor",
+        "dane_code": "15236"
+      },
+      "CIENEGA": {
+        "label": "Ciénega",
+        "dane_code": "15189"
+      },
+      "COMBITA": {
+        "label": "Cómbita",
+        "dane_code": "15204"
+      },
+      "COPER": {
+        "label": "Coper",
+        "dane_code": "15212"
+      },
+      "CORRALES": {
+        "label": "Corrales",
+        "dane_code": "15215"
+      },
+      "COVARACHIA": {
+        "label": "Covarachía",
+        "dane_code": "15218"
+      },
+      "CUBARA": {
+        "label": "Cubará",
+        "dane_code": "15223"
+      },
+      "CUCAITA": {
+        "label": "Cucaita",
+        "dane_code": "15224"
+      },
+      "CUITIVA": {
+        "label": "Cuítiva",
+        "dane_code": "15226"
+      },
+      "DUITAMA": {
+        "label": "Duitama",
+        "dane_code": "15238"
+      },
+      "EL_COCUY": {
+        "label": "El Cocuy",
+        "dane_code": "15244"
+      },
+      "EL_ESPINO": {
+        "label": "El Espino",
+        "dane_code": "15248"
+      },
+      "FIRAVITOBA": {
+        "label": "Firavitoba",
+        "dane_code": "15272"
+      },
+      "FLORESTA": {
+        "label": "Floresta",
+        "dane_code": "15276"
+      },
+      "GACHANTIVA": {
+        "label": "Gachantivá",
+        "dane_code": "15293"
+      },
+      "GAMEZA": {
+        "label": "Gámeza",
+        "dane_code": "15296"
+      },
+      "GARAGOA": {
+        "label": "Garagoa",
+        "dane_code": "15299"
+      },
+      "GUACAMAYAS": {
+        "label": "Guacamayas",
+        "dane_code": "15317"
+      },
+      "GUATEQUE": {
+        "label": "Guateque",
+        "dane_code": "15322"
+      },
+      "GUAYATA": {
+        "label": "Guayatá",
+        "dane_code": "15325"
+      },
+      "GUICAN": {
+        "label": "Güicán de la Sierra",
+        "dane_code": "15332"
+      },
+      "IZA": {
+        "label": "Iza",
+        "dane_code": "15362"
+      },
+      "JENESANO": {
+        "label": "Jenesano",
+        "dane_code": "15367"
+      },
+      "JERICO": {
+        "label": "Jericó",
+        "dane_code": "15368"
+      },
+      "LA_CAPILLA": {
+        "label": "La Capilla",
+        "dane_code": "15380"
+      },
+      "LA_UVITA": {
+        "label": "La Uvita",
+        "dane_code": "15403"
+      },
+      "LA_VICTORIA": {
+        "label": "La Victoria",
+        "dane_code": "15401"
+      },
+      "LABRANZAGRANDE": {
+        "label": "Labranzagrande",
+        "dane_code": "15377"
+      },
+      "MACANAL": {
+        "label": "Macanal",
+        "dane_code": "15425"
+      },
+      "MARIPI": {
+        "label": "Maripí",
+        "dane_code": "15442"
+      },
+      "MIRAFLORES": {
+        "label": "Miraflores",
+        "dane_code": "15455"
+      },
+      "MONGUA": {
+        "label": "Mongua",
+        "dane_code": "15464"
+      },
+      "MONGUI": {
+        "label": "Monguí",
+        "dane_code": "15466"
+      },
+      "MONIQUIRA": {
+        "label": "Moniquirá",
+        "dane_code": "15469"
+      },
+      "MOTAVITA": {
+        "label": "Motavita",
+        "dane_code": "15476"
+      },
+      "MUZO": {
+        "label": "Muzo",
+        "dane_code": "15480"
+      },
+      "NOBSA": {
+        "label": "Nobsa",
+        "dane_code": "15491"
+      },
+      "NUEVO_COLON": {
+        "label": "Nuevo Colón",
+        "dane_code": "15494"
+      },
+      "OICATA": {
+        "label": "Oicatá",
+        "dane_code": "15500"
+      },
+      "OTANCHE": {
+        "label": "Otanche",
+        "dane_code": "15507"
+      },
+      "PACHAVITA": {
+        "label": "Pachavita",
+        "dane_code": "15511"
+      },
+      "PAEZ": {
+        "label": "Páez",
+        "dane_code": "15514"
+      },
+      "PAIPA": {
+        "label": "Paipa",
+        "dane_code": "15516"
+      },
+      "PAJARITO": {
+        "label": "Pajarito",
+        "dane_code": "15518"
+      },
+      "PANQUEBA": {
+        "label": "Panqueba",
+        "dane_code": "15522"
+      },
+      "PAUNA": {
+        "label": "Pauna",
+        "dane_code": "15531"
+      },
+      "PAYA": {
+        "label": "Paya",
+        "dane_code": "15533"
+      },
+      "PAZ_DE_RIO": {
+        "label": "Paz de Río",
+        "dane_code": "15537"
+      },
+      "PESCA": {
+        "label": "Pesca",
+        "dane_code": "15542"
+      },
+      "PISBA": {
+        "label": "Pisba",
+        "dane_code": "15550"
+      },
+      "PUERTO_BOYACA": {
+        "label": "Puerto Boyacá",
+        "dane_code": "15572"
+      },
+      "QUIPAMA": {
+        "label": "Quípama",
+        "dane_code": "15580"
+      },
+      "RAMIRIQUI": {
+        "label": "Ramiriquí",
+        "dane_code": "15599"
+      },
+      "RAQUIRA": {
+        "label": "Ráquira",
+        "dane_code": "15600"
+      },
+      "RONDON": {
+        "label": "Rondón",
+        "dane_code": "15621"
+      },
+      "SABOYA": {
+        "label": "Saboyá",
+        "dane_code": "15632"
+      },
+      "SACHICA": {
+        "label": "Sáchica",
+        "dane_code": "15638"
+      },
+      "SAMACA": {
+        "label": "Samacá",
+        "dane_code": "15646"
+      },
+      "SAN_EDUARDO": {
+        "label": "San Eduardo",
+        "dane_code": "15660"
+      },
+      "SAN_JOSE_DE_PARE": {
+        "label": "San José de Pare",
+        "dane_code": "15664"
+      },
+      "SAN_LUIS_DE_GACENO": {
+        "label": "San Luis de Gaceno",
+        "dane_code": "15667"
+      },
+      "SAN_MATEO": {
+        "label": "San Mateo",
+        "dane_code": "15673"
+      },
+      "SAN_MIGUEL_DE_SEMA": {
+        "label": "San Miguel de Sema",
+        "dane_code": "15676"
+      },
+      "SAN_PABLO_DE_BORBUR": {
+        "label": "San Pablo de Borbur",
+        "dane_code": "15681"
+      },
+      "SANTA_MARIA": {
+        "label": "Santa María",
+        "dane_code": "15690"
+      },
+      "SANTA_ROSA_DE_VITERBO": {
+        "label": "Santa Rosa de Viterbo",
+        "dane_code": "15693"
+      },
+      "SANTA_SOFIA": {
+        "label": "Santa Sofía",
+        "dane_code": "15696"
+      },
+      "SANTANA": {
+        "label": "Santana",
+        "dane_code": "15686"
+      },
+      "SATIVANORTE": {
+        "label": "Sativanorte",
+        "dane_code": "15720"
+      },
+      "SATIVASUR": {
+        "label": "Sativasur",
+        "dane_code": "15723"
+      },
+      "SIACHOQUE": {
+        "label": "Siachoque",
+        "dane_code": "15740"
+      },
+      "SOATA": {
+        "label": "Soatá",
+        "dane_code": "15753"
+      },
+      "SOCHA": {
+        "label": "Socha",
+        "dane_code": "15757"
+      },
+      "SOCOTA": {
+        "label": "Socotá",
+        "dane_code": "15755"
+      },
+      "SOGAMOSO": {
+        "label": "Sogamoso",
+        "dane_code": "15759"
+      },
+      "SOMONDOCO": {
+        "label": "Somondoco",
+        "dane_code": "15761"
+      },
+      "SORA": {
+        "label": "Sora",
+        "dane_code": "15762"
+      },
+      "SORACA": {
+        "label": "Soracá",
+        "dane_code": "15764"
+      },
+      "SOTAQUIRA": {
+        "label": "Sotaquirá",
+        "dane_code": "15763"
+      },
+      "SUSACON": {
+        "label": "Susacón",
+        "dane_code": "15774"
+      },
+      "SUTAMARCHAN": {
+        "label": "Sutamarchán",
+        "dane_code": "15776"
+      },
+      "SUTATENZA": {
+        "label": "Sutatenza",
+        "dane_code": "15778"
+      },
+      "TASCO": {
+        "label": "Tasco",
+        "dane_code": "15790"
+      },
+      "TENZA": {
+        "label": "Tenza",
+        "dane_code": "15798"
+      },
+      "TIBANA": {
+        "label": "Tibaná",
+        "dane_code": "15804"
+      },
+      "TIBASOSA": {
+        "label": "Tibasosa",
+        "dane_code": "15806"
+      },
+      "TINJACA": {
+        "label": "Tinjacá",
+        "dane_code": "15808"
+      },
+      "TIPACOQUE": {
+        "label": "Tipacoque",
+        "dane_code": "15810"
+      },
+      "TOCA": {
+        "label": "Toca",
+        "dane_code": "15814"
+      },
+      "TOGUI": {
+        "label": "Togüí",
+        "dane_code": "15816"
+      },
+      "TOPAGA": {
+        "label": "Tópaga",
+        "dane_code": "15820"
+      },
+      "TOTA": {
+        "label": "Tota",
+        "dane_code": "15822"
+      },
+      "TUNJA": {
+        "label": "Tunja",
+        "dane_code": "15001"
+      },
+      "TUNUNGUA": {
+        "label": "Tununguá",
+        "dane_code": "15832"
+      },
+      "TURMEQUE": {
+        "label": "Turmequé",
+        "dane_code": "15835"
+      },
+      "TUTA": {
+        "label": "Tuta",
+        "dane_code": "15837"
+      },
+      "TUTAZA": {
+        "label": "Tutazá",
+        "dane_code": "15839"
+      },
+      "UMBITA": {
+        "label": "Umbita",
+        "dane_code": "15842"
+      },
+      "VENTAQUEMADA": {
+        "label": "Ventaquemada",
+        "dane_code": "15861"
+      },
+      "VILLA_DE_LEYVA": {
+        "label": "Villa de Leyva",
+        "dane_code": "15407"
+      },
+      "VIRACACHA": {
+        "label": "Viracachá",
+        "dane_code": "15879"
+      },
+      "ZETAQUIRA": {
+        "label": "Zetaquira",
+        "dane_code": "15897"
+      }
+    }
+  },
+  "TOLIMA": {
+    "label": "Tolima",
+    "cities": {
+      "ALPUJARRA": {
+        "label": "Alpujarra",
+        "dane_code": "73024"
+      },
+      "ALVARADO": {
+        "label": "Alvarado",
+        "dane_code": "73026"
+      },
+      "AMBALEMA": {
+        "label": "Ambalema",
+        "dane_code": "73030"
+      },
+      "ANZOATEGUI": {
+        "label": "Anzoátegui",
+        "dane_code": "73043"
+      },
+      "ARMERO": {
+        "label": "Armero",
+        "dane_code": "73055"
+      },
+      "ATACO": {
+        "label": "Ataco",
+        "dane_code": "73067"
+      },
+      "CAJAMARCA": {
+        "label": "Cajamarca",
+        "dane_code": "73124"
+      },
+      "CARMEN_DE_APICALA": {
+        "label": "Carmen de Apicalá",
+        "dane_code": "73148"
+      },
+      "CASABIANCA": {
+        "label": "Casabianca",
+        "dane_code": "73152"
+      },
+      "CHAPARRAL": {
+        "label": "Chaparral",
+        "dane_code": "73168"
+      },
+      "COELLO": {
+        "label": "Coello",
+        "dane_code": "73200"
+      },
+      "COYAIMA": {
+        "label": "Coyaima",
+        "dane_code": "73217"
+      },
+      "CUNDAY": {
+        "label": "Cunday",
+        "dane_code": "73226"
+      },
+      "DOLORES": {
+        "label": "Dolores",
+        "dane_code": "73236"
+      },
+      "ESPINAL": {
+        "label": "Espinal",
+        "dane_code": "73268"
+      },
+      "FALAN": {
+        "label": "Falan",
+        "dane_code": "73270"
+      },
+      "FLANDES": {
+        "label": "Flandes",
+        "dane_code": "73275"
+      },
+      "FRESNO": {
+        "label": "Fresno",
+        "dane_code": "73283"
+      },
+      "GUAMO": {
+        "label": "Guamo",
+        "dane_code": "73319"
+      },
+      "HERVEO": {
+        "label": "Herveo",
+        "dane_code": "73347"
+      },
+      "HONDA": {
+        "label": "Honda",
+        "dane_code": "73349"
+      },
+      "IBAGUE": {
+        "label": "Ibagué",
+        "dane_code": "73001"
+      },
+      "ICONONZO": {
+        "label": "Icononzo",
+        "dane_code": "73352"
+      },
+      "LERIDA": {
+        "label": "Lérida",
+        "dane_code": "73408"
+      },
+      "LIBANO": {
+        "label": "Líbano",
+        "dane_code": "73411"
+      },
+      "MARIQUITA": {
+        "label": "Mariquita",
+        "dane_code": "73443"
+      },
+      "MELGAR": {
+        "label": "Melgar",
+        "dane_code": "73449"
+      },
+      "MURILLO": {
+        "label": "Murillo",
+        "dane_code": "73461"
+      },
+      "NATAGAIMA": {
+        "label": "Natagaima",
+        "dane_code": "73483"
+      },
+      "ORTEGA": {
+        "label": "Ortega",
+        "dane_code": "73504"
+      },
+      "PALOCABILDO": {
+        "label": "Palocabildo",
+        "dane_code": "73520"
+      },
+      "PIEDRAS": {
+        "label": "Piedras",
+        "dane_code": "73547"
+      },
+      "PLANADAS": {
+        "label": "Planadas",
+        "dane_code": "73555"
+      },
+      "PRADO": {
+        "label": "Prado",
+        "dane_code": "73563"
+      },
+      "PURIFICACION": {
+        "label": "Purificación",
+        "dane_code": "73585"
+      },
+      "RIOBLANCO": {
+        "label": "Rioblanco",
+        "dane_code": "73616"
+      },
+      "RONCESVALLES": {
+        "label": "Roncesvalles",
+        "dane_code": "73622"
+      },
+      "ROVIRA": {
+        "label": "Rovira",
+        "dane_code": "73624"
+      },
+      "SALDANA": {
+        "label": "Saldaña",
+        "dane_code": "73671"
+      },
+      "SAN_ANTONIO": {
+        "label": "San Antonio",
+        "dane_code": "73675"
+      },
+      "SAN_LUIS": {
+        "label": "San Luis",
+        "dane_code": "73678"
+      },
+      "SANTA_ISABEL": {
+        "label": "Santa Isabel",
+        "dane_code": "73686"
+      },
+      "SUAREZ": {
+        "label": "Suárez",
+        "dane_code": "73770"
+      },
+      "VALLE_DE_SAN_JUAN": {
+        "label": "Valle de San Juan",
+        "dane_code": "73854"
+      },
+      "VENADILLO": {
+        "label": "Venadillo",
+        "dane_code": "73861"
+      },
+      "VILLAHERMOSA": {
+        "label": "Villahermosa",
+        "dane_code": "73870"
+      },
+      "VILLARRICA": {
+        "label": "Villarrica",
+        "dane_code": "73873"
+      }
+    }
+  },
+  "RISARALDA": {
+    "label": "Risaralda",
+    "cities": {
+      "APIA": {
+        "label": "Apía",
+        "dane_code": "66045"
+      },
+      "BALBOA": {
+        "label": "Balboa",
+        "dane_code": "66075"
+      },
+      "BELEN_DE_UMBRIA": {
+        "label": "Belén de Umbría",
+        "dane_code": "66088"
+      },
+      "DOSQUEBRADAS": {
+        "label": "Dosquebradas",
+        "dane_code": "66170"
+      },
+      "GUATICA": {
+        "label": "Guática",
+        "dane_code": "66318"
+      },
+      "LA_CELIA": {
+        "label": "La Celia",
+        "dane_code": "66383"
+      },
+      "LA_VIRGINIA": {
+        "label": "La Virginia",
+        "dane_code": "66400"
+      },
+      "MARSELLA": {
+        "label": "Marsella",
+        "dane_code": "66440"
+      },
+      "MISTRATO": {
+        "label": "Mistrató",
+        "dane_code": "66456"
+      },
+      "PEREIRA": {
+        "label": "Pereira",
+        "dane_code": "66001"
+      },
+      "PUEBLO_RICO": {
+        "label": "Pueblo Rico",
+        "dane_code": "66572"
+      },
+      "QUINCHIA": {
+        "label": "Quinchía",
+        "dane_code": "66594"
+      },
+      "SANTA_ROSA_DE_CABAL": {
+        "label": "Santa Rosa de Cabal",
+        "dane_code": "66682"
+      },
+      "SANTUARIO": {
+        "label": "Santuario",
+        "dane_code": "66687"
+      }
+    }
+  },
+  "ARAUCA": {
+    "label": "Arauca",
+    "cities": {
+      "ARAUCA": {
+        "label": "Arauca",
+        "dane_code": "81001"
+      },
+      "ARAUQUITA": {
+        "label": "Arauquita",
+        "dane_code": "81065"
+      },
+      "CRAVO_NORTE": {
+        "label": "Cravo Norte",
+        "dane_code": "81220"
+      },
+      "FORTUL": {
+        "label": "Fortul",
+        "dane_code": "81300"
+      },
+      "PUERTO_RONDON": {
+        "label": "Puerto Rondón",
+        "dane_code": "81591"
+      },
+      "SARAVENA": {
+        "label": "Saravena",
+        "dane_code": "81736"
+      },
+      "TAME": {
+        "label": "Tame",
+        "dane_code": "81794"
+      }
+    }
+  },
+  "QUINDIO": {
+    "label": "Quindío",
+    "cities": {
+      "ARMENIA": {
+        "label": "Armenia",
+        "dane_code": "63001"
+      },
+      "BUENAVISTA": {
+        "label": "Buenavista",
+        "dane_code": "63111"
+      },
+      "CALARCA": {
+        "label": "Calarcá",
+        "dane_code": "63130"
+      },
+      "CIRCASIA": {
+        "label": "Circasia",
+        "dane_code": "63190"
+      },
+      "CORDOBA": {
+        "label": "Córdoba",
+        "dane_code": "63212"
+      },
+      "FILANDIA": {
+        "label": "Filandia",
+        "dane_code": "63272"
+      },
+      "GENOVA": {
+        "label": "Génova",
+        "dane_code": "63302"
+      },
+      "LA_TEBAIDA": {
+        "label": "La Tebaida",
+        "dane_code": "63401"
+      },
+      "MONTENEGRO": {
+        "label": "Montenegro",
+        "dane_code": "63470"
+      },
+      "PIJAO": {
+        "label": "Pijao",
+        "dane_code": "63548"
+      },
+      "QUIMBAYA": {
+        "label": "Quimbaya",
+        "dane_code": "63594"
+      },
+      "SALENTO": {
+        "label": "Salento",
+        "dane_code": "63690"
+      }
+    }
+  },
+  "CORDOBA": {
+    "label": "Córdoba",
+    "cities": {
+      "AYAPEL": {
+        "label": "Ayapel",
+        "dane_code": "23068"
+      },
+      "BUENAVISTA": {
+        "label": "Buenavista",
+        "dane_code": "23079"
+      },
+      "CANALETE": {
+        "label": "Canalete",
+        "dane_code": "23090"
+      },
+      "CERETE": {
+        "label": "Cereté",
+        "dane_code": "23162"
+      },
+      "CHIMA": {
+        "label": "Chimá",
+        "dane_code": "23168"
+      },
+      "CHINU": {
+        "label": "Chinú",
+        "dane_code": "23182"
+      },
+      "CIENAGA_DE_ORO": {
+        "label": "Ciénaga de Oro",
+        "dane_code": "23189"
+      },
+      "COTORRA": {
+        "label": "Cotorra",
+        "dane_code": "23300"
+      },
+      "LA_APARTADA": {
+        "label": "La Apartada",
+        "dane_code": "23350"
+      },
+      "LORICA": {
+        "label": "Lorica",
+        "dane_code": "23417"
+      },
+      "LOS_CORDOBAS": {
+        "label": "Los Córdobas",
+        "dane_code": "23419"
+      },
+      "MOMIL": {
+        "label": "Momil",
+        "dane_code": "23464"
+      },
+      "MONTELIBANO": {
+        "label": "Montelíbano",
+        "dane_code": "23466"
+      },
+      "MONTERIA": {
+        "label": "Montería",
+        "dane_code": "23001"
+      },
+      "MONITOS": {
+        "label": "Moñitos",
+        "dane_code": "23500"
+      },
+      "PLANETA_RICA": {
+        "label": "Planeta Rica",
+        "dane_code": "23555"
+      },
+      "PUEBLO_NUEVO": {
+        "label": "Pueblo Nuevo",
+        "dane_code": "23570"
+      },
+      "PUERTO_ESCONDIDO": {
+        "label": "Puerto Escondido",
+        "dane_code": "23574"
+      },
+      "PUERTO_LIBERTADOR": {
+        "label": "Puerto Libertador",
+        "dane_code": "23580"
+      },
+      "PURISIMA": {
+        "label": "Purísima",
+        "dane_code": "23586"
+      },
+      "SAHAGUN": {
+        "label": "Sahagún",
+        "dane_code": "23660"
+      },
+      "SAN_ANDRES_DE_SOTAVENTO": {
+        "label": "San Andrés de Sotavento",
+        "dane_code": "23670"
+      },
+      "SAN_ANTERO": {
+        "label": "San Antero",
+        "dane_code": "23672"
+      },
+      "SAN_BERNARDO_DEL_VIENTO": {
+        "label": "San Bernardo del Viento",
+        "dane_code": "23675"
+      },
+      "SAN_CARLOS": {
+        "label": "San Carlos",
+        "dane_code": "23678"
+      },
+      "SAN_JOSE_DE_URE": {
+        "label": "San José de Uré",
+        "dane_code": "23682"
+      },
+      "SAN_PELAYO": {
+        "label": "San Pelayo",
+        "dane_code": "23686"
+      },
+      "TIERRALTA": {
+        "label": "Tierralta",
+        "dane_code": "23807"
+      },
+      "TUCHIN": {
+        "label": "Tuchín",
+        "dane_code": "23815"
+      },
+      "VALENCIA": {
+        "label": "Valencia",
+        "dane_code": "23855"
+      }
+    }
+  },
+  "ATLANTICO": {
+    "label": "Atlántico",
+    "cities": {
+      "BARANOA": {
+        "label": "Baranoa",
+        "dane_code": "08078"
+      },
+      "BARRANQUILLA": {
+        "label": "Barranquilla",
+        "dane_code": "08001"
+      },
+      "CAMPO_DE_LA_CRUZ": {
+        "label": "Campo de la Cruz",
+        "dane_code": "08137"
+      },
+      "CANDELARIA": {
+        "label": "Candelaria",
+        "dane_code": "08141"
+      },
+      "GALAPA": {
+        "label": "Galapa",
+        "dane_code": "08296"
+      },
+      "JUAN_DE_ACOSTA": {
+        "label": "Juan de Acosta",
+        "dane_code": "08372"
+      },
+      "LURUACO": {
+        "label": "Luruaco",
+        "dane_code": "08421"
+      },
+      "MALAMBO": {
+        "label": "Malambo",
+        "dane_code": "08433"
+      },
+      "MANATI": {
+        "label": "Manatí",
+        "dane_code": "08436"
+      },
+      "PALMAR_DE_VARELA": {
+        "label": "Palmar de Varela",
+        "dane_code": "08520"
+      },
+      "PIOJO": {
+        "label": "Piojó",
+        "dane_code": "08549"
+      },
+      "POLONUEVO": {
+        "label": "Polonuevo",
+        "dane_code": "08558"
+      },
+      "PONEDERA": {
+        "label": "Ponedera",
+        "dane_code": "08560"
+      },
+      "PUERTO_COLOMBIA": {
+        "label": "Puerto Colombia",
+        "dane_code": "08573"
+      },
+      "REPELON": {
+        "label": "Repelón",
+        "dane_code": "08606"
+      },
+      "SABANAGRANDE": {
+        "label": "Sabanagrande",
+        "dane_code": "08634"
+      },
+      "SABANALARGA": {
+        "label": "Sabanalarga",
+        "dane_code": "08638"
+      },
+      "SANTA_LUCIA": {
+        "label": "Santa Lucía",
+        "dane_code": "08675"
+      },
+      "SANTO_TOMAS": {
+        "label": "Santo Tomás",
+        "dane_code": "08685"
+      },
+      "SOLEDAD": {
+        "label": "Soledad",
+        "dane_code": "08758"
+      },
+      "SUAN": {
+        "label": "Suan",
+        "dane_code": "08770"
+      },
+      "TUBARA": {
+        "label": "Tubará",
+        "dane_code": "08832"
+      },
+      "USIACURI": {
+        "label": "Usiacurí",
+        "dane_code": "08849"
+      }
+    }
+  },
+  "GUAINIA": {
+    "label": "Guainía",
+    "cities": {
+      "BARRANCOMINAS": {
+        "label": "Barrancominas",
+        "dane_code": "94343"
+      },
+      "CACAHUAL": {
+        "label": "Cacahual",
+        "dane_code": "94886"
+      },
+      "INIRIDA": {
+        "label": "Inírida",
+        "dane_code": "94001"
+      },
+      "LA_GUADALUPE": {
+        "label": "La Guadalupe",
+        "dane_code": "94885"
+      },
+      "MAPIRIPANA": {
+        "label": "Mapiripana",
+        "dane_code": "94343"
+      },
+      "MORICHAL": {
+        "label": "Morichal",
+        "dane_code": "94888"
+      },
+      "PANA_PANA": {
+        "label": "Pana Pana",
+        "dane_code": "94887"
+      },
+      "PUERTO_COLOMBIA": {
+        "label": "Puerto Colombia",
+        "dane_code": "94884"
+      },
+      "SAN_FELIPE": {
+        "label": "San Felipe",
+        "dane_code": "94883"
+      }
+    }
+  },
+  "SUCRE": {
+    "label": "Sucre",
+    "cities": {
+      "BUENAVISTA": {
+        "label": "Buenavista",
+        "dane_code": "70110"
+      },
+      "CAIMITO": {
+        "label": "Caimito",
+        "dane_code": "70124"
+      },
+      "CHALAN": {
+        "label": "Chalán",
+        "dane_code": "70230"
+      },
+      "COLOSO": {
+        "label": "Colosó",
+        "dane_code": "70204"
+      },
+      "COROZAL": {
+        "label": "Corozal",
+        "dane_code": "70215"
+      },
+      "COVENAS": {
+        "label": "Coveñas",
+        "dane_code": "70221"
+      },
+      "EL_ROBLE": {
+        "label": "El Roble",
+        "dane_code": "70233"
+      },
+      "GALERAS": {
+        "label": "Galeras",
+        "dane_code": "70235"
+      },
+      "GUARANDA": {
+        "label": "Guaranda",
+        "dane_code": "70265"
+      },
+      "LA_UNION": {
+        "label": "La Unión",
+        "dane_code": "70400"
+      },
+      "LOS_PALMITOS": {
+        "label": "Los Palmitos",
+        "dane_code": "70418"
+      },
+      "MAJAGUAL": {
+        "label": "Majagual",
+        "dane_code": "70429"
+      },
+      "MORROA": {
+        "label": "Morroa",
+        "dane_code": "70473"
+      },
+      "OVEJAS": {
+        "label": "Ovejas",
+        "dane_code": "70508"
+      },
+      "PALMITO": {
+        "label": "Palmito",
+        "dane_code": "70523"
+      },
+      "SAMPUES": {
+        "label": "Sampués",
+        "dane_code": "70670"
+      },
+      "SAN_BENITO_ABAD": {
+        "label": "San Benito Abad",
+        "dane_code": "70678"
+      },
+      "SAN_JUAN_DE_BETULIA": {
+        "label": "San Juan de Betulia",
+        "dane_code": "70702"
+      },
+      "SAN_MARCOS": {
+        "label": "San Marcos",
+        "dane_code": "70708"
+      },
+      "SAN_ONOFRE": {
+        "label": "San Onofre",
+        "dane_code": "70713"
+      },
+      "SAN_PEDRO": {
+        "label": "San Pedro",
+        "dane_code": "70717"
+      },
+      "SINCE": {
+        "label": "San Luis de Sincé",
+        "dane_code": "70742"
+      },
+      "SINCELEJO": {
+        "label": "Sincelejo",
+        "dane_code": "70001"
+      },
+      "SUCRE": {
+        "label": "Sucre",
+        "dane_code": "70771"
+      },
+      "TOLU": {
+        "label": "Tolú",
+        "dane_code": "70820"
+      },
+      "TOLUVIEJO": {
+        "label": "Toluviejo",
+        "dane_code": "70823"
+      }
+    }
+  },
+  "GUAVIARE": {
+    "label": "Guaviare",
+    "cities": {
+      "CALAMAR": {
+        "label": "Calamar",
+        "dane_code": "95015"
+      },
+      "EL_RETORNO": {
+        "label": "El Retorno",
+        "dane_code": "95025"
+      },
+      "MIRAFLORES": {
+        "label": "Miraflores",
+        "dane_code": "95200"
+      },
+      "MORICHAL": {
+        "label": "Morichal Nuevo",
+        "dane_code": "95025"
+      },
+      "SAN_JOSE_DEL_GUAVIARE": {
+        "label": "San José del Guaviare",
+        "dane_code": "95001"
+      }
+    }
+  },
+  "VAUPES": {
+    "label": "Vaupés",
+    "cities": {
+      "CARURU": {
+        "label": "Carurú",
+        "dane_code": "97161"
+      },
+      "MITU": {
+        "label": "Mitú",
+        "dane_code": "97001"
+      },
+      "PACOA": {
+        "label": "Pacoa",
+        "dane_code": "97511"
+      },
+      "PAPUNAHUA": {
+        "label": "Papunahua",
+        "dane_code": "97777"
+      },
+      "TARAIRA": {
+        "label": "Taraira",
+        "dane_code": "97666"
+      },
+      "YAVARATE": {
+        "label": "Yavaraté",
+        "dane_code": "97889"
+      }
+    }
+  },
+  "PUTUMAYO": {
+    "label": "Putumayo",
+    "cities": {
+      "COLON": {
+        "label": "Colón",
+        "dane_code": "86219"
+      },
+      "LEGUIZAMO": {
+        "label": "Puerto Leguízamo",
+        "dane_code": "86573"
+      },
+      "MOCOA": {
+        "label": "Mocoa",
+        "dane_code": "86001"
+      },
+      "ORITO": {
+        "label": "Orito",
+        "dane_code": "86320"
+      },
+      "PUERTO_ASIS": {
+        "label": "Puerto Asís",
+        "dane_code": "86568"
+      },
+      "PUERTO_CAICEDO": {
+        "label": "Puerto Caicedo",
+        "dane_code": "86569"
+      },
+      "PUERTO_GUZMAN": {
+        "label": "Puerto Guzmán",
+        "dane_code": "86571"
+      },
+      "SAN_FRANCISCO": {
+        "label": "San Francisco",
+        "dane_code": "86755"
+      },
+      "SAN_MIGUEL": {
+        "label": "San Miguel",
+        "dane_code": "86757"
+      },
+      "SANTIAGO": {
+        "label": "Santiago",
+        "dane_code": "86760"
+      },
+      "SIBUNDOY": {
+        "label": "Sibundoy",
+        "dane_code": "86749"
+      },
+      "VALLE_DEL_GUAMUEZ": {
+        "label": "Valle del Guamuez",
+        "dane_code": "86865"
+      },
+      "VILLAGARZON": {
+        "label": "Villagarzón",
+        "dane_code": "86885"
+      }
+    }
+  },
+  "VICHADA": {
+    "label": "Vichada",
+    "cities": {
+      "CUMARIBO": {
+        "label": "Cumaribo",
+        "dane_code": "99773"
+      },
+      "LA_PRIMAVERA": {
+        "label": "La Primavera",
+        "dane_code": "99524"
+      },
+      "NUEVA_ANTIOQUIA": {
+        "label": "Nueva Antioquia",
+        "dane_code": "99524"
+      },
+      "PUERTO_CARRENO": {
+        "label": "Puerto Carreño",
+        "dane_code": "99001"
+      },
+      "SAN_JOSE_DE_OCUNE": {
+        "label": "San José de Ocune",
+        "dane_code": "99773"
+      },
+      "SANTA_RITA": {
+        "label": "Santa Rita",
+        "dane_code": "99773"
+      },
+      "SANTA_ROSALIA": {
+        "label": "Santa Rosalía",
+        "dane_code": "99624"
+      }
+    }
+  },
+  "AMAZONAS": {
+    "label": "Amazonas",
+    "cities": {
+      "EL_ENCANTO": {
+        "label": "El Encanto",
+        "dane_code": "91263"
+      },
+      "LA_CHORRERA": {
+        "label": "La Chorrera",
+        "dane_code": "91405"
+      },
+      "LA_PEDRERA": {
+        "label": "La Pedrera",
+        "dane_code": "91407"
+      },
+      "LA_VICTORIA": {
+        "label": "La Victoria",
+        "dane_code": "91430"
+      },
+      "LETICIA": {
+        "label": "Leticia",
+        "dane_code": "91001"
+      },
+      "MIRITI_PARANA": {
+        "label": "Mirití - Paraná",
+        "dane_code": "91460"
+      },
+      "PUERTO_ALEGRIA": {
+        "label": "Puerto Alegría",
+        "dane_code": "91530"
+      },
+      "PUERTO_ARICA": {
+        "label": "Puerto Arica",
+        "dane_code": "91536"
+      },
+      "PUERTO_NARINO": {
+        "label": "Puerto Nariño",
+        "dane_code": "91540"
+      },
+      "PUERTO_SANTANDER": {
+        "label": "Puerto Santander",
+        "dane_code": "91669"
+      },
+      "TARAPACA": {
+        "label": "Tarapacá",
+        "dane_code": "91798"
+      }
+    }
+  },
+  "SAN_ANDRES_Y_PROVIDENCIA": {
+    "label": "San Andrés y Providencia",
+    "cities": {
+      "PROVIDENCIA": {
+        "label": "Providencia",
+        "dane_code": "88564"
+      },
+      "SAN_ANDRES": {
+        "label": "San Andrés",
+        "dane_code": "88001"
+      }
+    }
+  }
+}
