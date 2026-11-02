@@ -14,7 +14,7 @@ def test_on_upload_registers_new_file(load_handler, monkeypatch):
 
     process_id = uuid4()
     file_uuid = uuid4()
-    key = f"processes/{process_id}/tax_declaration/{file_uuid}.pdf"
+    key = f"processes/{process_id}/TAX_DECLARATION/{file_uuid}.pdf"
 
     monkeypatch.setattr(h, "Files", MagicMock(create=MagicMock()))
     monkeypatch.setattr(
@@ -34,7 +34,7 @@ def test_on_upload_registers_new_file(load_handler, monkeypatch):
     h.Files.create.assert_called_once()
     kwargs = h.Files.create.call_args.kwargs
     assert kwargs["process_id"] == process_id
-    assert kwargs["file_type"] == "tax_declaration"
+    assert kwargs["file_type"] == "TAX_DECLARATION"
     assert kwargs["s3_key"] == key
     assert kwargs["original_name"] == "declaración renta.pdf"  # unquoted
     assert kwargs["size_bytes"] == 123
@@ -63,7 +63,7 @@ def test_on_upload_duplicate_delivery_is_logged_not_raised(load_handler, monkeyp
     instead of failing the whole batch."""
     h = load_handler(__file__)
 
-    key = f"processes/{uuid4()}/tax_declaration/{uuid4()}.pdf"
+    key = f"processes/{uuid4()}/TAX_DECLARATION/{uuid4()}.pdf"
     monkeypatch.setattr(
         h, "Files", MagicMock(create=MagicMock(side_effect=Exception("duplicate key value violates unique constraint")))
     )
