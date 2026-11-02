@@ -1,14 +1,12 @@
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.core.s3 import presign_download
-from libs.orm.signatures import Signatures
+from libs.orm.signatures import SIGNING_WINDOW, Signatures
 
 BUCKET = os.environ["SIGNATURES_BUCKET"]
-
-SIGNING_WINDOW = timedelta(minutes=20)
 
 
 @handle_exceptions
