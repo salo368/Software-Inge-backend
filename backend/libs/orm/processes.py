@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, insert, select, update
+from sqlalchemy import DateTime, Integer, Numeric, String, insert, select
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -24,30 +24,24 @@ class ProcessStage(str, Enum):
     COMPLETED = "COMPLETED"
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class Processes(Base):
 
     __tablename__ = TABLE_NAME
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE")
-    )
-    bank_id: Mapped[int] = mapped_column(Integer, ForeignKey("banks.id"))
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True))
+    bank_id: Mapped[int] = mapped_column(Integer)
     amount: Mapped[Decimal] = mapped_column(Numeric(15, 2))
     term: Mapped[int] = mapped_column(Integer)
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
-    stage: Mapped[str] = mapped_column(String(20), default=ProcessStage.FORM.value)
+    stage: Mapped[str] = mapped_column(String(20))
     form_snapshot: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     sign_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     paid_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     def create(user_id, bank_id, amount, term, rate):
 
@@ -59,6 +53,7 @@ class Processes(Base):
                 amount=amount,
                 term=term,
                 rate=rate,
+                stage=ProcessStage.FORM.value,
             )
             .returning(Processes)
         )
