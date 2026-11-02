@@ -88,6 +88,10 @@ if not _INTEGRATION_RUN:
     os.environ.setdefault("ASSETS_BASE_URL", "https://assets.test")
     # Signatures-v2 handlers read these at module top-level.
     os.environ.setdefault("SIGNATURES_BUCKET", "cdts-test-signatures")
+    os.environ.setdefault(
+        "SIGNATURE_TIMEOUT_QUEUE_URL",
+        "https://sqs.test/123456789012/cdts-test-signatures-timeout",
+    )
     os.environ.setdefault("SSM_FRONTEND_PATH", "/cdts/test/frontend")
     os.environ.setdefault(
         "SSM_SIGNATURES_SERVICE_KEY", "/cdts/test/signatures/service-key"

@@ -3,14 +3,19 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, insert, select, update
+from sqlalchemy import DateTime, Integer, String, insert, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
 
-SIGNING_WINDOW = timedelta(minutes=20)
+# Matches the SQS DelaySeconds the `check_signature_timeout` worker is
+# queued with in create_signature -- keep both in lockstep.
+SIGNING_WINDOW = timedelta(minutes=15)
+
+OTP_TTL = timedelta(minutes=2)
+MAX_OTP_TRIES = 3
 
 
 class SignatureStage(str, Enum):
@@ -19,6 +24,7 @@ class SignatureStage(str, Enum):
     SIGNATURE = "SIGNATURE"
     OTP = "OTP"
     SIGNED = "SIGNED"
+    FAILED = "FAILED"
 
 
 class BiometricType(str, Enum):
@@ -47,6 +53,9 @@ class Signatures(Base):
     id_back_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     id_face_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     draw_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    otp_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    otp_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    otp_tries: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     def create(doc_s3_key, sign_location, signatory):
@@ -121,6 +130,57 @@ class Signatures(Base):
                 draw_s3_key=draw_s3_key,
                 stage=SignatureStage.OTP.value,
             )
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def set_otp(signature_id, otp_hash):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(
+                otp_hash=otp_hash,
+                otp_at=text("NOW()"),
+                otp_tries=0,
+            )
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def register_failed_otp_attempt(signature_id):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(otp_tries=Signatures.otp_tries + 1)
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def mark_signed(signature_id):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(
+                stage=SignatureStage.SIGNED.value,
+                otp_hash=None,
+            )
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def mark_failed(signature_id):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(stage=SignatureStage.FAILED.value)
             .returning(Signatures)
         )
 

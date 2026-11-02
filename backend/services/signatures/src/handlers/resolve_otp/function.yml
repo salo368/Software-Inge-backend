@@ -1,0 +1,3 @@
+description: Public endpoint that verifies the emailed OTP; advances to SIGNED on match, or to FAILED on the 3rd wrong attempt.
+events:
+  - httpApi: { method: POST, path: /signatures/resolve-otp }
