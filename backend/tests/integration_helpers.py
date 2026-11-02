@@ -334,9 +334,14 @@ def create_test_user_directly(*, full_name: str = "Integration Bot") -> dict:
 
     with db_conn() as c:
         c.run(
-            "INSERT INTO users (id, email, password_hash, full_name, created_at) "
-            "VALUES (:id, :email, :ph, :name, :now)",
-            id=user_id, email=email, ph=pw_hash, name=full_name, now=now,
+            "INSERT INTO users (id, email, full_name, created_at) "
+            "VALUES (:id, :email, :name, :now)",
+            id=user_id, email=email, name=full_name, now=now,
+        )
+        c.run(
+            "INSERT INTO user_credentials (user_id, password_hash, created_at) "
+            "VALUES (:uid, :ph, :now)",
+            uid=user_id, ph=pw_hash, now=now,
         )
         c.run(
             "INSERT INTO bearer_tokens (id, user_id, token_hash, expires_at, created_at) "
