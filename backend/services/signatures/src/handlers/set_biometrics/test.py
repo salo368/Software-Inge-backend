@@ -8,7 +8,10 @@ from uuid import UUID, uuid4
 
 
 def _row(stage, created_at, **overrides):
-    defaults = dict(id=str(uuid4()), stage=stage, created_at=created_at)
+    defaults = dict(
+        id=str(uuid4()), stage=stage, created_at=created_at,
+        id_front_s3_key=None, id_back_s3_key=None, id_face_s3_key=None,
+    )
     defaults.update(overrides)
     return MagicMock(**defaults)
 
@@ -137,6 +140,24 @@ def test_set_biometrics_expired_returns_410(load_handler, monkeypatch):
 
     assert resp["statusCode"] == 410
     assert json.loads(resp["body"]) == {"error": "signature_expired"}
+
+
+def test_set_biometrics_already_set_returns_409(load_handler, monkeypatch):
+    h = load_handler(__file__)
+
+    row = _row(
+        stage="BIOMETRICS", created_at=datetime.now(timezone.utc) - timedelta(minutes=2),
+        id_front_s3_key="signatures/x/id_front.jpg",
+    )
+    signatures_mock = MagicMock(get_by_id=MagicMock(return_value=row))
+    monkeypatch.setattr(h, "Signatures", signatures_mock)
+    monkeypatch.setattr(h, "_ANALYZERS", {"ID_FRONT": MagicMock(side_effect=AssertionError)})
+
+    resp = h.handler(_event(row.id, "ID_FRONT", f"signatures/{row.id}/id_front.jpg"), None)
+
+    assert resp["statusCode"] == 409
+    assert json.loads(resp["body"]) == {"error": "biometric_already_set"}
+    signatures_mock.set_biometric_key.assert_not_called()
 
 
 def test_set_biometrics_wrong_stage_returns_409(load_handler, monkeypatch):
