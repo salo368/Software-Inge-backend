@@ -1,0 +1,3 @@
+description: Public endpoint that generates and emails a 6-digit OTP (2-minute TTL) during the OTP stage; also used to resend a code, which resets the 3-try counter.
+events:
+  - httpApi: { method: POST, path: /signatures/set-otp }
