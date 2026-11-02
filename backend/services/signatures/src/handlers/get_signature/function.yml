@@ -1,0 +1,3 @@
+description: Public endpoint the signing front-end polls by signature_id to continue a signature; returns only what's needed to keep signing (no private data), and 410s past the 20-minute signing window.
+events:
+  - httpApi: { method: GET, path: /signatures/get-signature }

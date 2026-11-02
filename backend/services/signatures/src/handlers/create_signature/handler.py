@@ -1,4 +1,5 @@
 import base64
+import json
 import os
 import time
 from uuid import UUID
@@ -33,6 +34,20 @@ def _uuid7() -> UUID:
 @handle_exceptions
 def handler(event, context):
 
+    query_params = event.get("queryStringParameters") or {}
+
+    sign_location_raw = query_params.get("sign_location")
+    if not sign_location_raw:
+        raise HandledError("sign_location is required", 400)
+    
+    try:
+        sign_location = json.loads(sign_location_raw)
+    except ValueError:
+        raise HandledError("sign_location must be valid JSON", 400)
+    
+    if not isinstance(sign_location, list) or not sign_location:
+        raise HandledError("sign_location must be a non-empty list", 400)
+
     body = event.get("body") or ""
 
     if event.get("isBase64Encoded"):
@@ -47,7 +62,7 @@ def handler(event, context):
 
     upload_from_bytes(BUCKET, doc_s3_key, file_bytes, content_type="application/pdf")
 
-    row = Signatures.create(doc_s3_key)
+    row = Signatures.create(doc_s3_key, sign_location)
 
     response = {
         "id": row.id,
