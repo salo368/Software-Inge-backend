@@ -46,6 +46,7 @@ class Signatures(Base):
     id_front_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     id_back_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     id_face_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    draw_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     def create(doc_s3_key, sign_location, signatory):
@@ -106,6 +107,20 @@ class Signatures(Base):
             update(Signatures)
             .where(Signatures.id == signature_id)
             .values(stage=SignatureStage.SIGNATURE.value)
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def set_draw_key(signature_id, draw_s3_key):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(
+                draw_s3_key=draw_s3_key,
+                stage=SignatureStage.OTP.value,
+            )
             .returning(Signatures)
         )
 
