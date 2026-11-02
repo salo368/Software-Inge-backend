@@ -6,9 +6,11 @@ from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.core.s3 import upload_from_bytes
-from libs.orm.signatures import Signatures
+from libs.core.sqs import send_message
+from libs.orm.signatures import SIGNING_WINDOW, Signatures
 
 BUCKET = os.environ["SIGNATURES_BUCKET"]
+TIMEOUT_QUEUE_URL = os.environ["SIGNATURE_TIMEOUT_QUEUE_URL"]
 
 
 def _uuid7() -> UUID:
@@ -67,6 +69,12 @@ def handler(event, context):
     upload_from_bytes(BUCKET, doc_s3_key, file_bytes, content_type="application/pdf")
 
     row = Signatures.create(doc_s3_key, sign_location, signatory)
+
+    send_message(
+        TIMEOUT_QUEUE_URL,
+        json.dumps({"signature_id": str(row.id)}),
+        delay_seconds=int(SIGNING_WINDOW.total_seconds()),
+    )
 
     response = {
         "id": row.id,

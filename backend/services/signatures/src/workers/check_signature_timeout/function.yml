@@ -1,0 +1,10 @@
+description: Consumes the 15-minute signing-window queue; marks a signature FAILED if it hasn't reached SIGNED by then.
+timeout: 30
+events:
+  - sqs:
+      # function.yml is parsed by js-yaml (see utils/build-functions.js),
+      # which doesn't understand the short !GetAtt tag -- the long form
+      # below is equivalent plain YAML, no custom tag needed.
+      arn:
+        Fn::GetAtt: [SignatureTimeoutQueue, Arn]
+      batchSize: 5
