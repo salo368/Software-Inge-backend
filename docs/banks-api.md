@@ -36,7 +36,7 @@ razón de negocio para exigir login todavía.
 
 ## 3. Endpoints
 
-### 3.1 `GET /banks`
+### 3.1 `GET /banks/get-banks`
 
 Devuelve todos los bancos activos (`is_active = true`), ordenados por
 `tier` y luego `name` (orden alfabético de ambos, no por tasa — para tasa
@@ -47,7 +47,7 @@ usar `simulate`).
 **Request**
 
 ```http
-GET {{base_url}}/banks
+GET {{base_url}}/banks/get-banks
 ```
 
 **Response — 200 OK** (recorte real, solo los primeros 2 de 12 bancos)
@@ -99,7 +99,7 @@ GET {{base_url}}/banks
 **curl**
 
 ```bash
-curl "{{base_url}}/banks"
+curl "{{base_url}}/banks/get-banks"
 ```
 
 ---
@@ -111,8 +111,8 @@ bancos cuya banda de monto **y** banda de plazo cubren esos valores, con la
 tasa aplicable, ordenados de mejor a peor tasa.
 
 Es `GET` por query params (no `POST` con body) porque es una operación de
-solo lectura sin efectos secundarios — más coherente con `GET /banks` y
-cacheable/compartible como URL.
+solo lectura sin efectos secundarios — más coherente con `GET /banks/get-banks`
+y cacheable/compartible como URL.
 
 > El campo se llama `term` (no `term_days`) — la unidad siempre fue días en
 > todo el backend, el sufijo era redundante. Las capturas de abajo son de
@@ -158,7 +158,7 @@ GET {{base_url}}/banks/simulate?amount=1000000&term=180
 ```
 
 Cada banco trae además `logo_url`, `description`, `highlights` (mismos
-campos que `GET /banks`), más:
+campos que `GET /banks/get-banks`), más:
 
 | Campo | Tipo | Significado |
 |---|---|---|
