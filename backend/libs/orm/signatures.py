@@ -21,6 +21,19 @@ class SignatureStage(str, Enum):
     SIGNED = "SIGNED"
 
 
+class BiometricType(str, Enum):
+    ID_FRONT = "ID_FRONT"
+    ID_BACK = "ID_BACK"
+    FACE = "FACE"
+
+
+BIOMETRIC_COLUMNS = {
+    BiometricType.ID_FRONT.value: "id_front_s3_key",
+    BiometricType.ID_BACK.value: "id_back_s3_key",
+    BiometricType.FACE.value: "id_face_s3_key",
+}
+
+
 class Signatures(Base):
     __tablename__ = "signatures"
 
@@ -30,6 +43,9 @@ class Signatures(Base):
     sign_location: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
     signatory: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    id_front_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    id_back_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    id_face_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     def create(doc_s3_key, sign_location, signatory):
@@ -66,6 +82,30 @@ class Signatures(Base):
                 email=email,
                 stage=SignatureStage.BIOMETRICS.value,
             )
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def set_biometric_key(signature_id, biometric_type, s3_key):
+
+        column = BIOMETRIC_COLUMNS[biometric_type]
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(**{column: s3_key})
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def advance_to_signature_stage(signature_id):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(stage=SignatureStage.SIGNATURE.value)
             .returning(Signatures)
         )
 
