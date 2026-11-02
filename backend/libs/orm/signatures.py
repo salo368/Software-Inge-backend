@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String, insert, select
+from sqlalchemy import DateTime, String, insert, select, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
+
+SIGNING_WINDOW = timedelta(minutes=20)
 
 
 class SignatureStage(str, Enum):
@@ -26,15 +28,18 @@ class Signatures(Base):
     stage: Mapped[str] = mapped_column(String(20))
     doc_s3_key: Mapped[str] = mapped_column(String(300), unique=True)
     sign_location: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    signatory: Mapped[str] = mapped_column(String(200))
+    email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    def create(doc_s3_key, sign_location):
+    def create(doc_s3_key, sign_location, signatory):
 
         statement = (
             insert(Signatures)
             .values(
                 doc_s3_key=doc_s3_key,
                 sign_location=sign_location,
+                signatory=signatory,
                 stage=SignatureStage.FORM.value,
             )
             .returning(Signatures)
@@ -48,6 +53,20 @@ class Signatures(Base):
             select(Signatures)
             .where(Signatures.id == signature_id)
             .limit(1)
+        )
+
+        return db_session.query(statement=statement)
+
+    def set_email(signature_id, email):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(
+                email=email,
+                stage=SignatureStage.BIOMETRICS.value,
+            )
+            .returning(Signatures)
         )
 
         return db_session.query(statement=statement)

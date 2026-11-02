@@ -48,6 +48,10 @@ def handler(event, context):
     if not isinstance(sign_location, list) or not sign_location:
         raise HandledError("sign_location must be a non-empty list", 400)
 
+    signatory = (query_params.get("signatory") or "").strip()
+    if not signatory:
+        raise HandledError("signatory is required", 400)
+
     body = event.get("body") or ""
 
     if event.get("isBase64Encoded"):
@@ -62,12 +66,13 @@ def handler(event, context):
 
     upload_from_bytes(BUCKET, doc_s3_key, file_bytes, content_type="application/pdf")
 
-    row = Signatures.create(doc_s3_key, sign_location)
+    row = Signatures.create(doc_s3_key, sign_location, signatory)
 
     response = {
         "id": row.id,
         "stage": row.stage,
         "doc_s3_key": row.doc_s3_key,
+        "signatory": row.signatory,
         "sign_location": row.sign_location,
     }
 
