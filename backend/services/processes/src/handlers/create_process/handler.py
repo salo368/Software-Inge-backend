@@ -46,12 +46,22 @@ def handler(event, context):
     if not simulation:
         raise HandledError("Bank not available for the given amount and term", 400)
 
-    # Pause
+    process = Processes.create(
+        user_id=user.id,
+        bank_id=bank_id,
+        amount=Decimal(str(amount)),
+        term=int(term),
+        rate=Decimal(str(simulation["rate"])),
+    )
 
     response = {
-        "amount": float(amount),
-        "term": term,
-        "valid": True,
+        "id": process.id,
+        "bank_id": process.bank_id,
+        "amount": float(process.amount),
+        "term": process.term,
+        "rate": float(process.rate),
+        "stage": process.stage,
+        "created_at": process.created_at,
     }
 
     return generate_response(response, 200)
