@@ -73,6 +73,8 @@ def test_get_form_returns_form_when_present(load_handler, monkeypatch):
     form = json.loads(resp["body"])["form"]
     assert form["name"] == "FOO"
     assert form["document_type"] == "CC"
+    assert form["birth_date"] == "01/05/1990"
+    assert form["document_issuance_date"] == "01/01/2010"
     assert form["updated_at"] == "2026-01-01 00:00:00+00:00"
     h.Forms.get_by_user_id.assert_called_once_with(user.id)
 
