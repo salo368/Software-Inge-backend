@@ -1,0 +1,3 @@
+description: Public endpoint that receives the signer's drawn/uploaded signature image as raw bytes in the request body during the SIGNATURE stage, stores it, and advances to OTP.
+events:
+  - httpApi: { method: POST, path: /signatures/set-signature-draw }
