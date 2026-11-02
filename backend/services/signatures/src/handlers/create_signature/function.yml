@@ -1,0 +1,3 @@
+description: Uploads a document (raw bytes in the request body) and opens a signature row for it.
+events:
+  - httpApi: { method: POST, path: /signatures/create-signature }
