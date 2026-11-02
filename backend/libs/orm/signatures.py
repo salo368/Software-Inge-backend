@@ -28,7 +28,7 @@ class Signatures(Base):
     stage: Mapped[str] = mapped_column(String(20))
     doc_s3_key: Mapped[str] = mapped_column(String(300), unique=True)
     sign_location: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
-    signatory: Mapped[str] = mapped_column(String(200))
+    signatory: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
