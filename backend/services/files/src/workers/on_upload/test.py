@@ -14,16 +14,9 @@ def test_on_upload_registers_new_file(load_handler, monkeypatch):
 
     process_id = uuid4()
     file_uuid = uuid4()
-    key = f"processes/{process_id}/declaracion_renta/{file_uuid}.pdf"
+    key = f"processes/{process_id}/tax_declaration/{file_uuid}.pdf"
 
-    monkeypatch.setattr(
-        h,
-        "Files",
-        MagicMock(
-            get_by_key=MagicMock(return_value=None),
-            register_from_s3=MagicMock(),
-        ),
-    )
+    monkeypatch.setattr(h, "Files", MagicMock(create=MagicMock()))
     monkeypatch.setattr(
         h,
         "head_object",
@@ -38,10 +31,10 @@ def test_on_upload_registers_new_file(load_handler, monkeypatch):
     resp = h.handler(_s3_event(key), None)
 
     assert resp == {"processed": 1}
-    h.Files.register_from_s3.assert_called_once()
-    kwargs = h.Files.register_from_s3.call_args.kwargs
+    h.Files.create.assert_called_once()
+    kwargs = h.Files.create.call_args.kwargs
     assert kwargs["process_id"] == process_id
-    assert kwargs["file_type"] == "declaracion_renta"
+    assert kwargs["file_type"] == "tax_declaration"
     assert kwargs["s3_key"] == key
     assert kwargs["original_name"] == "declaración renta.pdf"  # unquoted
     assert kwargs["size_bytes"] == 123
@@ -53,39 +46,35 @@ def test_on_upload_ignores_key_outside_processes_prefix(load_handler, monkeypatc
     be silently ignored (log-only)."""
     h = load_handler(__file__)
 
-    monkeypatch.setattr(
-        h,
-        "Files",
-        MagicMock(
-            get_by_key=MagicMock(side_effect=AssertionError("should not run")),
-            register_from_s3=MagicMock(side_effect=AssertionError("should not run")),
-        ),
-    )
+    monkeypatch.setattr(h, "Files", MagicMock(create=MagicMock(side_effect=AssertionError("should not run"))))
     monkeypatch.setattr(h, "head_object", MagicMock(side_effect=AssertionError))
     monkeypatch.setattr(h.db_session, "commit", MagicMock())
 
     resp = h.handler(_s3_event("random/stuff/here.pdf"), None)
 
     assert resp == {"processed": 1}
-    h.Files.register_from_s3.assert_not_called()
+    h.Files.create.assert_not_called()
 
 
-def test_on_upload_is_idempotent_when_key_already_registered(load_handler, monkeypatch):
+def test_on_upload_duplicate_delivery_is_logged_not_raised(load_handler, monkeypatch):
+    """S3 only guarantees at-least-once delivery. A duplicate notification for
+    an already-registered key hits the `s3_key` UNIQUE constraint; the
+    per-record try/except in `handler` must swallow that and keep going
+    instead of failing the whole batch."""
     h = load_handler(__file__)
 
-    key = f"processes/{uuid4()}/declaracion_renta/{uuid4()}.pdf"
+    key = f"processes/{uuid4()}/tax_declaration/{uuid4()}.pdf"
+    monkeypatch.setattr(
+        h, "Files", MagicMock(create=MagicMock(side_effect=Exception("duplicate key value violates unique constraint")))
+    )
     monkeypatch.setattr(
         h,
-        "Files",
-        MagicMock(
-            get_by_key=MagicMock(return_value=MagicMock()),  # already registered
-            register_from_s3=MagicMock(side_effect=AssertionError("should not re-register")),
-        ),
+        "head_object",
+        MagicMock(return_value={"ContentLength": 1, "ContentType": "application/pdf", "Metadata": {}}),
     )
-    monkeypatch.setattr(h, "head_object", MagicMock(side_effect=AssertionError))
     monkeypatch.setattr(h.db_session, "commit", MagicMock())
 
     resp = h.handler(_s3_event(key), None)
 
     assert resp == {"processed": 1}
-    h.Files.register_from_s3.assert_not_called()
+    h.Files.create.assert_called_once()
