@@ -94,3 +94,17 @@ class Processes(Base):
         )
 
         return db_session.query(statement=statement)
+
+    def advance_to_signature(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.SIGNATURE.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
