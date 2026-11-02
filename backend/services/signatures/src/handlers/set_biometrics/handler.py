@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.orm.signatures import SIGNING_WINDOW, SignatureStage, Signatures
+from libs.orm.signatures import BIOMETRIC_COLUMNS, SIGNING_WINDOW, SignatureStage, Signatures
 from libs.utils.biometrics import analyze_face, analyze_id_back, analyze_id_front
 
 BUCKET = os.environ["SIGNATURES_BUCKET"]
@@ -48,6 +48,9 @@ def handler(event, context):
 
     if row.stage != SignatureStage.BIOMETRICS.value:
         raise HandledError("signature_not_in_biometrics_stage", 409)
+
+    if getattr(row, BIOMETRIC_COLUMNS[biometric_type]) is not None:
+        raise HandledError("biometric_already_set", 409)
 
     is_valid, reason = _ANALYZERS[biometric_type](BUCKET, s3_key)
 
