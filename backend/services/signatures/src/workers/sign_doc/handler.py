@@ -12,6 +12,7 @@ from libs.core.s3 import download_bytes, upload_from_bytes
 from libs.orm.signatures import SignatureStage, Signatures
 from libs.utils.signature_audit_page import build_audit_page
 from libs.utils.signature_ca import issue_transaction_cert, sign_pdf_pades_b
+from libs.utils.signature_notifications import notify_terminal_state
 from libs.utils.signature_stamp import stamp_drawing_on_pdf
 
 BUCKET = os.environ["SIGNATURES_BUCKET"]
@@ -40,6 +41,7 @@ def handler(event, context):
         signed_s3_key = _run_pipeline(row)
         db_session.commit()
         Logger.log("INFO", f"sign_doc: signature_id={signature_id} completed -> {signed_s3_key}")
+        notify_terminal_state(signature_id, "SIGNED", notify_signer=True)
         return {"ok": True, "signature_id": str(signature_id), "signed_s3_key": signed_s3_key}
     except Exception as e:
         Logger.log("ERROR", f"sign_doc: signature_id={signature_id} crashed: {e}")
