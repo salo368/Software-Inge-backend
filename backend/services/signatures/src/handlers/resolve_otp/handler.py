@@ -1,17 +1,43 @@
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timezone
 from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.orm.signatures import MAX_OTP_TRIES, OTP_TTL, SIGNING_WINDOW, SignatureStage, Signatures
+from libs.core.sqs import send_message
+from libs.orm.signatures import (
+    MAX_OTP_TRIES,
+    OTP_TTL,
+    SIGNING_TIMEOUT,
+    SIGNING_WINDOW,
+    SignatureStage,
+    Signatures,
+)
+from libs.utils.lambda_invoke import LambdaInvokeError, invoke_async
 
 _CODE_RE = re.compile(r"^\d{6}$")
+
+SIGNING_TIMEOUT_QUEUE_URL = os.environ["SIGNING_TIMEOUT_QUEUE_URL"]
 
 
 def _hash(value: str) -> str:
     return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _capture_telemetry(event: dict) -> dict:
+    """Best-effort request telemetry, captured here because sign_doc runs
+    async and detached from the original HTTP request -- this is its only
+    chance to see things like the signer's IP for the audit page."""
+    headers = event.get("headers") or {}
+    http_ctx = (event.get("requestContext") or {}).get("http") or {}
+    return {
+        "ip": http_ctx.get("sourceIp"),
+        "user_agent": headers.get("user-agent") or http_ctx.get("userAgent"),
+        "accept_language": headers.get("accept-language"),
+        "resolved_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @handle_exceptions
@@ -60,7 +86,19 @@ def handler(event, context):
         attempts_left = MAX_OTP_TRIES - updated.otp_tries
         return generate_response({"error": "otp_invalid", "attempts_left": attempts_left}, 401)
 
-    updated = Signatures.mark_signed(signature_id)
+    signing_data = _capture_telemetry(event)
+    updated = Signatures.start_signing(signature_id, signing_data)
+
+    send_message(
+        SIGNING_TIMEOUT_QUEUE_URL,
+        json.dumps({"signature_id": str(signature_id)}),
+        delay_seconds=int(SIGNING_TIMEOUT.total_seconds()),
+    )
+
+    try:
+        invoke_async("sign_doc", {"signature_id": str(signature_id)})
+    except LambdaInvokeError as e:
+        raise HandledError("sign_doc_unavailable", 502) from e
 
     response = {
         "id": updated.id,

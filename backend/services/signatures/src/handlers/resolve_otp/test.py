@@ -32,7 +32,7 @@ def _event(signature_id=None, code=_CODE) -> dict:
     return {"body": json.dumps(body)}
 
 
-def test_resolve_otp_correct_code_marks_signed(load_handler, monkeypatch):
+def test_resolve_otp_correct_code_starts_signing(load_handler, monkeypatch):
     h = load_handler(__file__)
 
     row = _row(
@@ -41,16 +41,60 @@ def test_resolve_otp_correct_code_marks_signed(load_handler, monkeypatch):
     )
     signatures_mock = MagicMock(
         get_by_id=MagicMock(return_value=row),
-        mark_signed=MagicMock(return_value=_row(stage="SIGNED", created_at=row.created_at, id=row.id)),
+        start_signing=MagicMock(return_value=_row(stage="SIGNING", created_at=row.created_at, id=row.id)),
     )
     monkeypatch.setattr(h, "Signatures", signatures_mock)
+    send_message_mock = MagicMock()
+    monkeypatch.setattr(h, "send_message", send_message_mock)
+    invoke_async_mock = MagicMock()
+    monkeypatch.setattr(h, "invoke_async", invoke_async_mock)
+
+    event = _event(row.id, _CODE)
+    event["headers"] = {"user-agent": "pytest-agent", "accept-language": "es-CO"}
+    event["requestContext"] = {"http": {"sourceIp": "203.0.113.5"}}
+
+    resp = h.handler(event, None)
+
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["stage"] == "SIGNING"
+    signatures_mock.register_failed_otp_attempt.assert_not_called()
+
+    (sig_id, signing_data), _ = signatures_mock.start_signing.call_args
+    assert sig_id == UUID(row.id)
+    assert signing_data["ip"] == "203.0.113.5"
+    assert signing_data["user_agent"] == "pytest-agent"
+    assert signing_data["accept_language"] == "es-CO"
+    assert "resolved_at" in signing_data
+
+    queue_url, body = send_message_mock.call_args.args
+    assert queue_url == h.SIGNING_TIMEOUT_QUEUE_URL
+    assert json.loads(body) == {"signature_id": row.id}
+    assert send_message_mock.call_args.kwargs["delay_seconds"] == int(h.SIGNING_TIMEOUT.total_seconds())
+
+    invoke_async_mock.assert_called_once_with("sign_doc", {"signature_id": row.id})
+
+
+def test_resolve_otp_sign_doc_invoke_failure_returns_502_and_rolls_back(load_handler, monkeypatch):
+    h = load_handler(__file__)
+
+    row = _row(
+        stage="OTP", created_at=datetime.now(timezone.utc) - timedelta(minutes=2),
+        otp_at=datetime.now(timezone.utc) - timedelta(seconds=30), otp_hash=_hash(_CODE),
+    )
+    signatures_mock = MagicMock(
+        get_by_id=MagicMock(return_value=row),
+        start_signing=MagicMock(return_value=_row(stage="SIGNING", created_at=row.created_at, id=row.id)),
+    )
+    monkeypatch.setattr(h, "Signatures", signatures_mock)
+    monkeypatch.setattr(h, "send_message", MagicMock())
+    monkeypatch.setattr(
+        h, "invoke_async", MagicMock(side_effect=h.LambdaInvokeError("sign_doc", "boto_error", "boom"))
+    )
 
     resp = h.handler(_event(row.id, _CODE), None)
 
-    assert resp["statusCode"] == 200
-    assert json.loads(resp["body"])["stage"] == "SIGNED"
-    signatures_mock.mark_signed.assert_called_once_with(UUID(row.id))
-    signatures_mock.register_failed_otp_attempt.assert_not_called()
+    assert resp["statusCode"] == 502
+    assert json.loads(resp["body"]) == {"error": "sign_doc_unavailable"}
 
 
 def test_resolve_otp_wrong_code_returns_401_with_attempts_left(load_handler, monkeypatch):

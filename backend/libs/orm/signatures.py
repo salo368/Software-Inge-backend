@@ -17,12 +17,19 @@ SIGNING_WINDOW = timedelta(minutes=15)
 OTP_TTL = timedelta(minutes=2)
 MAX_OTP_TRIES = 3
 
+# Matches the SQS DelaySeconds check_signing_timeout is queued with in
+# resolve_otp -- a short safety net so a sign_doc crash/hang doesn't
+# leave a signature stuck at SIGNING forever without SIGNING_WINDOW's
+# 15-minute worker touching it (it deliberately skips this stage).
+SIGNING_TIMEOUT = timedelta(seconds=60)
+
 
 class SignatureStage(str, Enum):
     FORM = "FORM"
     BIOMETRICS = "BIOMETRICS"
     SIGNATURE = "SIGNATURE"
     OTP = "OTP"
+    SIGNING = "SIGNING"
     SIGNED = "SIGNED"
     FAILED = "FAILED"
 
@@ -53,6 +60,8 @@ class Signatures(Base):
     id_back_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     id_face_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     draw_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    signed_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    signing_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     otp_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     otp_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     otp_tries: Mapped[int] = mapped_column(Integer)
@@ -161,14 +170,29 @@ class Signatures(Base):
 
         return db_session.query(statement=statement)
 
-    def mark_signed(signature_id):
+    def start_signing(signature_id, signing_data):
+
+        statement = (
+            update(Signatures)
+            .where(Signatures.id == signature_id)
+            .values(
+                stage=SignatureStage.SIGNING.value,
+                otp_hash=None,
+                signing_data=signing_data,
+            )
+            .returning(Signatures)
+        )
+
+        return db_session.query(statement=statement)
+
+    def mark_signed(signature_id, signed_s3_key):
 
         statement = (
             update(Signatures)
             .where(Signatures.id == signature_id)
             .values(
                 stage=SignatureStage.SIGNED.value,
-                otp_hash=None,
+                signed_s3_key=signed_s3_key,
             )
             .returning(Signatures)
         )

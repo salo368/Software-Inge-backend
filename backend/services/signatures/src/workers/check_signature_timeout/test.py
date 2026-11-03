@@ -58,6 +58,20 @@ def test_does_not_touch_already_failed(load_handler, monkeypatch):
     signatures_mock.mark_failed.assert_not_called()
 
 
+def test_does_not_touch_signing(load_handler, monkeypatch):
+    h = load_handler(__file__)
+
+    sig_id = uuid4()
+    row = MagicMock(stage="SIGNING")
+    signatures_mock = MagicMock(get_by_id=MagicMock(return_value=row), mark_failed=MagicMock())
+    monkeypatch.setattr(h, "Signatures", signatures_mock)
+    monkeypatch.setattr(h, "db_session", MagicMock())
+
+    h.handler(_sqs_event(sig_id), None)
+
+    signatures_mock.mark_failed.assert_not_called()
+
+
 def test_missing_signature_does_not_raise(load_handler, monkeypatch):
     h = load_handler(__file__)
 
