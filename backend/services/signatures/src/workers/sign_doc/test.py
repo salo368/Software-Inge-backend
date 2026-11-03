@@ -1,8 +1,8 @@
 """Unit tests for the signatures sign_doc internal worker."""
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock, call
+import hashlib
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 
@@ -66,13 +66,29 @@ def test_sign_doc_happy_path(load_handler, monkeypatch):
     # page) pdf, never with the pre-audit-page stamped pdf alone.
     mocks["sign_pdf_pades_b"].assert_called_once_with(b"combined-pdf", b"cert-pem", b"key-pem")
 
-    mocks["upload_from_bytes"].assert_called_once()
-    bucket, key, data = mocks["upload_from_bytes"].call_args.args
-    assert key == f"signatures/{row.id}/signed.pdf"
-    assert data == b"signed-pdf-bytes"
-    assert mocks["upload_from_bytes"].call_args.kwargs["content_type"] == "application/pdf"
+    stamped = b"bytes:original.pdf:stamped"
+    uploads = {c.args[1]: c.args[2] for c in mocks["upload_from_bytes"].call_args_list}
+    assert uploads == {
+        f"signatures/{row.id}/raw_signed.pdf": stamped,
+        f"signatures/{row.id}/signed.pdf": b"signed-pdf-bytes",
+    }
+    for c in mocks["upload_from_bytes"].call_args_list:
+        assert c.kwargs["content_type"] == "application/pdf"
 
-    signatures_mock.mark_signed.assert_called_once_with(row.id, f"signatures/{row.id}/signed.pdf")
+    # The hash printed on the evidence page is the hash of the raw_signed
+    # object, so anyone can download it and check sha256 == doc_hash.
+    doc_hash = hashlib.sha256(stamped).hexdigest()
+    assert mocks["build_audit_page"].call_args.kwargs["document_hash"] == doc_hash
+
+    _, kwargs = signatures_mock.mark_signed.call_args
+    assert signatures_mock.mark_signed.call_args.args == (row.id,)
+    assert kwargs["signed_s3_key"] == f"signatures/{row.id}/signed.pdf"
+    assert kwargs["raw_signed_s3_key"] == f"signatures/{row.id}/raw_signed.pdf"
+    assert kwargs["doc_hash"] == doc_hash
+    assert kwargs["signed_hash"] == hashlib.sha256(b"signed-pdf-bytes").hexdigest()
+    # signed_at stored == signed_at printed on the evidence page
+    assert kwargs["signed_at"] == mocks["build_audit_page"].call_args.kwargs["signed_at"]
+
     mocks["db_session"].commit.assert_called_once()
     mocks["db_session"].rollback.assert_not_called()
 
