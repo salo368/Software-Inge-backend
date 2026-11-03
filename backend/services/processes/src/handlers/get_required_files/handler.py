@@ -3,9 +3,9 @@ from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.files import FileType
-from libs.orm.processes import Processes
+from libs.orm.processes import ProcessStage, Processes
 from libs.utils.auth import require_auth
-from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
+from libs.utils.lambda_invoke import LambdaInvokeError, invoke_async, invoke_sync
 
 
 def _required_file_types(submitted_form: dict) -> set:
@@ -60,7 +60,13 @@ def handler(event, context):
 
     status = {file_type: file_type in uploaded_types for file_type in required_types}
 
-    if all(status.values()):
-        Processes.advance_to_signature(process_id)
+    # Guarded on stage==DOCUMENTS so a later poll (process already in
+    # SIGNATURE or beyond) doesn't re-trigger generate_sign and spawn a
+    # second signature ceremony for the same process.
+    if all(status.values()) and process.stage == ProcessStage.DOCUMENTS.value:
+        try:
+            invoke_async("generate_sign", {"process_id": str(process_id)})
+        except LambdaInvokeError as e:
+            raise HandledError("generate_sign_unavailable", 502) from e
 
     return generate_response(status, 200)

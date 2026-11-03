@@ -1,3 +1,3 @@
-description: Returns which file types are still missing for a process, and advances its stage to SIGNATURE once none are.
+description: Returns which file types are still missing for a process, and triggers generate_sign (async) once none are.
 events:
   - httpApi: { method: GET, path: /processes/get-required-files }

@@ -30,6 +30,7 @@ def _fake_process(**overrides):
         term=180,
         rate=Decimal("12.50"),
         stage="FORM",
+        signature_id=None,
         created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
     )
     defaults.update(overrides)
@@ -40,7 +41,13 @@ def test_get_processes_happy_path(load_handler, monkeypatch):
     h = load_handler(__file__)
     user = _patch_auth(monkeypatch)
 
-    rows = [_fake_process(id="p-1"), _fake_process(id="p-2", bank_id=2, stage="DOCUMENTS")]
+    rows = [
+        _fake_process(id="p-1"),
+        _fake_process(
+            id="p-2", bank_id=2, stage="SIGNATURE",
+            signature_id="7077c70e-d8bf-4c8e-97ef-a7e0909949df",
+        ),
+    ]
     list_mock = MagicMock(return_value=rows)
     monkeypatch.setattr(h, "Processes", MagicMock(list_by_user=list_mock))
 
@@ -56,6 +63,7 @@ def test_get_processes_happy_path(load_handler, monkeypatch):
                 "term": 180,
                 "rate": 12.5,
                 "stage": "FORM",
+                "signature_id": None,
                 "created_at": "2026-01-01 00:00:00+00:00",
             },
             {
@@ -64,7 +72,8 @@ def test_get_processes_happy_path(load_handler, monkeypatch):
                 "amount": 1000000.0,
                 "term": 180,
                 "rate": 12.5,
-                "stage": "DOCUMENTS",
+                "stage": "SIGNATURE",
+                "signature_id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df",
                 "created_at": "2026-01-01 00:00:00+00:00",
             },
         ]
