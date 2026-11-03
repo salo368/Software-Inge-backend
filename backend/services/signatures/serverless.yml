@@ -55,6 +55,10 @@ provider:
     # (DelaySeconds = SIGNING_WINDOW); check_signature_timeout consumes
     # it and marks the row FAILED if it never reached SIGNED.
     SIGNATURE_TIMEOUT_QUEUE_URL: !Ref SignatureTimeoutQueue
+    # resolve_otp enqueues here (DelaySeconds = SIGNING_TIMEOUT) right when
+    # it hands a signature off to sign_doc; check_signing_timeout consumes
+    # it and marks the row FAILED if sign_doc never got it to SIGNED.
+    SIGNING_TIMEOUT_QUEUE_URL: !Ref SigningTimeoutQueue
     # verify_otp uses this to gate the async invoke of the internal 'sign'
     # Lambda. Flipped to 'true' in fase 4e once `sign` is deployed. If a
     # future refactor renames or removes `sign`, flip back to 'false' so
@@ -130,9 +134,10 @@ provider:
             - lambda:InvokeFunction
           Resource:
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-*
-        # create_signature sends the timeout message; check_signature_timeout
-        # consumes it (serverless also auto-adds consumer permissions for the
-        # sqs: event trigger, but listing them explicitly keeps this role
+        # create_signature / resolve_otp send the timeout messages;
+        # check_signature_timeout / check_signing_timeout consume them
+        # (serverless also auto-adds consumer permissions for the sqs:
+        # event trigger, but listing them explicitly keeps this role
         # self-documenting).
         - Effect: Allow
           Action:
@@ -142,6 +147,7 @@ provider:
             - sqs:GetQueueAttributes
           Resource:
             - !GetAtt SignatureTimeoutQueue.Arn
+            - !GetAtt SigningTimeoutQueue.Arn
 
 plugins:
   - serverless-python-requirements
@@ -214,6 +220,15 @@ resources:
         QueueName: cdts-${sls:stage}-signatures-timeout
         # 900s = 15 min = SIGNING_WINDOW, the max DelaySeconds SQS allows.
         VisibilityTimeout: 60
+        MessageRetentionPeriod: 345600 # 4 days (SQS default)
+
+    SigningTimeoutQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cdts-${sls:stage}-signatures-signing-timeout
+        # 60s = SIGNING_TIMEOUT. VisibilityTimeout only needs to cover
+        # check_signing_timeout's own (cheap, DB-only) processing time.
+        VisibilityTimeout: 30
         MessageRetentionPeriod: 345600 # 4 days (SQS default)
 
   Outputs:

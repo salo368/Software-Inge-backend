@@ -5,6 +5,11 @@ DelaySeconds=SIGNING_WINDOW (900s). By the time this fires, the signer
 either finished (stage=SIGNED) or didn't -- in which case we actively
 flip the row to FAILED instead of leaving it stuck wherever it was,
 so no ceremony is left dangling forever without a terminal stage.
+
+SIGNING is deliberately left alone here: once resolve_otp hands a
+signature off to sign_doc, check_signing_timeout (a separate, much
+shorter-delay queue) owns deciding whether that specific step failed.
+Touching SIGNING from both workers would race.
 """
 import json
 
@@ -12,7 +17,11 @@ from libs.core.db import db_session
 from libs.core.logger import Logger
 from libs.orm.signatures import SignatureStage, Signatures
 
-_TERMINAL_STAGES = (SignatureStage.SIGNED.value, SignatureStage.FAILED.value)
+_SKIP_STAGES = (
+    SignatureStage.SIGNED.value,
+    SignatureStage.FAILED.value,
+    SignatureStage.SIGNING.value,
+)
 
 
 def handler(event, context):
@@ -34,7 +43,7 @@ def _process_record(record: dict) -> None:
         Logger.log("WARNING", f"check_signature_timeout: signature {signature_id} not found")
         return
 
-    if row.stage in _TERMINAL_STAGES:
+    if row.stage in _SKIP_STAGES:
         return
 
     Signatures.mark_failed(signature_id)

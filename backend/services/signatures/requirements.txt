@@ -3,8 +3,11 @@ pg8000==1.31.2
 scramp==1.4.17
 reportlab==4.2.5
 pypdf==5.1.0
-# Digital signature stack (Mock CA + PAdES-B signing/verification).
-# `cryptography` also pulled transitively but pinned here for reproducibility.
+# Digital signature stack (signature_ca: mock CA + PAdES-B signing).
+# `cryptography` and `asn1crypto` are also pulled in transitively but
+# pinned here for reproducibility -- libs/utils/signature_ca.py imports
+# asn1crypto directly.
 cryptography==43.0.3
+asn1crypto==1.5.1
 pyhanko==0.34.1
 pyhanko-certvalidator==0.30.2
