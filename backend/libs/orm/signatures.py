@@ -61,6 +61,10 @@ class Signatures(Base):
     id_face_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     draw_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
     signed_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    raw_signed_s3_key: Mapped[Optional[str]] = mapped_column(String(300), nullable=True)
+    doc_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    signed_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    signed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     signing_data: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     otp_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     otp_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -185,7 +189,7 @@ class Signatures(Base):
 
         return db_session.query(statement=statement)
 
-    def mark_signed(signature_id, signed_s3_key):
+    def mark_signed(signature_id, *, signed_s3_key, raw_signed_s3_key, doc_hash, signed_hash, signed_at):
 
         statement = (
             update(Signatures)
@@ -193,6 +197,10 @@ class Signatures(Base):
             .values(
                 stage=SignatureStage.SIGNED.value,
                 signed_s3_key=signed_s3_key,
+                raw_signed_s3_key=raw_signed_s3_key,
+                doc_hash=doc_hash,
+                signed_hash=signed_hash,
+                signed_at=signed_at,
             )
             .returning(Signatures)
         )

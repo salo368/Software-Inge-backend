@@ -67,7 +67,7 @@ def _run_pipeline(row) -> str:
     )
 
  
-    document_hash = hashlib.sha256(stamped_pdf).hexdigest()
+    doc_hash = hashlib.sha256(stamped_pdf).hexdigest()
     signed_at = datetime.now(timezone.utc)
 
     audit_page_pdf = build_audit_page(
@@ -80,17 +80,29 @@ def _run_pipeline(row) -> str:
         draw_png=draw_png,
         signed_at=signed_at,
         cert_serial=cert_serial,
-        document_hash=document_hash,
+        document_hash=doc_hash,
         signing_data=row.signing_data,
     )
     combined_pdf = _append_page(stamped_pdf, audit_page_pdf)
 
     signed_pdf = sign_pdf_pades_b(combined_pdf, cert_pem, key_pem)
+    signed_hash = hashlib.sha256(signed_pdf).hexdigest()
 
+    # raw_signed is uploaded byte-for-byte as hashed: sha256 of the object
+    # must equal doc_hash, the value printed inside the signed PDF.
+    raw_signed_s3_key = f"signatures/{row.id}/raw_signed.pdf"
     signed_s3_key = f"signatures/{row.id}/signed.pdf"
+    upload_from_bytes(BUCKET, raw_signed_s3_key, stamped_pdf, content_type="application/pdf")
     upload_from_bytes(BUCKET, signed_s3_key, signed_pdf, content_type="application/pdf")
 
-    Signatures.mark_signed(row.id, signed_s3_key)
+    Signatures.mark_signed(
+        row.id,
+        signed_s3_key=signed_s3_key,
+        raw_signed_s3_key=raw_signed_s3_key,
+        doc_hash=doc_hash,
+        signed_hash=signed_hash,
+        signed_at=signed_at,
+    )
 
     return signed_s3_key
 
