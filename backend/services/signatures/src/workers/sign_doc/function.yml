@@ -1,0 +1,3 @@
+description: Internal worker (invoke-only, no HTTP). Stamps the drawn signature, issues a mock-CA certificate, PAdES-signs the PDF, appends the audit page, and marks the signature SIGNED.
+memorySize: 2048
+timeout: 300
