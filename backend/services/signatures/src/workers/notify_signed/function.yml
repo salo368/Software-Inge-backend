@@ -1,0 +1,1 @@
+description: Internal worker (invoke-only, no HTTP). Emails the signer a link to the signed PDF once sign_doc marks a signature SIGNED.

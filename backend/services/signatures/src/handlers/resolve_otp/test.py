@@ -141,6 +141,8 @@ def test_resolve_otp_third_wrong_attempt_marks_failed(load_handler, monkeypatch)
     import libs.core.responses as responses_module
     fake_db_session = MagicMock()
     monkeypatch.setattr(responses_module, "db_session", fake_db_session)
+    notify_mock = MagicMock()
+    monkeypatch.setattr(h, "notify_terminal_state", notify_mock)
 
     resp = h.handler(_event(row.id, "000000"), None)
 
@@ -149,6 +151,7 @@ def test_resolve_otp_third_wrong_attempt_marks_failed(load_handler, monkeypatch)
     signatures_mock.mark_failed.assert_called_once_with(UUID(row.id))
     fake_db_session.commit.assert_called_once()
     fake_db_session.rollback.assert_not_called()
+    notify_mock.assert_called_once_with(UUID(row.id), "FAILED")
 
 
 def test_resolve_otp_missing_signature_id_returns_400(load_handler, monkeypatch):
