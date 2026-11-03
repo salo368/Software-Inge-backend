@@ -20,6 +20,7 @@ def handler(event, context):
             "term": row.term,
             "rate": float(row.rate),
             "stage": row.stage,
+            "signature_id": row.signature_id,
             "created_at": row.created_at,
         })
 

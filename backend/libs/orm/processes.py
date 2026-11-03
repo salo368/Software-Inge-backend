@@ -36,6 +36,7 @@ class Processes(Base):
     rate: Mapped[Decimal] = mapped_column(Numeric(5, 2))
     stage: Mapped[str] = mapped_column(String(20))
     submitted_form: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    signature_id: Mapped[Optional[UUID]] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
@@ -91,12 +92,13 @@ class Processes(Base):
 
         return db_session.query(statement=statement)
 
-    def advance_to_signature(process_id):
+    def set_signature_id(process_id, signature_id):
 
         statement = (
             update(Processes)
             .where(Processes.id == process_id)
             .values(
+                signature_id=signature_id,
                 stage=ProcessStage.SIGNATURE.value,
                 updated_at=text("NOW()"),
             )

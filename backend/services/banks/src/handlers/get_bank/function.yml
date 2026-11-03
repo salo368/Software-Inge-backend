@@ -1,0 +1,3 @@
+description: Returns a single bank by id, including its io_url (the empty investment-order template), for generate_sign to populate and sign.
+events:
+  - httpApi: { method: GET, path: /banks/get-bank }
