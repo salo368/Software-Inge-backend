@@ -16,6 +16,7 @@ from libs.orm.signatures import (
     Signatures,
 )
 from libs.utils.lambda_invoke import LambdaInvokeError, invoke_async
+from libs.utils.signature_notifications import notify_terminal_state
 
 _CODE_RE = re.compile(r"^\d{6}$")
 
@@ -81,6 +82,7 @@ def handler(event, context):
 
         if updated.otp_tries >= MAX_OTP_TRIES:
             Signatures.mark_failed(signature_id)
+            notify_terminal_state(signature_id, "FAILED")
             return generate_response({"error": "otp_max_attempts"}, 429)
         
         attempts_left = MAX_OTP_TRIES - updated.otp_tries

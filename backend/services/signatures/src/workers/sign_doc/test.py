@@ -33,6 +33,7 @@ def _patch_pipeline(h, monkeypatch, **overrides):
         build_audit_page=MagicMock(return_value=b"%PDF-1.4 audit"),
         upload_from_bytes=MagicMock(),
         db_session=MagicMock(),
+        notify_terminal_state=MagicMock(),
     )
     mocks.update(overrides)
     for name, mock in mocks.items():
@@ -91,6 +92,8 @@ def test_sign_doc_happy_path(load_handler, monkeypatch):
 
     mocks["db_session"].commit.assert_called_once()
     mocks["db_session"].rollback.assert_not_called()
+
+    mocks["notify_terminal_state"].assert_called_once_with(row.id, "SIGNED", notify_signer=True)
 
 
 def test_sign_doc_stamps_once_per_sign_location_entry(load_handler, monkeypatch):
@@ -165,3 +168,4 @@ def test_sign_doc_pipeline_failure_does_not_mark_failed(load_handler, monkeypatc
     signatures_mock.mark_failed.assert_not_called()
     mocks["db_session"].rollback.assert_called_once()
     mocks["db_session"].commit.assert_not_called()
+    mocks["notify_terminal_state"].assert_not_called()
