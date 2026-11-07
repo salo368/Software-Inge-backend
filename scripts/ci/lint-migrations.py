@@ -12,7 +12,7 @@ SQL_DIR = Path("backend/platform/migrations/sql")
 
 FILENAME_RE = re.compile(r"^\d{14}_[a-z0-9_]+\.sql$")
 
-FORBIDDEN_SCHEMAS = ("dev", "pro", "public")
+FORBIDDEN_SCHEMAS = ("dev", "staging", "pro", "public")
 SCHEMA_QUALIFIER_RE = re.compile(
     r"\b(" + "|".join(FORBIDDEN_SCHEMAS) + r")\s*\.\s*[a-zA-Z_\"]",
     re.IGNORECASE,

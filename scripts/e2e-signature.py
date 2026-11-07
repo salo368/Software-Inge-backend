@@ -92,7 +92,7 @@ except ImportError:
 # --------------------------------------------------------------------------- #
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--stage", default="dev", choices=["dev", "pro"])
+    p.add_argument("--stage", default="dev", choices=["dev", "staging", "pro"])
     p.add_argument("--region", default=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
     p.add_argument(
         "--email",
