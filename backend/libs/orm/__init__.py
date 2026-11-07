@@ -20,6 +20,7 @@ from libs.orm.forms import Forms
 from libs.orm.processes import Processes
 from libs.orm.files import Files
 from libs.orm.signatures import Signatures
+from libs.orm.documents import Documentos, DocumentEvents
 
 __all__ = [
     "Base",
@@ -34,4 +35,6 @@ __all__ = [
     "Processes",
     "Files",
     "Signatures",
+    "Documentos",
+    "DocumentEvents",
 ]

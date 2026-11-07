@@ -1,0 +1,3 @@
+description: Consulta el estado del expediente documental de un proceso (polling).
+events:
+  - httpApi: { method: GET, path: /documents/status }

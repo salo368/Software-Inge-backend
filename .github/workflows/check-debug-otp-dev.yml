@@ -1,0 +1,93 @@
+name: Check DEV Debug OTP Key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-dev-debug-otp-key
+  cancel-in-progress: false
+
+jobs:
+  check-debug-otp-key:
+    name: Validate DEV debug OTP key availability
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Validate AWS region
+        shell: bash
+        env:
+          AWS_REGION_VALUE: ${{ vars.AWS_REGION }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${AWS_REGION_VALUE}" ]]; then
+            echo "::error::AWS_REGION environment variable is not configured."
+            exit 1
+          fi
+
+          echo "AWS region is configured."
+
+      - name: Check DEV debug OTP parameter
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARAMETER_NAME="/cdts/dev/signatures/debug-otp-key"
+
+          echo "Checking DEV debug OTP automation gate..."
+
+          PARAMETER_TYPE="$(
+            aws ssm get-parameter \
+              --name "${PARAMETER_NAME}" \
+              --query "Parameter.Type" \
+              --output text
+          )"
+
+          if [[ "${PARAMETER_TYPE}" != "SecureString" ]]; then
+            echo "::error::Parameter exists but is not a SecureString."
+            exit 1
+          fi
+
+          echo "Parameter exists and is stored as SecureString."
+
+      - name: Verify parameter can be decrypted
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARAMETER_NAME="/cdts/dev/signatures/debug-otp-key"
+
+          aws ssm get-parameter \
+            --name "${PARAMETER_NAME}" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text \
+            > /dev/null
+
+          echo "DEV debug OTP key is available and the pipeline is authorized to decrypt it."
+
+      - name: Result
+        shell: bash
+        run: |
+          echo "=========================================="
+          echo " DEV Debug OTP Gate"
+          echo "=========================================="
+          echo "Environment : dev"
+          echo "Parameter   : available"
+          echo "Decrypt     : authorized"
+          echo "Value       : NOT exposed"
+          echo "=========================================="

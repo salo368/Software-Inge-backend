@@ -1,0 +1,3 @@
+description: FA1 -- confirma la reutilización de un documento vigente en el proceso actual.
+events:
+  - httpApi: { method: POST, path: /documents/confirm-reuse }
