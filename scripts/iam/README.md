@@ -8,14 +8,17 @@ Este directorio documenta la configuracion IAM que usan los workflows de desplie
 |---|---|
 | Policy | `arn:aws:iam::658548982073:policy/CdtsGithubActionsDeploy` |
 | User (dev) | `arn:aws:iam::658548982073:user/githubactions/github-actions-dev-deployer` |
+| User (staging) | `arn:aws:iam::658548982073:user/githubactions/github-actions-staging-deployer` |
 | User (pro) | `arn:aws:iam::658548982073:user/githubactions/github-actions-pro-deployer` |
 
-Ambos usuarios tienen la policy adjunta y viven bajo el path `/githubactions/` para
-tenerlos agrupados y visibles rapido en la consola IAM.
+Los tres usuarios tienen la policy adjunta y viven bajo el path `/githubactions/` para
+tenerlos agrupados y visibles rapido en la consola IAM. La policy no distingue stage
+(todo va por el prefijo `cdts-*`), asi que agregar un stage nuevo no requiere tocarla.
 
 Las access keys de cada usuario estan cargadas como GitHub Environment Secrets:
 
 - Environment `dev` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- Environment `staging` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 - Environment `pro` -> `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
 
 La region esta como GitHub repo variable: `AWS_REGION=us-east-1`.
@@ -73,7 +76,7 @@ POLICY_ARN=$(aws iam list-policies --scope Local \
   --query "Policies[?PolicyName=='CdtsGithubActionsDeploy'].Arn | [0]" --output text)
 
 # 2) Crear usuarios y adjuntar la policy
-for stage in dev pro; do
+for stage in dev staging pro; do
   user="github-actions-${stage}-deployer"
   aws iam create-user --user-name "$user" --path /githubactions/ \
     --tags Key=Project,Value=cdts Key=Stage,Value=$stage Key=ManagedBy,Value=bootstrap
@@ -82,7 +85,7 @@ done
 
 # 3) Generar access keys y cargarlas como GitHub environment secrets
 REPO="salo368/ingenieria-de-software-proyecto"
-for stage in dev pro; do
+for stage in dev staging pro; do
   user="github-actions-${stage}-deployer"
   OUT=$(aws iam create-access-key --user-name "$user" \
     --query 'AccessKey.[AccessKeyId,SecretAccessKey]' --output text)
@@ -106,7 +109,7 @@ export AWS_PROFILE=<admin-profile>
 export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL="*"
 REPO="salo368/ingenieria-de-software-proyecto"
-STAGE=dev  # o pro
+STAGE=dev  # o staging, o pro
 user="github-actions-${STAGE}-deployer"
 
 # 1) Crear nueva key

@@ -1,0 +1,444 @@
+name: Deploy STAGING
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      block:
+        description: "Manual override: empty=auto-detect, __all__=full deploy, or a service/infra name."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  # actions:read is needed by the Plan job to run `gh run list --workflow=...`
+  # so it can find the SHA of the last successful deploy.
+  actions: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+# Same shape as deploy-dev.yml, with stage `staging` (own stacks
+# cdts-staging-*, own DB schema `staging`, own SSM tree /cdts/staging/*).
+# The `staging` branch is a copy of `develop` and advances through PRs
+# `develop -> staging`. Like dev, the reusable package runs the
+# (non-blocking) integration job here. See docs/repo-structure.md §2.
+
+# Pipeline shape (see docs/repo-structure.md §15):
+#
+#   plan
+#    ↓
+#   validate                              cross-cutting checks
+#    ↓
+#   infrastructure?  (sequential steps)   only if transversal or infra content
+#    ├── migrations (deploy + apply)      only if run_migrations
+#    └── assets     (deploy + sync)       only if run_assets
+#    ↓
+#   services  [matrix, parallel]          one row per changed (or forced) service
+#    ├── auth      → validate → test → deploy → integration
+#    ├── banks     → validate → test → deploy → integration
+#    ├── files     → validate → test → deploy → integration
+#    └── ...
+#    ↓
+#   summary                               explicit per-service, per-stage table
+#
+# `plan-deploy.sh` outputs `services_to_deploy`, `run_migrations`,
+# `run_assets`, `transversal`, `total_count`. A transversal change
+# (anything under backend/ that isn't inside backend/services/<X>/) forces
+# services_to_deploy = ALL services. Pure content-only changes to infra
+# (SQL migrations, asset files) run just that infra step without touching
+# services.
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1) plan: what needs to happen?
+  # --------------------------------------------------------------------------
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      services_to_deploy: ${{ steps.plan.outputs.services_to_deploy }}
+      services_count: ${{ steps.plan.outputs.services_count }}
+      infra_steps: ${{ steps.plan.outputs.infra_steps }}
+      run_migrations: ${{ steps.plan.outputs.run_migrations }}
+      run_assets: ${{ steps.plan.outputs.run_assets }}
+      run_infrastructure: ${{ steps.plan.outputs.run_infrastructure }}
+      transversal: ${{ steps.plan.outputs.transversal }}
+      total_count: ${{ steps.plan.outputs.total_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Anchor the diff to the SHA of the last successful run of THIS
+      # workflow on this branch, not to the parent of the push. This
+      # survives failed pipelines: if a prior pipeline landed a migration
+      # but died at Validate before Infrastructure ran, its SHA is not
+      # "last successful", so a later push's diff still contains that
+      # migration file and Infrastructure will pick it up.
+      - name: Find last successful deploy SHA
+        id: last-successful
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # gh CLI is preinstalled on GH-hosted runners. Ask for the head
+          # SHA of the most recent successful run of this workflow on the
+          # current branch. Own run is excluded because its status is
+          # still 'in_progress' when this step evaluates.
+          sha="$(gh run list \
+            --workflow="${GITHUB_WORKFLOW}" \
+            --branch="${GITHUB_REF_NAME}" \
+            --status=success \
+            --limit=1 \
+            --json headSha \
+            -q '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "${sha}" ]; then
+            echo "== last successful deploy on ${GITHUB_REF_NAME}: ${sha}"
+          else
+            echo "== no previous successful deploy on ${GITHUB_REF_NAME}, will fall back to GITHUB_EVENT_BEFORE"
+          fi
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Compute deploy plan
+        id: plan
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+          LAST_SUCCESSFUL_DEPLOY_SHA: ${{ steps.last-successful.outputs.sha }}
+          MANUAL_BLOCK: ${{ inputs.block }}
+        run: bash scripts/ci/plan-deploy.sh
+
+  # --------------------------------------------------------------------------
+  # 2) validate: cross-cutting checks that are cheaper to run once than per
+  #    service. Per-service validation (serverless package for THIS service)
+  #    still runs inside each service package.
+  # --------------------------------------------------------------------------
+  validate:
+    name: Validate
+    needs: plan
+    if: needs.plan.outputs.total_count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Lint SQL migrations
+        run: python scripts/ci/lint-migrations.py
+
+      - name: Test JS helpers (node --test)
+        working-directory: backend
+        run: |
+          if ls tests/*.test.js >/dev/null 2>&1; then
+            node --test tests/*.test.js
+          else
+            echo "::notice::No JS tests found; skip."
+          fi
+
+      - name: Cross-cutting pytest (backend/tests)
+        working-directory: backend
+        run: |
+          if [ -d tests ] && ls tests/test_*.py >/dev/null 2>&1; then
+            python -m pytest tests -ra --junitxml=pytest-report.xml
+          else
+            echo "::notice::No cross-cutting tests found; skip pytest."
+          fi
+
+      - name: Upload pytest report (if any)
+        if: always() && hashFiles('backend/pytest-report.xml') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-report-staging
+          path: backend/pytest-report.xml
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 3) infrastructure: runs BEFORE any service package when the plan asked
+  #    for it. Sequential inside (migrations, then assets); each sub-step
+  #    is gated by its own `run_*` flag so it silently skips when there is
+  #    nothing to do. Emits a JSON status artifact for the summary.
+  # --------------------------------------------------------------------------
+  infrastructure:
+    name: Infrastructure
+    needs: [plan, validate]
+    if: needs.plan.outputs.run_infrastructure == 'true' && needs.validate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: staging
+      url: https://console.aws.amazon.com/cloudformation/home?region=${{ vars.AWS_REGION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: backend/.nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install Node dependencies
+        working-directory: backend
+        run: npm ci
+
+      # -- migrations --------------------------------------------------------
+      - name: (migrations) Deploy stack
+        id: migrations_deploy
+        if: needs.plan.outputs.run_migrations == 'true'
+        working-directory: backend
+        run: npx serverless-compose "migrations:deploy" --stage staging --verbose
+
+      - name: (migrations) Apply schema
+        id: migrations_apply
+        if: needs.plan.outputs.run_migrations == 'true' && steps.migrations_deploy.outcome == 'success'
+        run: |
+          aws lambda invoke \
+            --function-name cdts-staging-migrations-apply \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            --log-type Tail \
+            --query 'LogResult' --output text \
+            /tmp/response.json | base64 -d
+          echo ""
+          echo "== Response =="
+          cat /tmp/response.json
+          echo ""
+          if grep -q '"errorType"' /tmp/response.json; then
+            echo "::error::migrations-apply Lambda returned an error. See logs above."
+            exit 1
+          fi
+
+      # -- assets ------------------------------------------------------------
+      - name: (assets) Deploy stack
+        id: assets_deploy
+        if: needs.plan.outputs.run_assets == 'true'
+        working-directory: backend
+        run: npx serverless-compose "assets:deploy" --stage staging --verbose
+
+      - name: (assets) Sync files to S3
+        id: assets_sync
+        if: needs.plan.outputs.run_assets == 'true' && steps.assets_deploy.outcome == 'success'
+        env:
+          STAGE: staging
+        run: bash scripts/ci/deploy-assets.sh
+
+      # -- status artifact ---------------------------------------------------
+      - name: Record infrastructure status
+        if: always()
+        run: |
+          mkdir -p /tmp/status
+          cat > /tmp/status/infrastructure.json <<EOF
+          {
+            "migrations_planned": "${{ needs.plan.outputs.run_migrations }}",
+            "migrations_deploy": "${{ steps.migrations_deploy.outcome }}",
+            "migrations_apply":  "${{ steps.migrations_apply.outcome }}",
+            "assets_planned": "${{ needs.plan.outputs.run_assets }}",
+            "assets_deploy": "${{ steps.assets_deploy.outcome }}",
+            "assets_sync":   "${{ steps.assets_sync.outcome }}"
+          }
+          EOF
+          echo "----- /tmp/status/infrastructure.json -----"
+          cat /tmp/status/infrastructure.json
+
+      - name: Upload infrastructure status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: infrastructure-status
+          path: /tmp/status/infrastructure.json
+          retention-days: 7
+
+  # --------------------------------------------------------------------------
+  # 4) services: matrix, one call to service-package.yml per service. Waits
+  #    for infrastructure (if it ran) so a fresh schema is in place before
+  #    any code deploys against it. Packages run in parallel (fail-fast:
+  #    false) so one failing service doesn't abort the others.
+  # --------------------------------------------------------------------------
+  services:
+    name: ${{ matrix.service }}
+    needs: [plan, validate, infrastructure]
+    if: >
+      always() &&
+      needs.plan.outputs.services_count != '0' &&
+      needs.validate.result == 'success' &&
+      (needs.infrastructure.result == 'success' || needs.infrastructure.result == 'skipped')
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(needs.plan.outputs.services_to_deploy) }}
+    uses: ./.github/workflows/service-package.yml
+    secrets: inherit
+    with:
+      service: ${{ matrix.service }}
+      stage: staging
+
+  # --------------------------------------------------------------------------
+  # 5) summary: pulls every service-status-* and the infrastructure-status
+  #    artifact and renders an explicit per-stage table so you can tell at
+  #    a glance which service passed, which failed, and at what stage.
+  # --------------------------------------------------------------------------
+  summary:
+    name: Deploy summary
+    needs: [plan, validate, infrastructure, services]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all status artifacts
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-status*"
+          path: /tmp/status-in
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Render summary
+        run: |
+          # Helper: emoji per outcome. Outcome values from GH:
+          #   success | failure | cancelled | skipped | "" (never scheduled)
+          ico() {
+            case "$1" in
+              success)  echo "✅" ;;
+              failure)  echo "❌" ;;
+              cancelled) echo "🛑" ;;
+              skipped)  echo "⏭️" ;;
+              "")       echo "—" ;;
+              *)        echo "$1" ;;
+            esac
+          }
+
+          {
+            echo "## Deploy STAGING"
+            echo ""
+            echo "**Plan**"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Services to deploy | \`${{ needs.plan.outputs.services_to_deploy }}\` |"
+            echo "| Run migrations     | ${{ needs.plan.outputs.run_migrations }} |"
+            echo "| Run assets         | ${{ needs.plan.outputs.run_assets }} |"
+            echo "| Transversal change | ${{ needs.plan.outputs.transversal }} |"
+            echo ""
+            echo "**Stage results**"
+            echo ""
+            echo "| Stage | Result |"
+            echo "|---|---|"
+            echo "| Validate       | $(ico '${{ needs.validate.result }}') ${{ needs.validate.result }} |"
+            echo "| Infrastructure | $(ico '${{ needs.infrastructure.result }}') ${{ needs.infrastructure.result }} |"
+            echo "| Services       | $(ico '${{ needs.services.result }}') ${{ needs.services.result }} |"
+            echo ""
+
+            # -- infrastructure detail --
+            if [ -f /tmp/status-in/infrastructure.json ]; then
+              echo "**Infrastructure detail**"
+              echo ""
+              echo "| Step | Planned | Outcome |"
+              echo "|---|---|---|"
+              m_plan=$(jq -r '.migrations_planned' /tmp/status-in/infrastructure.json)
+              m_dep=$(jq -r '.migrations_deploy' /tmp/status-in/infrastructure.json)
+              m_apl=$(jq -r '.migrations_apply' /tmp/status-in/infrastructure.json)
+              a_plan=$(jq -r '.assets_planned' /tmp/status-in/infrastructure.json)
+              a_dep=$(jq -r '.assets_deploy' /tmp/status-in/infrastructure.json)
+              a_syn=$(jq -r '.assets_sync' /tmp/status-in/infrastructure.json)
+              echo "| migrations · deploy | ${m_plan} | $(ico "${m_dep}") ${m_dep} |"
+              echo "| migrations · apply  | ${m_plan} | $(ico "${m_apl}") ${m_apl} |"
+              echo "| assets · deploy     | ${a_plan} | $(ico "${a_dep}") ${a_dep} |"
+              echo "| assets · sync       | ${a_plan} | $(ico "${a_syn}") ${a_syn} |"
+              echo ""
+            fi
+
+            # -- per-service detail --
+            services_found=$(ls /tmp/status-in/*.json 2>/dev/null | grep -v infrastructure || true)
+            if [ -n "${services_found}" ]; then
+              echo "**Per-service detail**"
+              echo ""
+              echo "| Service | Validate | Test | Deploy | Integration | Stopped at |"
+              echo "|---|---|---|---|---|---|"
+              for f in ${services_found}; do
+                svc=$(jq -r '.service' "$f")
+                v=$(jq -r '.validate' "$f")
+                t=$(jq -r '.test' "$f")
+                d=$(jq -r '.deploy' "$f")
+                ijob=$(jq -r '.integration_job' "$f")
+                ioutcome=$(jq -r '.integration_outcome' "$f")
+                ifiles=$(jq -r '.integration_files_present' "$f")
+
+                # Decide the "integration" cell:
+                #   - if integration job is 'skipped' AND deploy failed
+                #     => stage 'skipped'
+                #   - if integration job ran but pytest outcome is empty
+                #     AND no integration.py present => 'no tests'
+                #   - otherwise: whatever pytest reported
+                int_cell="—"
+                if [ "${ijob}" = "skipped" ]; then
+                  int_cell="$(ico skipped) skipped"
+                elif [ "${ioutcome}" = "" ]; then
+                  if [ "${ifiles}" = "0" ]; then
+                    int_cell="⏭️ no int.py"
+                  else
+                    int_cell="$(ico "${ijob}") ${ijob}"
+                  fi
+                else
+                  int_cell="$(ico "${ioutcome}") ${ioutcome}"
+                fi
+
+                # Where did it stop?
+                stopped="—"
+                if   [ "${v}" != "success" ]; then stopped="validate"
+                elif [ "${t}" != "success" ]; then stopped="test"
+                elif [ "${d}" != "success" ]; then stopped="deploy"
+                elif [ "${ioutcome}" = "failure" ]; then stopped="integration (non-blocking)"
+                else stopped="completed"
+                fi
+
+                echo "| \`${svc}\` | $(ico "${v}") | $(ico "${t}") | $(ico "${d}") | ${int_cell} | ${stopped} |"
+              done
+              echo ""
+            fi
+
+            echo "> Legend: ✅ success · ❌ failure · ⏭️ skipped · 🛑 cancelled · — not scheduled"
+            echo ">"
+            echo "> Integration runs on dev and staging (never pro) and is non-blocking: a failure there does NOT roll back the deploy that already succeeded. Details in the \`pytest-integration-staging-<service>\` artifact and in each package's annotations."
+          } >> "$GITHUB_STEP_SUMMARY"

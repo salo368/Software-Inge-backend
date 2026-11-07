@@ -25,7 +25,7 @@ antes de crear archivos.
 
 ## Reglas duras
 
-1. **Stages**: solo `dev` y `pro`. Nunca `prod`, `staging`, `qa`, etc.
+1. **Stages**: solo `dev`, `staging` y `pro`. Nunca `prod`, `qa`, `test`, etc.
 2. **Naming AWS**: `cdts-<stage>-<service>-<function>`. `stage` y `service`
  idealmente una sola palabra; **solo `function`** puede tener múltiples palabras
  con guiones (`refresh-token`, `create-signature`).
@@ -121,7 +121,7 @@ antes de crear archivos.
  que las carpetas sean `snake_case`, autoderiva `name` + `handler` desde la
  convencion, y hace merge con lo declarado en cada `function.yml`. Tests en
  `backend/tests/build-functions.test.js` (corren en el job `validate`).
-9. **BD**: PostgreSQL única compartida, schemas `dev` y `pro`, sin `public`.
+9. **BD**: PostgreSQL única compartida, schemas `dev`, `staging` y `pro`, sin `public`.
  Credenciales en SSM `/cdts/<stage>/db/*`. `pro` es el default de `search_path`.
 10. **Migraciones**: los `.sql` de `backend/platform/migrations/sql/` **nunca
  califican schema**. Escribir `CREATE TABLE users`, NO `CREATE TABLE dev.users`.
