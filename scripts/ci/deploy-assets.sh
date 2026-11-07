@@ -4,11 +4,11 @@
 # already run and the bucket exists.
 #
 # Env:
-#   STAGE   - dev or pro (required)
+#   STAGE   - dev, staging or pro (required)
 
 set -euo pipefail
 
-: "${STAGE:?STAGE is required (dev|pro)}"
+: "${STAGE:?STAGE is required (dev|staging|pro)}"
 
 SRC_DIR="backend/platform/assets/files"
 BUCKET="cdts-${STAGE}-assets"
