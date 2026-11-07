@@ -1,0 +1,37 @@
+FROM tesseract-layer-build:local AS build
+
+RUN dnf install -y zip findutils >/dev/null 2>&1 && dnf clean all
+
+# -L (dereference) on purpose: the SONAME-named file holds the real bytes
+# directly, no symlink in the zip. A zip symlink entry stores only the link
+# TARGET STRING as its "content" (with a Unix-mode bit marking it as a
+# symlink) -- any extractor that doesn't specifically honor that bit (eg.
+# Python's zipfile.extractall, used to verify this layer below) just writes
+# that short string as a regular file, which is exactly the ldd failure
+# ("file too short") this layer hit on the first attempt. Real files only
+# removes the ambiguity regardless of how AWS unpacks the layer zip.
+RUN mkdir -p /layer/bin /layer/lib /layer/share/tessdata \
+    && cp -L /opt/out/bin/tesseract /layer/bin/tesseract \
+    && chmod 755 /layer/bin/tesseract \
+    && cp -L /opt/out/lib/libtesseract.so.5 /layer/lib/libtesseract.so.5 \
+    && cp -L /opt/out/lib/libleptonica.so.6 /layer/lib/libleptonica.so.6 \
+    && cp -L /lib64/libpng16.so.16 /layer/lib/libpng16.so.16 \
+    && cp -L /lib64/libjpeg.so.62 /layer/lib/libjpeg.so.62 \
+    && cp -L /lib64/libtiff.so.5 /layer/lib/libtiff.so.5 \
+    && cp -L /lib64/libwebpmux.so.3 /layer/lib/libwebpmux.so.3 \
+    && cp -L /lib64/libwebp.so.7 /layer/lib/libwebp.so.7 \
+    && cp -L /lib64/libjbig.so.2.1 /layer/lib/libjbig.so.2.1 \
+    && chmod 644 /layer/lib/*.so* \
+    && cp /opt/out/share/tessdata/eng.traineddata /layer/share/tessdata/ \
+    && cp /opt/out/share/tessdata/spa.traineddata /layer/share/tessdata/
+
+# Self-check: everything the binary needs resolves from inside /layer alone
+# (plus the handful of glibc/libstdc++ libs we already confirmed ship with
+# the official Lambda python3.12 base image).
+RUN LD_LIBRARY_PATH=/layer/lib ldd /layer/bin/tesseract \
+    && LD_LIBRARY_PATH=/layer/lib TESSDATA_PREFIX=/layer/share/tessdata /layer/bin/tesseract --version
+
+WORKDIR /layer
+RUN zip -r /tesseract-layer.zip bin lib share \
+    && unzip -l /tesseract-layer.zip \
+    && du -h /tesseract-layer.zip

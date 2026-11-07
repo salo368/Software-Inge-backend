@@ -1,0 +1,33 @@
+service: tesseract
+
+frameworkVersion: '3'
+
+# Bloque solo-Layer (sin funciones): empaqueta el binario `tesseract` + sus
+# librerias compartidas + tessdata (eng/spa) como un Lambda Layer en zip.
+# Lo consume unicamente services/documents/src/workers/on_upload (necesita
+# OCR real, ver docs/repo-structure.md SS1 "no hay contenedores" -- esta es
+# la alternativa 100% serverless/zip, sin imagen de contenedor).
+provider:
+  name: aws
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-tesseract
+
+layers:
+  tesseract:
+    path: layer
+    name: cdts-${sls:stage}-tesseract
+    description: >-
+      tesseract 5.4.1 + leptonica 1.84.1 compilados desde codigo fuente
+      (Apache-2.0) para Amazon Linux 2023, mas tessdata eng+spa. Receta de
+      build reproducible en build/ (Docker se usa solo como herramienta de
+      build local, nunca como runtime desplegado).
+    compatibleRuntimes:
+      - python3.12
+
+resources:
+  Outputs:
+    TesseractLayerArn:
+      Value: !Ref TesseractLambdaLayer
+      Export:
+        Name: cdts-${sls:stage}-tesseract-layer-arn

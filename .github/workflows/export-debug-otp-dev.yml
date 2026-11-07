@@ -1,0 +1,111 @@
+name: Export DEV Debug OTP Key - Encrypted
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: export-dev-debug-otp-key
+  cancel-in-progress: false
+
+jobs:
+  export-encrypted-key:
+    name: Prepare encrypted DEV OTP key
+
+    runs-on: ubuntu-latest
+
+    environment:
+      name: dev
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Checkout PAREX public key
+        uses: actions/checkout@v4
+        with:
+          repository: devcortes/devcortes-parex-validation-lab
+          ref: main
+          path: parex-validation-lab
+
+      - name: Validate PAREX public key
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PUBLIC_KEY="parex-validation-lab/keys/parex-otp-public.pem"
+
+          if [[ ! -f "${PUBLIC_KEY}" ]]; then
+            echo "::error::PAREX public key was not found."
+            exit 1
+          fi
+
+          openssl pkey \
+            -pubin \
+            -in "${PUBLIC_KEY}" \
+            -noout
+
+          echo "PAREX public key is valid."
+
+      - name: Encrypt DEV debug OTP key
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PARAMETER_NAME="/cdts/dev/signatures/debug-otp-key"
+          PUBLIC_KEY="parex-validation-lab/keys/parex-otp-public.pem"
+
+          OUTPUT_DIR="/tmp/parex-secure-handoff"
+          OUTPUT_FILE="${OUTPUT_DIR}/debug-otp-key.enc"
+
+          mkdir -p "${OUTPUT_DIR}"
+
+          aws ssm get-parameter \
+            --name "${PARAMETER_NAME}" \
+            --with-decryption \
+            --query "Parameter.Value" \
+            --output text \
+            | tr -d '\r\n' \
+            | openssl pkeyutl \
+                -encrypt \
+                -pubin \
+                -inkey "${PUBLIC_KEY}" \
+                -pkeyopt rsa_padding_mode:oaep \
+                -pkeyopt rsa_oaep_md:sha256 \
+                -out "${OUTPUT_FILE}"
+
+          if [[ ! -s "${OUTPUT_FILE}" ]]; then
+            echo "::error::Encrypted artifact was not generated."
+            exit 1
+          fi
+
+          echo "DEV debug OTP key encrypted successfully."
+          echo "Plaintext value was not persisted."
+
+      - name: Upload encrypted artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: parex-dev-debug-otp-key-encrypted
+          path: /tmp/parex-secure-handoff/debug-otp-key.enc
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Result
+        shell: bash
+        run: |
+          echo "=========================================="
+          echo " PAREX DEV OTP Secure Handoff"
+          echo "=========================================="
+          echo "Environment : dev"
+          echo "Source      : AWS SSM SecureString"
+          echo "Encryption  : RSA-OAEP / SHA-256"
+          echo "Artifact    : encrypted only"
+          echo "Plaintext   : NOT exposed"
+          echo "Retention   : 1 day"
+          echo "=========================================="

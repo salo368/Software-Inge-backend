@@ -1,0 +1,138 @@
+service: documents
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-documents
+  memorySize: 1024
+  timeout: 30
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+    DOCUMENTS_BUCKET: cdts-${sls:stage}-documents
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-documents-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-documents/*
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'domain/**'
+    - 'libs/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+    # Colocated tests live next to each handler.py; keep them out of the zip.
+    - '!**/test.py'
+    - '!**/integration.py'
+    - '!**/conftest.py'
+
+functions: ${file(./functions.js):build}
+
+resources:
+  Resources:
+    DocumentsBucket:
+      Type: AWS::S3::Bucket
+      DependsOn:
+        - OnUnderscoreuploadLambdaPermissionDocumentsBucketS3
+      Properties:
+        BucketName: cdts-${sls:stage}-documents
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: BucketOwnerEnforced
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods: [PUT, GET, HEAD]
+              AllowedOrigins: ['*']
+              AllowedHeaders: ['*']
+              ExposedHeaders: [ETag]
+              MaxAge: 3600
+        # Dos zonas de retención (mismo patrón que signatures/serverless.yml,
+        # docs/add-signatures-uc3.md §5.1):
+        #
+        # - transactions/        documento crudo tal como lo subió el
+        #   inversionista. Dato personal sensible (ej. foto de cédula) --
+        #   minimización por privacidad, expira a los 30 días sin importar
+        #   el resultado de la validación.
+        #
+        # - evidencia-validada/  SOLO los documentos que el worker on_upload
+        #   marcó `validado`. Es la evidencia regulatoria (Q22R03) -- se
+        #   transiciona a GLACIER_IR a los 30 días (archivado barato, pero
+        #   con lectura en milisegundos, no horas) y expira a los 3650 días
+        #   (10 años).
+        LifecycleConfiguration:
+          Rules:
+            - Id: expire-transactions-30d
+              Status: Enabled
+              Prefix: transactions/
+              ExpirationInDays: 30
+            - Id: archive-evidencia-validada-10y
+              Status: Enabled
+              Prefix: evidencia-validada/
+              Transitions:
+                - TransitionInDays: 30
+                  StorageClass: GLACIER_IR
+              ExpirationInDays: 3650
+        NotificationConfiguration:
+          LambdaConfigurations:
+            - Event: s3:ObjectCreated:*
+              Function: !GetAtt OnUnderscoreuploadLambdaFunction.Arn
+              Filter:
+                S3Key:
+                  Rules:
+                    - Name: prefix
+                      Value: transactions/
+
+    OnUnderscoreuploadLambdaPermissionDocumentsBucketS3:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt OnUnderscoreuploadLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: s3.amazonaws.com
+        SourceAccount: !Ref AWS::AccountId
+        SourceArn: !Sub 'arn:aws:s3:::cdts-${sls:stage}-documents'
+
+  Outputs:
+    DocumentsBucketName:
+      Value: !Ref DocumentsBucket
