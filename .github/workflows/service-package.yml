@@ -2,7 +2,8 @@ name: Service Package
 
 # Reusable per-service pipeline: validate -> test -> deploy -> integration.
 #
-# Called ONCE PER SERVICE from deploy-dev.yml / deploy-pro.yml. Each caller
+# Called ONCE PER SERVICE from deploy-dev.yml / deploy-staging.yml /
+# deploy-pro.yml. Each caller
 # matrix cell resolves to one invocation of this workflow; GitHub UI renders
 # each invocation as an expandable group in the run visualization, so each
 # service (auth, banks, files, ...) shows up as its own chain of four
@@ -17,9 +18,9 @@ name: Service Package
 #
 # Contract with the caller:
 #   * `service` is the folder name under backend/services/<service>/.
-#   * `stage` is 'dev' or 'pro'. The `integration` job only runs when
-#     stage=='dev' -- production must not have throwaway integration
-#     users in its DB.
+#   * `stage` is 'dev', 'staging' or 'pro'. The `integration` job runs on
+#     every stage except 'pro' -- production must not have throwaway
+#     integration users in its DB.
 #   * AWS credentials come from `secrets: inherit` on the caller. Each job
 #     that needs them declares `environment: ${{ inputs.stage }}` so the
 #     env-scoped secrets resolve at that point.
@@ -36,7 +37,7 @@ on:
         type: string
         required: true
       stage:
-        description: "'dev' or 'pro'. Integration is skipped when 'pro'."
+        description: "'dev', 'staging' or 'pro'. Integration is skipped when 'pro'."
         type: string
         required: true
 
@@ -187,18 +188,18 @@ jobs:
 
   # --------------------------------------------------------------------------
   # 4) integration: colocated integration.py tests against real deployed
-  #    infra. Dev only. Non-blocking (continue-on-error) so a failure never
-  #    rolls back the deploy that already succeeded.
+  #    infra. dev + staging, never pro. Non-blocking (continue-on-error) so
+  #    a failure never rolls back the deploy that already succeeded.
   # --------------------------------------------------------------------------
   integration:
     name: Integration
     needs: [validate, test, deploy]
-    if: inputs.stage == 'dev' && needs.deploy.result == 'success'
+    if: inputs.stage != 'pro' && needs.deploy.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     continue-on-error: true
     environment:
-      name: dev
+      name: ${{ inputs.stage }}
     env:
       # GH-hosted runners are NOT EC2, so probing IMDS for creds/region
       # hangs for the full retry budget. Force env-var creds.

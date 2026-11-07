@@ -25,11 +25,11 @@
 #      Read from the `HttpApiId` output of stack cdts-{STAGE}-processes.
 #      Skipped if the stack doesn't exist yet.
 #
-#   4. Debug OTP HMAC key (SecureString, DEV ONLY):
-#          /cdts/dev/signatures/debug-otp-key
+#   4. Debug OTP HMAC key (SecureString, NEVER PRO):
+#          /cdts/{dev,staging}/signatures/debug-otp-key
 #      Generated with `openssl rand -hex 32`. Enables automated
 #      integration tests to complete a ceremony without a human
-#      reading the OTP email. Skipped when STAGE != 'dev'.
+#      reading the OTP email. Skipped when STAGE == 'pro'.
 #
 # Requirements:
 #
@@ -43,6 +43,7 @@
 # Usage:
 #
 #   bash scripts/bootstrap-signatures-v2.sh dev
+#   bash scripts/bootstrap-signatures-v2.sh staging
 #   bash scripts/bootstrap-signatures-v2.sh pro
 #
 # The script never prints the actual secret values to stdout. Only
@@ -69,11 +70,11 @@ aws_ssm() {
 # --------------------------------------------------------------------------- #
 STAGE="${1:-}"
 if [[ -z "$STAGE" ]]; then
-  echo "usage: $0 <stage>    # stage in {dev, pro}"
+  echo "usage: $0 <stage>    # stage in {dev, staging, pro}"
   exit 2
 fi
-if [[ "$STAGE" != "dev" && "$STAGE" != "pro" ]]; then
-  echo "error: stage must be 'dev' or 'pro' (got '$STAGE')"
+if [[ "$STAGE" != "dev" && "$STAGE" != "staging" && "$STAGE" != "pro" ]]; then
+  echo "error: stage must be 'dev', 'staging' or 'pro' (got '$STAGE')"
   exit 2
 fi
 
@@ -293,19 +294,20 @@ fi
 echo
 
 # --------------------------------------------------------------------------- #
-# Step 4: debug OTP HMAC key (dev-only; opt-in for integration tests)
+# Step 4: debug OTP HMAC key (dev + staging; opt-in for integration tests)
 # --------------------------------------------------------------------------- #
 # Enables `request_otp` to disclose the plaintext OTP in the response body
 # (under `_debug_otp`) when the caller HMAC-signs sign_id with this key.
-# ONLY provision in dev: in production, leave the param absent so the
-# handler's `_load_debug_otp_key` returns None and the branch is dead.
+# Provision in dev and staging (both run integration tests); in production,
+# leave the param absent so the handler's `_load_debug_otp_key` returns
+# None and the branch is dead.
 #
 # The key is auto-generated with `openssl rand -hex 32` and never printed.
 # Integration tests read it via `aws ssm get-parameter` at run-time using
 # an admin caller (same credential scope this script needs anyway).
 DEBUG_OTP_KEY_PARAM="/cdts/$STAGE/signatures/debug-otp-key"
-if [[ "$STAGE" == "dev" ]]; then
-  echo "--- Step 4: signatures debug OTP HMAC key (dev-only) ------------------"
+if [[ "$STAGE" != "pro" ]]; then
+  echo "--- Step 4: signatures debug OTP HMAC key ($STAGE) ---------------------"
   DEBUG_OTP_KEY_VALUE="$(openssl rand -hex 32)"
   echo "  Uploading debug OTP key to SSM ($DEBUG_OTP_KEY_PARAM)..."
   put_secure_string \
@@ -316,8 +318,8 @@ if [[ "$STAGE" == "dev" ]]; then
   echo
 else
   echo "--- Step 4: signatures debug OTP key ----------------------------------"
-  echo "  Stage is '$STAGE' (not dev); skipping. The debug OTP feature is"
-  echo "  intentionally disabled outside dev."
+  echo "  Stage is '$STAGE'; skipping. The debug OTP feature is"
+  echo "  intentionally disabled in production."
   echo
 fi
 
@@ -330,7 +332,7 @@ echo
 echo " Sanity check (no values printed, only ARNs + last-modified):"
 echo "==============================================================="
 SANITY_PARAMS=("$CA_PARAM_CERT" "$CA_PARAM_KEY" "$SVC_KEY_PARAM" "$API_URL_PARAM")
-if [[ "$STAGE" == "dev" ]]; then
+if [[ "$STAGE" != "pro" ]]; then
   SANITY_PARAMS+=("$DEBUG_OTP_KEY_PARAM")
 fi
 for p in "${SANITY_PARAMS[@]}"; do
