@@ -10,7 +10,7 @@ name: Remove Service (manual)
 #
 # Contract:
 #   * `service` : folder name under backend/services/<service>/
-#   * `stage`   : 'dev' or 'pro' (guarded)
+#   * `stage`   : 'dev', 'staging' or 'pro' (pro guarded)
 #   * `empty_buckets`: when true, empties S3 buckets owned by the stack
 #     BEFORE `sls remove`, because CloudFormation refuses to delete a
 #     non-empty bucket. Set 'true' when the stack owns its own bucket
@@ -30,7 +30,7 @@ on:
       stage:
         description: "Deployment stage"
         type: choice
-        options: [dev, pro]
+        options: [dev, staging, pro]
         default: dev
         required: true
       empty_buckets:

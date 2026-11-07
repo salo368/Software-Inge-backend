@@ -8,10 +8,11 @@
 ## Reglas de oro
 
 1. **Nada se mergea directo.** Todo cambio va por Pull Request.
-2. `main` y `develop` estan protegidas. Ni siquiera los admins pueden hacer `git push` directo.
+2. `main`, `staging` y `develop` estan protegidas. Ni siquiera los admins pueden hacer `git push` directo.
 3. Las PR NO requieren review de pares (proyecto pequeno), pero SI requieren que todos los
    checks de CI queden en verde antes de mergear.
-4. Merge a `develop` dispara deploy a `dev`. Merge a `main` dispara deploy a `pro`.
+4. Merge a `develop` dispara deploy a `dev`. Merge a `staging` dispara deploy a `staging`.
+   Merge a `main` dispara deploy a `pro`.
 5. Nombres de rama:
    - `feat/<slug>` para features
    - `fix/<slug>` para bugs
@@ -79,6 +80,24 @@ gh pr create --base main --head feat/mi-cambio \
 - Crear una rama a partir de `develop`. Siempre partir de `main`.
 - Reusar la misma rama para features distintos. Una rama = una unidad de cambio.
 
+### Rama `staging`
+
+`staging` es una **copia de `develop`** con su propio ambiente (stacks
+`cdts-staging-*`, schema `staging` en la BD, SSM `/cdts/staging/*`, environment
+`staging` en GitHub). Nace de `develop` y avanza **solo** por PRs
+`develop -> staging`, mergeados con merge commit (no squash): asi `staging`
+nunca tiene historia propia y el PR nunca trae conflictos.
+
+```bash
+gh pr create --base staging --head develop \
+    --title "promote: develop -> staging" --body "..."
+#  merge (merge commit) -> deploy-staging.yml actualiza el ambiente staging
+```
+
+- No abrir PRs de ramas feature directo a `staging`; todo pasa antes por `develop`.
+- No abrir PRs de `staging` hacia `develop` ni hacia `main`.
+- `main` sigue igual: recibe los PRs de las ramas feature (ver arriba).
+
 ## Convencion de commits
 
 Usar [Conventional Commits](https://www.conventionalcommits.org/) en espanol o ingles:
@@ -119,4 +138,4 @@ suite corre en cada PR via GitHub Actions con `working-directory: backend`.
 ## Secrets
 
 Nunca commitear credenciales AWS ni ninguna otra clave. Todo secret vive en GitHub Actions
-Environments (`dev` / `pro`).
+Environments (`dev` / `staging` / `pro`).
