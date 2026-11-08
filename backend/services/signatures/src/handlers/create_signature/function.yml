@@ -1,3 +1,1 @@
-description: Uploads a document (raw bytes in the request body) and opens a signature row for it, given who signs it and where it must be signed.
-events:
-  - httpApi: { method: POST, path: /signatures/create-signature }
+description: Internal (invoke-only, no HTTP). Uploads a document (raw bytes in the request body) and opens a signature row for it, given who signs it and where it must be signed. Invoked by processes.generate_sign.
