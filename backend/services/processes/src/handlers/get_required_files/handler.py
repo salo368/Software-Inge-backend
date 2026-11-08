@@ -44,7 +44,7 @@ def handler(event, context):
     try:
         files_response = invoke_sync(
             function_key="list_process_files",
-            payload={"process_id": str(process_id)},
+            payload={"body": json.dumps({"process_id": str(process_id)})},
             service="files",
         )
     except LambdaInvokeError as e:

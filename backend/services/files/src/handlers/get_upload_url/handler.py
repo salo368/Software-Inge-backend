@@ -12,7 +12,7 @@ from utils.s3_keys import build_file_key, build_file_metadata
 
 BUCKET = os.environ["FILES_BUCKET"]
 
-ALLOWED_TYPES = {member.value for member in FileType}
+ALLOWED_TYPES = {member.value for member in FileType if member is not FileType.RAW_INVESTMENT_ORDER}
 ALLOWED_CONTENT_TYPES = {
     "application/pdf",
     "image/jpeg",

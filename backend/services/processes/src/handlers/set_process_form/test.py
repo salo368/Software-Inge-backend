@@ -35,7 +35,7 @@ def test_set_process_form_happy_path(load_handler, monkeypatch):
     h = load_handler(__file__)
     user = _patch_auth(monkeypatch, user_id=_PID)
 
-    process = MagicMock(id=_PID, user_id=user.id)
+    process = MagicMock(id=_PID, user_id=user.id, stage="FORM")
     monkeypatch.setattr(h, "Processes", MagicMock(get_by_id=MagicMock(return_value=process)))
 
     form = {"name": "FOO", "document_number": "123"}
@@ -90,7 +90,7 @@ def test_set_process_form_missing_form_returns_400(load_handler, monkeypatch):
     h = load_handler(__file__)
     user = _patch_auth(monkeypatch, user_id=_PID)
 
-    process = MagicMock(id=_PID, user_id=user.id)
+    process = MagicMock(id=_PID, user_id=user.id, stage="FORM")
     monkeypatch.setattr(
         h, "Processes", MagicMock(get_by_id=MagicMock(return_value=process), set_submitted_form=MagicMock(side_effect=AssertionError))
     )
@@ -106,7 +106,7 @@ def test_set_process_form_invoke_failure_returns_502(load_handler, monkeypatch):
     h = load_handler(__file__)
     user = _patch_auth(monkeypatch, user_id=_PID)
 
-    process = MagicMock(id=_PID, user_id=user.id)
+    process = MagicMock(id=_PID, user_id=user.id, stage="FORM")
     monkeypatch.setattr(h, "Processes", MagicMock(get_by_id=MagicMock(return_value=process)))
     monkeypatch.setattr(
         h,
@@ -124,7 +124,7 @@ def test_set_process_form_forwards_auth_header_to_get_form(load_handler, monkeyp
     h = load_handler(__file__)
     user = _patch_auth(monkeypatch, user_id=_PID)
 
-    process = MagicMock(id=_PID, user_id=user.id)
+    process = MagicMock(id=_PID, user_id=user.id, stage="FORM")
     monkeypatch.setattr(h, "Processes", MagicMock(get_by_id=MagicMock(return_value=process)))
 
     invoke_mock = MagicMock(return_value=_get_form_response({"name": "FOO"}))
@@ -149,3 +149,37 @@ def test_set_process_form_requires_auth(load_handler):
 
     assert resp["statusCode"] == 401
     assert json.loads(resp["body"]) == {"error": "missing_bearer_token"}
+
+
+def test_set_process_form_allows_resubmitting_in_documents(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    user = _patch_auth(monkeypatch, user_id=_PID)
+
+    process = MagicMock(id=_PID, user_id=user.id, stage="DOCUMENTS")
+    updated = MagicMock(id=_PID, stage="DOCUMENTS", submitted_form={"name": "FOO"})
+    monkeypatch.setattr(
+        h, "Processes",
+        MagicMock(get_by_id=MagicMock(return_value=process), set_submitted_form=MagicMock(return_value=updated)),
+    )
+    monkeypatch.setattr(h, "invoke_sync", MagicMock(return_value=_get_form_response({"name": "FOO"})))
+
+    resp = h.handler(_authed_event(_PID), None)
+
+    assert resp["statusCode"] == 200
+
+
+def test_set_process_form_locked_after_documents_returns_409(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    user = _patch_auth(monkeypatch, user_id=_PID)
+
+    for stage in ("SIGNATURE", "PAYMENT"):
+        process = MagicMock(id=_PID, user_id=user.id, stage=stage)
+        processes = MagicMock(get_by_id=MagicMock(return_value=process))
+        monkeypatch.setattr(h, "Processes", processes)
+        monkeypatch.setattr(h, "invoke_sync", MagicMock(side_effect=AssertionError("must not fetch the form")))
+
+        resp = h.handler(_authed_event(_PID), None)
+
+        assert resp["statusCode"] == 409
+        assert json.loads(resp["body"]) == {"error": "process_form_locked"}
+        processes.set_submitted_form.assert_not_called()
