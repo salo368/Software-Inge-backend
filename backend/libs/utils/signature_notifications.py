@@ -11,11 +11,6 @@ def notify_terminal_state(signature_id, stage: str, *, notify_signer: bool = Fal
     payload = {"signature_id": str(signature_id)}
 
     try:
-        invoke_async("sign_trigger", {**payload, "stage": stage})
-    except LambdaInvokeError as e:
-        Logger.log("ERROR", f"notify_terminal_state: sign_trigger invoke failed for {signature_id}: {e}")
-
-    try:
         invoke_async("signed", {"body": json.dumps({**payload, "stage": stage})}, service="processes")
     except LambdaInvokeError as e:
         Logger.log("ERROR", f"notify_terminal_state: processes.signed invoke failed for {signature_id}: {e}")
