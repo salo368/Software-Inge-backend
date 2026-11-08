@@ -53,13 +53,13 @@ provider:
             # invoking the internal files.list_process_files Lambda.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-files-list-process-files
             # `get_required_files` triggers this block's own internal
-            # generate_sign worker (async) once all files are in.
+            # generate_sign lambda (async) once all files are in.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-processes-generate-sign
-            # `generate_sign` fetches the bank's investment-order template
-            # URL by invoking banks.get_bank directly.
-            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-banks-get-bank
-            # `generate_sign` opens the signature ceremony for the
-            # populated document by invoking signatures.create_signature.
+            # `generate_sign` gets the populated investment order by
+            # invoking files.generate_raw_investment_order (sync).
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-files-generate-raw-investment-order
+            # `generate_sign` opens the signature ceremony for that
+            # document by invoking signatures.create_signature.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-create-signature
 
 plugins:
@@ -76,8 +76,6 @@ package:
     - '!**'
     - 'src/**'
     - 'libs/**'
-    # Block-local helpers under processes/utils/.
-    - 'utils/**'
     - '!**/__pycache__/**'
     - '!**/*.pyc'
     # Colocated tests live next to each handler.py; keep them out of the zip.

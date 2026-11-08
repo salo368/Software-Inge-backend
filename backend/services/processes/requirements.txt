@@ -1,7 +1,5 @@
 sqlalchemy==2.0.34
 pg8000==1.31.2
 scramp==1.4.17
-# generate_sign: downloads the bank's io_key template and populates it.
+# generate_sign: downloads the populated investment order from files.
 requests==2.32.3
-pypdf==5.1.0
-reportlab==4.2.5

@@ -29,6 +29,7 @@ def _patch(h, monkeypatch, **overrides):
         requests=MagicMock(),
         populate_investment_order=MagicMock(return_value=b"%PDF-1.4 populated"),
         upload_from_bytes=MagicMock(),
+        presign_download=MagicMock(return_value="https://files.test/signed-get"),
     )
     mocks.update(overrides)
     mocks["requests"].get.return_value = MagicMock(content=b"%PDF-1.4 template", raise_for_status=MagicMock())
@@ -45,7 +46,12 @@ def test_happy_path_populates_and_uploads(load_handler, monkeypatch):
     resp = h.handler(_event(process_id=process_id), None)
 
     assert resp["statusCode"] == 200
-    key = json.loads(resp["body"])["key"]
+    result = json.loads(resp["body"])
+    key = result["key"]
+    assert result["process_id"] == process_id
+    assert result["url"] == "https://files.test/signed-get"
+    mocks["presign_download"].assert_called_once_with(h.BUCKET, key)
+    assert result["sign_location"] == h.SIGNATURE_LOCATION
     assert key.startswith(f"processes/{process_id}/RAW_INVESTMENT_ORDER/") and key.endswith(".pdf")
 
     bank_call = mocks["invoke_sync"].call_args

@@ -7,10 +7,10 @@ from uuid import uuid4
 import requests
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.core.s3 import upload_from_bytes
+from libs.core.s3 import presign_download, upload_from_bytes
 from libs.orm.files import FileType
 from libs.utils.lambda_invoke import invoke_sync
-from utils.investment_order import populate_investment_order
+from utils.investment_order import SIGNATURE_LOCATION, populate_investment_order
 from utils.s3_keys import build_file_key, build_file_metadata
 
 BUCKET = os.environ["FILES_BUCKET"]
@@ -69,4 +69,11 @@ def handler(event, context):
 
     upload_from_bytes(BUCKET, key, populated_pdf, "application/pdf", metadata=metadata)
 
-    return generate_response({"process_id": str(process_id), "key": key}, 200)
+    response = {
+        "process_id": str(process_id),
+        "key": key,
+        "url": presign_download(BUCKET, key),
+        "sign_location": SIGNATURE_LOCATION,
+    }
+
+    return generate_response(response, 200)

@@ -1,32 +1,14 @@
-"""Internal worker (invoke-only, no HTTP).
-
-Invoked asynchronously by `get_required_files` once all required files
-for a process are uploaded. Fetches the bank's empty investment order,
-populates it with the process's form answers and commercial terms, and
-opens a signature ceremony for the populated document, storing the
-resulting signature_id on the process.
-
-Never marks the process FAILED on an internal error -- it just leaves
-it at DOCUMENTS. `get_required_files` is the only caller and only
-invokes this worker while the process is still at DOCUMENTS, so the
-next time the front end polls it (e.g. the user revisits the page),
-the same guard lets this worker run again -- a built-in retry, no
-separate timeout/safety-net worker needed.
-"""
-from __future__ import annotations
-
 import base64
 import json
+from uuid import UUID
 
 import requests
 
-from libs.core.db import db_session
-from libs.core.logger import Logger
+from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.processes import ProcessStage, Processes
-from libs.utils.lambda_invoke import invoke_sync
-from utils.investment_order import SIGNATURE_LOCATION, populate_investment_order
+from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
 
-_TEMPLATE_FETCH_TIMEOUT_S = 10
+_DOWNLOAD_TIMEOUT_S = 10
 
 
 def _signatory_name(form: dict) -> str:
@@ -35,77 +17,106 @@ def _signatory_name(form: dict) -> str:
     return name or "Titular"
 
 
-def _fetch_bank(bank_id) -> dict:
-    resp = invoke_sync(
-        "get_bank", {"queryStringParameters": {"bank_id": str(bank_id)}}, service="banks",
-    )
-    if resp.get("statusCode") != 200:
-        raise RuntimeError(f"get_bank({bank_id}) returned {resp.get('statusCode')}: {resp.get('body')}")
-    return json.loads(resp["body"])
+def _raise_for_response(response: dict, default_error: str) -> None:
+    status_code = response.get("statusCode", 502)
+    if status_code != 200:
+        error_message = json.loads(response.get("body") or "{}").get("error") or default_error
+        raise HandledError(error_message, status_code)
 
 
-def _fetch_template(io_url: str) -> bytes:
-    resp = requests.get(io_url, timeout=_TEMPLATE_FETCH_TIMEOUT_S)
-    resp.raise_for_status()
-    return resp.content
+def _generate_raw_investment_order(process) -> dict:
+    payload = {
+        "body": json.dumps({
+            "process_id": str(process.id),
+            "bank_id": process.bank_id,
+            "submitted_form": process.submitted_form,
+            "amount": str(process.amount),
+            "term": process.term,
+            "rate": str(process.rate),
+        }),
+    }
+
+    try:
+        response = invoke_sync(
+            function_key="generate_raw_investment_order",
+            payload=payload,
+            service="files",
+        )
+    except LambdaInvokeError as e:
+        raise HandledError("files_unavailable", 502) from e
+
+    _raise_for_response(response, "investment_order_generation_failed")
+
+    return json.loads(response["body"])
 
 
-def _create_signature(pdf_bytes: bytes, signatory: str) -> str:
+def _download(url: str) -> bytes:
+    try:
+        response = requests.get(url, timeout=_DOWNLOAD_TIMEOUT_S)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        raise HandledError("investment_order_download_failed", 502) from e
+
+    return response.content
+
+
+def _create_signature(pdf_bytes: bytes, signatory: str, sign_location: list) -> str:
     event = {
         "queryStringParameters": {
-            "sign_location": json.dumps(SIGNATURE_LOCATION),
+            "sign_location": json.dumps(sign_location),
             "signatory": signatory,
         },
         "body": base64.b64encode(pdf_bytes).decode("ascii"),
         "isBase64Encoded": True,
     }
-    resp = invoke_sync("create_signature", event, service="signatures")
-    if resp.get("statusCode") != 200:
-        raise RuntimeError(f"create_signature returned {resp.get('statusCode')}: {resp.get('body')}")
-    return json.loads(resp["body"])["id"]
+
+    try:
+        response = invoke_sync(
+            function_key="create_signature",
+            payload=event,
+            service="signatures",
+        )
+    except LambdaInvokeError as e:
+        raise HandledError("signatures_unavailable", 502) from e
+
+    _raise_for_response(response, "signature_creation_failed")
+
+    return json.loads(response["body"])["id"]
 
 
+@handle_exceptions
 def handler(event, context):
-    process_id = (event or {}).get("process_id")
-    if not process_id:
-        Logger.log("ERROR", "generate_sign: missing process_id in payload")
-        return {"ok": False, "error": "missing_process_id"}
+  
+    body = json.loads(event.get("body") or "{}")
+
+    try:
+        process_id = UUID(body.get("process_id"))
+    except (TypeError, ValueError):
+        raise HandledError("invalid process id", 400)
 
     process = Processes.get_by_id(process_id)
     if process is None:
-        Logger.log("ERROR", f"generate_sign: no row for process_id={process_id}")
-        return {"ok": False, "error": "process_not_found"}
+        raise HandledError("process_not_found", 404)
 
     if process.stage != ProcessStage.DOCUMENTS.value:
-        Logger.log(
-            "WARNING",
-            f"generate_sign: process_id={process_id} at stage={process.stage}, "
-            "expected DOCUMENTS; skipping (already handled or not ready)",
-        )
-        return {"ok": False, "skipped": True, "stage": process.stage}
+        raise HandledError("process_not_in_documents_stage", 409)
 
-    try:
-        bank = _fetch_bank(process.bank_id)
-        io_url = bank.get("io_url")
-        if not io_url:
-            raise RuntimeError(f"bank {process.bank_id} has no io_url configured")
+    form = process.submitted_form or {}
 
-        template_pdf = _fetch_template(io_url)
-        populated_pdf = populate_investment_order(
-            template_pdf,
-            form=process.submitted_form or {},
-            amount=process.amount,
-            term=process.term,
-            rate=process.rate,
-        )
-        signatory = _signatory_name(process.submitted_form or {})
-        signature_id = _create_signature(populated_pdf, signatory)
-    except Exception as e:
-        Logger.log("ERROR", f"generate_sign: process_id={process_id} failed: {e}")
-        db_session.rollback()
-        return {"ok": False, "error": "internal_error"}
+    raw_investment_order = _generate_raw_investment_order(process)
+    pdf_bytes = _download(raw_investment_order["url"])
+
+    signature_id = _create_signature(
+        pdf_bytes,
+        _signatory_name(form),
+        raw_investment_order["sign_location"],
+    )
 
     Processes.set_signature_id(process_id, signature_id)
-    db_session.commit()
-    Logger.log("INFO", f"generate_sign: process_id={process_id} -> signature_id={signature_id}")
-    return {"ok": True, "process_id": str(process_id), "signature_id": signature_id}
+
+    response = {
+        "process_id": str(process_id),
+        "signature_id": signature_id,
+    }
+
+    return generate_response(response, 200)
