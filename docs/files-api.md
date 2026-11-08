@@ -99,7 +99,7 @@ Content-Type: application/json
 | Campo | Tipo | Reglas |
 |---|---|---|
 | `process_id` | UUID string | requerido; debe ser un proceso del usuario autenticado |
-| `file_type` | string, enum | requerido; cualquier valor de `FileType` (§3) |
+| `file_type` | string, enum | requerido; cualquier valor de `FileType` (§3) excepto `RAW_INVESTMENT_ORDER`, que solo lo genera el servidor |
 | `content_type` | string | opcional, default `application/pdf`; uno de `application/pdf`, `image/jpeg`, `image/png` |
 | `original_name` | string | opcional; nombre que se le muestra al usuario después (se guarda percent-encoded en la metadata) |
 
@@ -131,7 +131,7 @@ Content-Type: application/json
 | status | `error` | Cuándo |
 |---|---|---|
 | 400 | `process_id and file_type are required` | falta alguno de los dos |
-| 400 | `file_type must be one of ['BANK_CERT', 'INVESTMENT_ORDER', 'RAW_INVESTMENT_ORDER', 'RUT', 'TAX_DECLARATION']` | `file_type` inválido |
+| 400 | `file_type must be one of ['BANK_CERT', 'INVESTMENT_ORDER', 'RUT', 'TAX_DECLARATION']` | `file_type` inválido, o `RAW_INVESTMENT_ORDER` |
 | 400 | `content_type not allowed` | `content_type` fuera de la lista |
 | 400 | `invalid process_id` | `process_id` no es un UUID válido |
 | 404 | `process_not_found` | el proceso no existe o no es del usuario autenticado |
@@ -271,8 +271,8 @@ primero.
 
 **Invocada por:** `processes.get_required_files`, de forma síncrona.
 
-**Request:** `{"process_id": "<uuid>"}` directo en el evento (no dentro de
-`body`).
+**Request** (`event["body"]`, JSON): `{"process_id": "<uuid>"}`. Si falta,
+responde `400 process_id is required`.
 
 **Response — 200 OK**
 

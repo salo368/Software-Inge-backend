@@ -1,11 +1,17 @@
-from libs.core.responses import generate_response, handle_exceptions
+import json
+
+from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.files import Files
 
 
 @handle_exceptions
 def handler(event, context):
 
-    process_id = event.get("process_id")
+    body = json.loads(event.get("body") or "{}")
+
+    process_id = body.get("process_id")
+    if not process_id:
+        raise HandledError("process_id is required", 400)
 
     rows = Files.list_by_process(process_id)
 

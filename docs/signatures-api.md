@@ -37,8 +37,8 @@ aws cloudformation describe-stacks \
 avanzar esa firma. Cada endpoint valida además el stage actual, así que no
 se puede saltar pasos.
 
-> `POST /signatures/create-signature` tampoco tiene autenticación, aunque
-> solo lo usa `processes.generate_sign` (Lambda-a-Lambda).
+Las firmas no se abren por HTTP: las abre `create_signature`, una Lambda
+interna que solo puede invocar `processes.generate_sign` (permiso de IAM).
 
 ---
 
@@ -48,7 +48,7 @@ se puede saltar pasos.
 
 | Stage | Se entra con | Se sale con |
 |---|---|---|
-| `FORM` | `create-signature` | `set-signature-form` (correo del firmante) |
+| `FORM` | `create_signature` (interna) | `set-signature-form` (correo del firmante) |
 | `BIOMETRICS` | `set-signature-form` | `get-required-biometrics`, cuando las 3 evidencias son válidas |
 | `SIGNATURE` | `get-required-biometrics` | `set-signature-draw` (dibujo de la firma) |
 | `OTP` | `set-signature-draw` | `resolve-otp` con el código correcto |
@@ -88,26 +88,32 @@ Todos responden errores como `{"error": "<código>"}`. Los que reciben
 | 404 | `signature_not_found` | no existe |
 | 410 | `signature_expired` | pasó `SIGNING_WINDOW` (ver §3) |
 
-### 4.1 `POST /signatures/create-signature`
+### 4.1 `create_signature` (interna, sin HTTP)
 
 Abre una firma: sube el PDF al bucket de `signatures` y crea la fila en
 `FORM`. También encola el aviso de vencimiento de 15 min.
 
-**Llamada por:** `processes.generate_sign` (Lambda-a-Lambda). Ver la nota
-de §2.
+**Invocada por:** `processes.generate_sign`, de forma síncrona. No tiene
+ruta HTTP.
 
-**Request**
+**Request** (evento con la forma de una petición HTTP)
 
-- Query `sign_location`: JSON con una lista no vacía de cajas de firma.
-- Query `signatory`: nombre del firmante.
-- Body: los bytes del PDF.
-
-```http
-POST {{base_url}}/signatures/create-signature?sign_location=%5B%7B%22page%22%3A1%2C...%7D%5D&signatory=Usuario%20Staging%20Prueba
-Content-Type: application/pdf
-
-<bytes del PDF>
+```json
+{
+  "queryStringParameters": {
+    "sign_location": "[{\"page\": 1, \"x_pct\": 8.0, \"y_pct\": 80.0, \"width_pct\": 40.0, \"height_pct\": 14.0}]",
+    "signatory": "Usuario Staging Prueba"
+  },
+  "body": "<PDF en base64>",
+  "isBase64Encoded": true
+}
 ```
+
+| Campo | Reglas |
+|---|---|
+| `sign_location` | JSON con una lista no vacía de cajas de firma |
+| `signatory` | nombre del firmante, no vacío |
+| `body` | los bytes del PDF; en base64 si `isBase64Encoded` es `true` |
 
 Formato de cada caja de `sign_location` (porcentajes desde la esquina
 superior izquierda):
@@ -144,15 +150,6 @@ superior izquierda):
 | 400 | `sign_location must be a non-empty list` | no es lista o está vacía |
 | 400 | `signatory is required` | falta o está vacío |
 | 400 | `a file is required` | body vacío |
-
-**curl**
-
-```bash
-Q=$(python -c 'import urllib.parse as u, json; print(u.urlencode({"sign_location": json.dumps([{"page":1,"x_pct":8,"y_pct":80,"width_pct":40,"height_pct":14}]), "signatory": "Ana Gomez"}))')
-curl -X POST "{{base_url}}/signatures/create-signature?$Q" \
-  -H "Content-Type: application/pdf" \
-  --data-binary @documento.pdf
-```
 
 ---
 
@@ -462,7 +459,7 @@ Content-Type: application/json
 |---|---|---|
 | `sign_doc` (`handlers/`) | `resolve-otp`, asíncrona | ver abajo |
 | `notify_signed` (`handlers/`) | al quedar `SIGNED`, asíncrona | envía al firmante un correo con el enlace (prefirmado) al PDF firmado |
-| `check_signature_timeout` (`workers/`, SQS) | 15 min después de `create-signature` | marca `FAILED` si la firma no está en `SIGNING`, `SIGNED` ni `FAILED` |
+| `check_signature_timeout` (`workers/`, SQS) | 15 min después de `create_signature` | marca `FAILED` si la firma no está en `SIGNING`, `SIGNED` ni `FAILED` |
 | `check_signing_timeout` (`workers/`, SQS) | 60 s después de `resolve-otp` | marca `FAILED` si la firma sigue en `SIGNING` |
 
 **`sign_doc`, paso a paso:**
@@ -490,7 +487,7 @@ Bucket `cdts-<stage>-signatures` (propio del servicio; no comparte nada con
 el de `files`):
 
 ```
-<uuid7>.pdf                       ← PDF original (create-signature)
+<uuid7>.pdf                       ← PDF original (create_signature)
 signatures/<signature_id>/
 ├── id_front.{jpg,png}            ← evidencias (upload-biometrics)
 ├── id_back.{jpg,png}

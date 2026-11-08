@@ -109,6 +109,11 @@ def test_get_required_files_all_satisfied_triggers_generate_sign(load_handler, m
     invoke_async_mock.assert_called_once_with(
         "generate_sign", {"body": json.dumps({"process_id": _PID})},
     )
+    h.invoke_sync.assert_called_once_with(
+        function_key="list_process_files",
+        payload={"body": json.dumps({"process_id": _PID})},
+        service="files",
+    )
 
 
 def test_get_required_files_satisfied_but_already_past_documents_does_not_retrigger(load_handler, monkeypatch):

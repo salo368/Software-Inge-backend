@@ -95,3 +95,23 @@ def test_get_upload_url_process_of_other_user_returns_404(load_handler, monkeypa
 
     assert resp["statusCode"] == 404
     assert json.loads(resp["body"]) == {"error": "process_not_found"}
+
+
+def test_get_upload_url_rejects_server_generated_file_type(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    monkeypatch.setattr(h, "Processes", MagicMock(get_by_id=MagicMock(side_effect=AssertionError)))
+
+    resp = h.handler(
+        _authed_event({
+            "process_id": str(uuid4()),
+            "file_type": "RAW_INVESTMENT_ORDER",
+            "content_type": "application/pdf",
+        }),
+        None,
+    )
+
+    assert resp["statusCode"] == 400
+    assert json.loads(resp["body"])["error"] == (
+        "file_type must be one of ['BANK_CERT', 'INVESTMENT_ORDER', 'RUT', 'TAX_DECLARATION']"
+    )

@@ -207,8 +207,10 @@ Pide al servicio `forms` el formulario del usuario autenticado (invoca
 pone el `stage` en `DOCUMENTS`. Si el usuario no ha llenado el formulario,
 no cambia nada.
 
-> No valida el stage actual: llamarlo sobre un proceso que ya está en
-> `SIGNATURE` o más adelante lo devuelve a `DOCUMENTS`.
+> Solo funciona con el proceso en `FORM` o `DOCUMENTS` (en `DOCUMENTS`
+> sirve para reenviar el formulario corregido). Desde `SIGNATURE` en
+> adelante responde `409 process_form_locked`: el formulario ya está en una
+> firma y no se puede cambiar.
 
 **Auth requerida:** sí.
 
@@ -264,6 +266,7 @@ de inversión.
 | 400 | `invalid process id` | `process_id` falta o no es un UUID válido |
 | 404 | `process_not_found` | el proceso no existe o no es del usuario autenticado |
 | 400 | `form_required` | el usuario todavía no llenó su formulario (`get_form` devolvió `null`) |
+| 409 | `process_form_locked` | el proceso ya pasó de `DOCUMENTS` |
 | 502 | `form_lookup_unavailable` | falló la invocación a `forms.get_form` |
 | * | (propagado de `get_form`) | si `get_form` responde algo distinto de 200, se reenvía ese status y error |
 
