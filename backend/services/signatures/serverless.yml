@@ -25,33 +25,12 @@ provider:
 
   environment:
     STAGE: ${sls:stage}
-    # Lets verify_otp invoke its sibling `sign` Lambda via libs.utils.lambda_invoke
-    # without naming "signatures" again at the call site.
+    # Lets resolve_otp / sign_doc invoke their sibling Lambdas via
+    # libs.utils.lambda_invoke without naming "signatures" at the call site.
     SERVICE: signatures
-    # DB + SMTP + frontend URL are shared infra; each has its own SSM path.
+    # DB + SMTP are shared infra; each has its own SSM path.
     SSM_DB_PATH: /cdts/${sls:stage}/db
     SSM_SMTP_PATH: /cdts/${sls:stage}/smtp
-    # `create` handler builds sign_url = <frontend_base>/sign/{sign_id} using
-    # this path; the frontend base URL lives at /cdts/{stage}/frontend/url.
-    SSM_FRONTEND_PATH: /cdts/${sls:stage}/frontend
-    # M2M shared secret. Callers of POST /signatures must send it in the
-    # X-Service-Key header; `create` reads the expected value from here.
-    SSM_SIGNATURES_SERVICE_KEY: /cdts/${sls:stage}/signatures/service-key
-    # OPTIONAL, dev-only. When this SSM param exists and contains a hex key,
-    # `request_otp` will disclose the plaintext OTP in the response body
-    # (under `_debug_otp`) to callers that HMAC-sign sign_id with the same
-    # key. Enables fully-automated integration tests to complete the
-    # ceremony without a human reading the email. In production the param
-    # is NEVER provisioned -- `bootstrap-signatures-v2.sh` writes it only
-    # when the operator opts in for the dev stage. Env var is set on both
-    # stages so a future pro operator can provision it if they choose; the
-    # handler treats a missing param as "feature disabled".
-    SSM_DEBUG_OTP_KEY_PATH: /cdts/${sls:stage}/signatures/debug-otp-key
-    # OPTIONAL. sign_trigger POSTs {signature_id, stage} to this URL
-    # whenever a signature reaches SIGNED or FAILED. Not provisioned yet
-    # (no consumer exists) -- a missing param is treated as "feature
-    # disabled", same pattern as SSM_DEBUG_OTP_KEY_PATH above.
-    SSM_SIGN_TRIGGER_PATH: /cdts/${sls:stage}/signatures/sign-trigger-webhook
     # Signatures owns its own bucket, decoupled from `files`. Original PDFs,
     # evidences, signed PDFs, and evidence packages all live here under
     # transactions/{sign_id}/.
@@ -64,19 +43,13 @@ provider:
     # it hands a signature off to sign_doc; check_signing_timeout consumes
     # it and marks the row FAILED if sign_doc never got it to SIGNED.
     SIGNING_TIMEOUT_QUEUE_URL: !Ref SigningTimeoutQueue
-    # verify_otp uses this to gate the async invoke of the internal 'sign'
-    # Lambda. Flipped to 'true' in fase 4e once `sign` is deployed. If a
-    # future refactor renames or removes `sign`, flip back to 'false' so
-    # verify_otp degrades to a WARNING log instead of returning 502 on
-    # every invocation.
-    SIGN_LAMBDA_READY: "true"
 
   iam:
     role:
       name: cdts-${sls:stage}-signatures-lambda
       statements:
-        # SSM: DB, SMTP, frontend, service-key, and the Mock CA root.
-        # `mock_ca._load_root_ca()` reads two SecureString params under
+        # SSM: DB, SMTP and the Mock CA root.
+        # `signature_ca` reads two SecureString params under
         # /cdts/{stage}/mock-ca/root/ (cert-pem + private-key-pem).
         - Effect: Allow
           Action:
@@ -87,11 +60,6 @@ provider:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp/*
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend/*
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/service-key
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/debug-otp-key
-            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/signatures/sign-trigger-webhook
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/mock-ca/root/cert-pem
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/mock-ca/root/private-key-pem
         # SecureString params are KMS-encrypted; SSM decrypts on read but
@@ -132,7 +100,8 @@ provider:
             - rekognition:DetectText
             - rekognition:DetectFaces
           Resource: '*'
-        # Cross-Lambda invoke. `verify_otp` calls `sign` asynchronously via
+        # Cross-Lambda invoke. `resolve_otp` calls `sign_doc` and
+        # notify_terminal_state calls `notify_signed`, asynchronously via
         # libs/utils/lambda_invoke.py; scoped to signatures' own function
         # names so we can't call arbitrary lambdas by accident.
         - Effect: Allow

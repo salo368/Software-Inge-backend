@@ -1,1 +1,0 @@
-description: Internal worker (invoke-only, no HTTP). POSTs {signature_id, stage} to a preconfigured webhook whenever a signature reaches SIGNED or FAILED.
