@@ -1,8 +1,0 @@
-description: >
-  Returns the full state of a signature ceremony to the microfront.
-  Public via sign_id; includes a presigned GET URL for the source PDF.
-timeout: 10
-events:
-  - httpApi:
-      method: GET
-      path: /signatures/{sign_id}
