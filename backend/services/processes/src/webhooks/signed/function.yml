@@ -1,0 +1,2 @@
+description: Internal webhook (invoke-only, no HTTP). Signatures calls it when a signature reaches a terminal state; on SIGNED the process advances from SIGNATURE to PAYMENT.
+timeout: 30

@@ -219,20 +219,26 @@ backend/{services,platform}/<name>/
     │       ├── handler.py
     │       ├── function.yml
     │       └── test.py
-    └── workers/            ← Worker Lambdas (SQS / SNS / Streams / async invoke)
+    ├── workers/            ← Worker Lambdas (SQS / SNS / Streams / async invoke)
+    │   └── <function>/
+    │       ├── handler.py
+    │       ├── function.yml
+    │       └── test.py
+    └── webhooks/           ← Lambdas que reciben notificaciones de otro servicio (invoke directo)
         └── <function>/
             ├── handler.py
             ├── function.yml
             └── test.py
 ```
 
-### Reglas de las tres subcarpetas de `src/`
+### Reglas de las subcarpetas de `src/`
 
 | Carpeta | Trigger | Ejemplo |
 |---|---|---|
 | `handlers/` | API Gateway HTTP API | `POST /signature` → `backend/services/signature/src/handlers/create-signature/handler.py` |
 | `scheduled/` | EventBridge `schedule` (rate/cron) | Job diario que limpia OTPs expirados |
 | `workers/` | SQS, SNS, DynamoDB Streams, invoke async | Procesa un item de cola de firmas pendientes |
+| `webhooks/` | Invoke (async) desde otro servicio que avisa de un evento | `processes/webhooks/signed`: `signatures` avisa que una firma terminó |
 
 **Nunca** poner un handler HTTP dentro de `workers/`, ni un cron dentro de `handlers/`.
 El nombre de la subcarpeta identifica su naturaleza y su trigger.
@@ -292,7 +298,7 @@ functions: ${file(./functions.js):build}
 
 Al desplegar, el generador:
 
-1. Escanea `src/{handlers,scheduled,workers}/*/function.yml`.
+1. Escanea `src/{handlers,scheduled,workers,webhooks}/*/function.yml`.
 2. Valida que cada carpeta sea `snake_case` (falla el package si detecta un
    guión, mayúsculas u otro carácter).
 3. Autoderiva por convención:
