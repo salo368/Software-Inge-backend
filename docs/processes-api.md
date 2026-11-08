@@ -49,7 +49,8 @@ Lambda-a-Lambda, con permiso de IAM.
 | `DOCUMENTS` | `set-process-form` | al guardar el formulario como `submitted_form` |
 | `SIGNATURE` | `generate_sign` (interna) | al abrir la firma de la orden de inversión; también guarda `signature_id` |
 | `PAYMENT` | `webhooks/signed` (interna) | cuando `signatures` avisa que esa firma quedó `SIGNED` |
-| `REVIEW`, `SENT_TO_BANK`, `COMPLETED` | — | definidos en el enum, todavía sin transición implementada |
+| `REVIEW` | `get-pending-pay` | cuando la suma de los pagos cubre el monto del proceso |
+| `SENT_TO_BANK`, `COMPLETED` | — | definidos en el enum, todavía sin transición implementada |
 
 Flujo completo, visto desde el frontend:
 
@@ -66,6 +67,11 @@ Flujo completo, visto desde el frontend:
    [`signatures-api.md`](./signatures-api.md)).
 7. Al quedar la firma `SIGNED`, `signatures` invoca `webhooks/signed` y el
    proceso pasa a `PAYMENT`.
+8. Por cada transferencia: subir el comprobante con
+   `POST /payments/upload-url` + `PUT` a S3, y registrarla con
+   `POST /payments/create-payment` (ver [`payments-api.md`](./payments-api.md)).
+9. Consultar `GET /processes/get-pending-pay`: devuelve lo que falta por
+   pagar y, cuando los pagos cubren el monto, pasa el proceso a `REVIEW`.
 
 ---
 
@@ -338,6 +344,62 @@ documentos.
 
 ```bash
 curl "{{base_url}}/processes/get-required-files?process_id=$PROCESS_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 4.5 `GET /processes/get-pending-pay`
+
+Devuelve cuánto falta por pagar de un proceso en `PAYMENT`. Suma los pagos
+registrados invocando `payments.list_process_payments` (Lambda-a-Lambda).
+
+> **Efecto lateral:** si lo pagado cubre `amount` (igual o mayor), esta
+> llamada pasa el proceso a `REVIEW`. El `amount` nunca cambia: es el de la
+> orden de inversión firmada, así que un pago de más no lo modifica.
+
+**Auth requerida:** sí.
+
+**Request**
+
+```http
+GET {{base_url}}/processes/get-pending-pay?process_id=5798138d-395e-407d-9f92-58858e31a10d
+Authorization: Bearer {{token}}
+```
+
+**Response — 200 OK** (pago parcial)
+
+```json
+{
+  "process_id": "5798138d-395e-407d-9f92-58858e31a10d",
+  "amount": 3000000.0,
+  "paid": 1500000.0,
+  "pending": 1500000.0,
+  "stage": "PAYMENT"
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `amount` | el monto del proceso (el de la orden firmada) |
+| `paid` | suma de los pagos registrados; puede superar `amount` |
+| `pending` | `amount - paid`, nunca negativo (0 al completar el pago) |
+| `stage` | `PAYMENT`, o `REVIEW` si esta llamada completó el pago |
+
+**Errores**
+
+| status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | `process_id` falta o no es un UUID válido |
+| 404 | `process_not_found` | el proceso no existe o no es del usuario autenticado |
+| 409 | `process_not_in_payment_stage` | el proceso no está en `PAYMENT` |
+| 502 | `payments_unavailable` | falló la invocación a `payments` |
+| * | (propagado) | si `payments` responde algo distinto de 200 |
+
+**curl**
+
+```bash
+curl "{{base_url}}/processes/get-pending-pay?process_id=$PROCESS_ID" \
   -H "Authorization: Bearer $TOKEN"
 ```
 

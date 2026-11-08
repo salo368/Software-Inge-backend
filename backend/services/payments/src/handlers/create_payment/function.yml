@@ -1,0 +1,3 @@
+description: Registers a payment (amount + uploaded receipt key) for a process in PAYMENT.
+events:
+  - httpApi: { method: POST, path: /payments/create-payment }
