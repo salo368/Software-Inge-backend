@@ -8,6 +8,8 @@ from io import BytesIO
 from pypdf import PdfReader, PdfWriter
 from reportlab.pdfgen import canvas as pdf_canvas
 
+from libs.utils.locations import Countries, IssuanceLocation, Location
+
 _PAGE_W, _PAGE_H = 612.0, 792.0
 _FONT = "Helvetica"
 _FONT_SIZE = 9
@@ -66,10 +68,49 @@ def _to_pdf_y(y_top_origin: float) -> float:
     return _PAGE_H - y_top_origin
 
 
+_CIVIL_STATUS_ES = {
+    "SINGLE": "Soltero(a)",
+    "MARRIED": "Casado(a)",
+    "DIVORCED": "Divorciado(a)",
+    "WIDOWED": "Viudo(a)",
+}
+
+_EDUCATION_LEVEL_ES = {
+    "NONE": "Ninguno",
+    "PRIMARY": "Primaria",
+    "SECONDARY": "Secundaria",
+    "TECHNICAL": "Tecnico",
+    "TECHNOLOGICAL": "Tecnologo",
+    "PROFESSIONAL": "Profesional",
+    "POSTGRADUATE": "Posgrado",
+}
+
+
 def _text(value) -> str:
     if value is None or value == "":
         return "-"
     return str(value)
+
+
+def _translate(mapping: dict, value) -> str:
+    return _text(mapping.get(value, value))
+
+
+def _country_label(key) -> str:
+    return _text(Countries.get_country(key).get("label") or key)
+
+
+def _place(form: dict, prefix: str, location_cls) -> dict:
+   
+    country = form.get(f"{prefix}_country")
+    department = form.get(f"{prefix}_department")
+    city = form.get(f"{prefix}_city")
+    location = location_cls(country, department, city)
+    return {
+        f"{prefix}_country": _text(location.country_label or country),
+        f"{prefix}_department": _text(location.department_label or department),
+        f"{prefix}_city": _text(location.city_label or city),
+    }
 
 
 def _money(value) -> str:
@@ -99,18 +140,14 @@ def populate_investment_order(
         "second_last_name": _text(form.get("second_last_name")),
         "document_type": _text(form.get("document_type")),
         "document_number": _text(form.get("document_number")),
-        "nationality": _text(form.get("nationality")),
+        "nationality": _country_label(form.get("nationality")),
         "gender": _text(form.get("gender")),
         "document_issuance_date": _text(form.get("document_issuance_date")),
-        "document_issuance_country": _text(form.get("document_issuance_country")),
-        "document_issuance_department": _text(form.get("document_issuance_department")),
-        "document_issuance_city": _text(form.get("document_issuance_city")),
+        **_place(form, "document_issuance", IssuanceLocation),
         "birth_date": _text(form.get("birth_date")),
-        "birth_country": _text(form.get("birth_country")),
-        "birth_department": _text(form.get("birth_department")),
-        "birth_city": _text(form.get("birth_city")),
-        "civil_status": _text(form.get("civil_status")),
-        "education_level": _text(form.get("education_level")),
+        **_place(form, "birth", Location),
+        "civil_status": _translate(_CIVIL_STATUS_ES, form.get("civil_status")),
+        "education_level": _translate(_EDUCATION_LEVEL_ES, form.get("education_level")),
         "phone_ext": _text(form.get("phone_ext")),
         "phone_number": _text(form.get("phone_number")),
         "email": _text(form.get("email")),
