@@ -106,7 +106,9 @@ def test_get_required_files_all_satisfied_triggers_generate_sign(load_handler, m
 
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"]) == {"BANK_CERT": True, "TAX_DECLARATION": True, "RUT": True}
-    invoke_async_mock.assert_called_once_with("generate_sign", {"process_id": _PID})
+    invoke_async_mock.assert_called_once_with(
+        "generate_sign", {"body": json.dumps({"process_id": _PID})},
+    )
 
 
 def test_get_required_files_satisfied_but_already_past_documents_does_not_retrigger(load_handler, monkeypatch):
