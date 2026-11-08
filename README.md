@@ -22,7 +22,10 @@ enlaces absolutos hacia la SPA.
 Docs adicionales del backend:
 
 - [`docs/repo-structure.md`](./docs/repo-structure.md) — reglas de organización, deploy selectivo, naming.
-- [`docs/signatures-v2.md`](./docs/signatures-v2.md) — servicio `signatures` (ciclo de vida, endpoints, mock CA, bootstrap SSM, integración con `processes`).
+- Manuales de API por servicio (endpoints, payloads, errores y lambdas internas):
+  [`auth`](./docs/auth-api.md), [`banks`](./docs/banks-api.md),
+  [`forms`](./docs/forms-api.md), [`processes`](./docs/processes-api.md),
+  [`files`](./docs/files-api.md), [`signatures`](./docs/signatures-api.md).
 - [`docs/arquitectura_firma_digital_colombia_resumen.md`](./docs/arquitectura_firma_digital_colombia_resumen.md) — marco conceptual legal/criptográfico que motiva el diseño de `signatures`.
 - [`backend/platform/migrations/README.md`](./backend/platform/migrations/README.md) — reglas duras de migraciones SQL.
 
@@ -41,9 +44,9 @@ repo/
 │   ├── pytest.ini
 │   ├── .nvmrc, .python-version
 │   ├── config/, utils/, data/   ← cross-bloque dentro del backend
+│   ├── libs/                    ← codigo Python compartido (se copia a cada bloque al empaquetar)
 │   ├── services/                ← bloques de DOMINIO DE NEGOCIO (<name>/)
 │   ├── platform/                ← bloques de INFRAESTRUCTURA (<name>/, ej. migrations)
-│   ├── layers/shared/           ← Lambda Layer con codigo compartido
 │   └── tests/
 ├── README.md
 ├── CONTRIBUTING.md
@@ -60,20 +63,23 @@ Detalle completo de la estructura backend: [`docs/repo-structure.md`](./docs/rep
 - Cada rama abre **dos PRs**: uno a `develop` (para desplegar y probar en `dev`) y
   uno a `main` (para desplegar en `pro`). **La misma rama** alimenta ambos ambientes.
 - `develop` y `main` **nunca** se mergean entre si (evita conflictos add/add del squash).
+- `staging` avanza solo por PRs `develop -> staging` (merge commit), para probar en
+  un ambiente propio lo que ya esta en `develop`.
 - Las PR NO requieren aprobacion de pares, pero SI requieren que los checks de CI pasen.
 
 Detalle completo con comandos y anti-patrones: [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ## Ambientes
 
-Solo dos stages: `dev` y `pro`. No usar `prod`, `staging`, `qa`, etc.
+Tres stages: `dev`, `staging` y `pro`. No usar `prod`, `qa`, etc.
 
 | Stage | Rama disparadora | GitHub Environment | Usuario IAM |
 |---|---|---|---|
 | `dev` | `develop` | `dev` | `github-actions-dev-deployer` |
+| `staging` | `staging` (solo PRs `develop -> staging`) | `staging` | `github-actions-staging-deployer` |
 | `pro` | `main`    | `pro` | `github-actions-pro-deployer` |
 
-Region unica: `us-east-1`. Ambos stages viven en la misma cuenta AWS (`658548982073`).
+Region unica: `us-east-1`. Los tres stages viven en la misma cuenta AWS (`658548982073`).
 
 ## Naming de recursos AWS
 
@@ -132,7 +138,7 @@ disparan workflows.
 El pipeline **no** re-despliega todo el backend en cada push. Agrupa el codigo
 en **bloques** independientes (`backend/services/<X>/` y `backend/platform/<X>/`) y
 solo despliega los afectados por el diff. Si tocas algo global del backend
-(`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, deps), se
+(`serverless-compose.yml`, `libs/`, `config/`, `utils/`, `data/`, deps), se
 redespliega **todo**. Detalles y reglas: [`docs/repo-structure.md`](./docs/repo-structure.md) §14.
 
 ## Infra bootstrap

@@ -2,7 +2,7 @@
 
 > **Antes de crear un archivo o carpeta nueva, leer
 > [`docs/repo-structure.md`](./docs/repo-structure.md).** Esa es la fuente unica de
-> verdad sobre como se organiza el codigo (servicios, lambdas, layers, tests). La IA
+> verdad sobre como se organiza el codigo (servicios, lambdas, libs, tests). La IA
 > tambien la respeta via [`.cursor/rules/repo-structure.mdc`](./.cursor/rules/repo-structure.mdc).
 
 ## Reglas de oro
@@ -132,8 +132,10 @@ Reglas:
 
 ## Tests
 
-Todo cambio de logica debe traer su test. Los tests viven en `backend/tests/`. La
-suite corre en cada PR via GitHub Actions con `working-directory: backend`.
+Todo cambio de logica debe traer su test. Cada Lambda tiene su `test.py` al lado
+de su `handler.py`; los tests transversales (libs, build, CI) viven en
+`backend/tests/`. La suite corre en cada PR via GitHub Actions con
+`working-directory: backend`. Ver `docs/repo-structure.md` §13.
 
 ## Secrets
 

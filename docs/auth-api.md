@@ -14,13 +14,15 @@ arquitectura separado todavía.
 ## 1. Base URL
 
 No hay servidor local (no hay plugin `serverless-offline`). Todo corre contra
-el stage `dev`, desplegado automáticamente en cada push a `develop`.
+un stage desplegado: `dev` (merge a `develop`), `staging` (merge `develop →
+staging`) o `pro` (merge a `main`).
 
-Para obtener la URL del API Gateway del stage `dev`:
+La URL del API Gateway de cada stage sale del output `HttpApiUrl` del stack
+`cdts-<stage>-auth`:
 
 ```bash
 aws cloudformation describe-stacks \
-  --stack-name cdts-dev-auth \
+  --stack-name cdts-<stage>-auth \
   --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
   --output text
 ```
@@ -32,10 +34,8 @@ https://abc123xyz.execute-api.us-east-1.amazonaws.com
 ```
 
 Esa es tu `{{base_url}}`. Todos los paths de abajo van después de esa URL
-(ej. `{{base_url}}/auth/register`).
-
-> En `pro` es lo mismo pero con `--stack-name cdts-pro-auth` (y credenciales
-> del deployer de `pro`).
+(ej. `{{base_url}}/auth/register`). No la hardcodees: cambia si el stack se
+recrea.
 
 ---
 
