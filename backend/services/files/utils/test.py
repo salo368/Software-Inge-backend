@@ -40,11 +40,11 @@ def _blank_letter_pdf() -> bytes:
 
 _FORM = {
     "name": "Ana", "second_name": "Maria", "last_name": "Gomez", "second_last_name": "Ruiz",
-    "document_type": "CC", "document_number": "123456789", "nationality": "Colombiana",
-    "gender": "F", "document_issuance_date": "01/01/2020", "document_issuance_country": "Colombia",
-    "document_issuance_department": "Cundinamarca", "document_issuance_city": "Bogota",
-    "birth_date": "02/02/1990", "birth_country": "Colombia", "birth_department": "Antioquia",
-    "birth_city": "Medellin", "civil_status": "SINGLE", "education_level": "PROFESSIONAL",
+    "document_type": "CC", "document_number": "123456789", "nationality": "COLOMBIA",
+    "gender": "F", "document_issuance_date": "01/01/2020", "document_issuance_country": "COLOMBIA",
+    "document_issuance_department": "CUNDINAMARCA", "document_issuance_city": "USAQUEN",
+    "birth_date": "02/02/1990", "birth_country": "COLOMBIA", "birth_department": "QUINDIO",
+    "birth_city": "ARMENIA", "civil_status": "SINGLE", "education_level": "PROFESSIONAL",
     "phone_ext": "57", "phone_number": "3001234567", "email": "ana@example.com",
     "monthly_income": 5000000, "monthly_expenses": 2000000, "total_assets": 100000000,
     "total_liabilities": 10000000, "is_tax_declarant": True, "is_pep": False,
@@ -63,11 +63,52 @@ def test_populate_investment_order_renders_all_form_fields():
 
     text = _extract_text(out)
     for expected in [
-        "Ana", "Maria", "Gomez", "Ruiz", "CC", "123456789", "Colombiana", "F",
-        "01/01/2020", "Bogota", "02/02/1990", "Medellin", "SINGLE", "PROFESSIONAL",
-        "57", "3001234567", "ana@example.com",
+        "Ana", "Maria", "Gomez", "Ruiz", "CC", "123456789", "Colombia", "F",
+        "01/01/2020", "Cundinamarca", "Usaqu", "02/02/1990", "Quind", "Armenia",
+        "Soltero(a)", "Profesional", "57", "3001234567", "ana@example.com",
     ]:
         assert expected in text, f"{expected!r} missing from overlaid text"
+
+
+def test_populate_investment_order_translates_catalogue_keys_to_labels():
+    text = _extract_text(populate_investment_order(
+        _blank_letter_pdf(), form=_FORM, amount=Decimal("1"), term=30, rate=Decimal("1"),
+    ))
+
+    # Raw keys must not leak into the document.
+    for raw in ["SINGLE", "PROFESSIONAL", "COLOMBIA", "CUNDINAMARCA", "QUINDIO", "ARMENIA", "USAQUEN"]:
+        assert raw not in text, f"raw key {raw!r} leaked into overlaid text"
+
+
+def test_populate_investment_order_translates_every_enum_value():
+    for key, label in investment_order._CIVIL_STATUS_ES.items():
+        assert label != key
+    for key, label in investment_order._EDUCATION_LEVEL_ES.items():
+        assert label != key
+
+    text = _extract_text(populate_investment_order(
+        _blank_letter_pdf(), form={**_FORM, "civil_status": "MARRIED", "education_level": "POSTGRADUATE"},
+        amount=Decimal("1"), term=30, rate=Decimal("1"),
+    ))
+    assert "Casado(a)" in text and "Posgrado" in text
+
+
+def test_populate_investment_order_unknown_values_fall_back_to_raw():
+    text = _extract_text(populate_investment_order(
+        _blank_letter_pdf(),
+        form={**_FORM, "civil_status": "UNKNOWN_X", "birth_department": "Narnia", "birth_city": "Cair Paravel"},
+        amount=Decimal("1"), term=30, rate=Decimal("1"),
+    ))
+    assert "UNKNOWN_X" in text and "Narnia" in text and "Cair Paravel" in text
+
+
+def test_populate_investment_order_foreign_birth_place():
+    text = _extract_text(populate_investment_order(
+        _blank_letter_pdf(),
+        form={**_FORM, "birth_country": "ESTADOS_UNIDOS", "birth_department": "Florida", "birth_city": "Miami"},
+        amount=Decimal("1"), term=30, rate=Decimal("1"),
+    ))
+    assert "Florida" in text and "Miami" in text
 
 
 def test_populate_investment_order_formats_money_and_commercial_terms():
