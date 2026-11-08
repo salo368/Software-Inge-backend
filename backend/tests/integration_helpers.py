@@ -381,13 +381,7 @@ def cleanup_user(email: str) -> None:
 
 
 def cleanup_process(process_id: str) -> None:
-    """Deletes a process and its dependent `files` rows.
-
-    `processes` no longer links to `signatures` (that bridge -- the old
-    `sign_id` column -- was dropped ahead of the signatures refactor);
-    callers that opened a ceremony track their own `sign_id` and clean it
-    up separately via `cleanup_signature`.
-    """
+    """Deletes a process and its dependent `files` rows."""
     if not process_id:
         return
     with db_conn() as c:
@@ -399,28 +393,6 @@ def cleanup_process(process_id: str) -> None:
             c.run("DELETE FROM processes WHERE id = :p", p=process_id)
         except Exception:
             pass
-
-
-def cleanup_signature(sign_id: str) -> None:
-    """Deletes a signature ceremony row and the S3 prefix under
-    `transactions/{sign_id}/`. Safe to call even if the row or objects
-    are missing (best-effort).
-
-    Only clears data the integration test itself created; the row's
-    `sign_id` is only known to callers that opened the ceremony in
-    this run, so there is no way to accidentally purge real ceremonies.
-    """
-    if not sign_id:
-        return
-    with db_conn() as c:
-        try:
-            c.run("DELETE FROM signatures WHERE sign_id = :s", s=sign_id)
-        except Exception:
-            pass
-    bucket = os.environ.get(
-        "SIGNATURES_BUCKET", f"cdts-{STAGE}-signatures"
-    )
-    cleanup_s3_prefix(bucket, f"transactions/{sign_id}/")
 
 
 def cleanup_s3_prefix(bucket: str, prefix: str) -> None:

@@ -17,7 +17,6 @@ pypdf==5.1.0
 cryptography==43.0.3
 pyhanko==0.34.1
 pyhanko-certvalidator==0.30.2
-# Synthetic image generation for signatures integration tests. Only used
-# by `backend/tests/integration_signatures.py`; imported lazily so the
-# unit test suite doesn't pay the load cost.
+# Image handling for the signature audit-page unit tests
+# (`backend/tests/libs/utils/test_signature_audit_page.py`).
 Pillow==10.4.0
