@@ -67,6 +67,16 @@ class Processes(Base):
 
         return db_session.query(statement=statement)
 
+    def get_by_signature_id(signature_id):
+
+        statement = (
+            select(Processes)
+            .where(Processes.signature_id == signature_id)
+            .limit(1)
+        )
+
+        return db_session.query(statement=statement)
+
     def list_by_user(user_id):
 
         statement = (
@@ -100,6 +110,23 @@ class Processes(Base):
             .values(
                 signature_id=signature_id,
                 stage=ProcessStage.SIGNATURE.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
+    def advance_to_payment(process_id):
+
+        statement = (
+            update(Processes)
+            .where(
+                Processes.id == process_id,
+                Processes.stage == ProcessStage.SIGNATURE.value,
+            )
+            .values(
+                stage=ProcessStage.PAYMENT.value,
                 updated_at=text("NOW()"),
             )
             .returning(Processes)

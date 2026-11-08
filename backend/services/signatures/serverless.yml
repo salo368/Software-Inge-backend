@@ -140,6 +140,9 @@ provider:
             - lambda:InvokeFunction
           Resource:
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-*
+            # notify_terminal_state tells processes a signature finished by
+            # invoking its `signed` webhook lambda (async).
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-processes-signed
         # create_signature / resolve_otp send the timeout messages;
         # check_signature_timeout / check_signing_timeout consume them
         # (serverless also auto-adds consumer permissions for the sqs:
