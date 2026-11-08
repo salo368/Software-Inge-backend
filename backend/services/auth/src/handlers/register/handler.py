@@ -3,7 +3,7 @@ import json
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.user_credentials import UserCredentials
 from libs.orm.users import Users
-from libs.utils.auth import issue_token
+from libs.utils.auth import issue_token, AuthsTypes
 from libs.utils.passwords import hash_password
 from libs.utils.validators import password_reason, valid_email
 
@@ -32,7 +32,7 @@ def handler(event, context):
     user = Users.create(email=email, full_name=full_name)
     UserCredentials.create(user_id=user.id, password_hash=hash_password(password))
 
-    token, expires_at = issue_token(user.id)
+    token, expires_at = issue_token(user.id, AuthsTypes.USER)
 
     response = {
         "user": {

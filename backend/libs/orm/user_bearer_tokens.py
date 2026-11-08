@@ -7,9 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 from libs.core.db import db_session
 from libs.orm.base import Base
 
-TABLE_NAME = "bearer_tokens"
+TABLE_NAME = "user_bearer_tokens"
 
-class BearerTokens(Base):
+class UserBearerTokens(Base):
 
     __tablename__ = TABLE_NAME
 
@@ -23,13 +23,13 @@ class BearerTokens(Base):
     def create(user_id, token_hash, expires_at):
 
         statement = (
-            insert(BearerTokens)
+            insert(UserBearerTokens)
             .values(
                 user_id=user_id,
                 token_hash=token_hash,
                 expires_at=expires_at,
             )
-            .returning(BearerTokens)
+            .returning(UserBearerTokens)
         )
 
         return db_session.query(statement=statement)
@@ -37,8 +37,8 @@ class BearerTokens(Base):
     def get_by_hash(token_hash):
 
         statement = (
-            select(BearerTokens)
-            .where(BearerTokens.token_hash == token_hash)
+            select(UserBearerTokens)
+            .where(UserBearerTokens.token_hash == token_hash)
             .limit(1)
         )
 
@@ -47,10 +47,10 @@ class BearerTokens(Base):
     def update_by_id(id, values):
 
         statement = (
-            update(BearerTokens)
-            .where(BearerTokens.id == id)
+            update(UserBearerTokens)
+            .where(UserBearerTokens.id == id)
             .values(**values)
-            .returning(BearerTokens)
+            .returning(UserBearerTokens)
         )
 
         return db_session.query(statement=statement)
