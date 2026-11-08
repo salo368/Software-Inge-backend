@@ -25,7 +25,8 @@ Docs adicionales del backend:
 - Manuales de API por servicio (endpoints, payloads, errores y lambdas internas):
   [`auth`](./docs/auth-api.md), [`banks`](./docs/banks-api.md),
   [`forms`](./docs/forms-api.md), [`processes`](./docs/processes-api.md),
-  [`files`](./docs/files-api.md), [`signatures`](./docs/signatures-api.md).
+  [`files`](./docs/files-api.md), [`signatures`](./docs/signatures-api.md),
+  [`payments`](./docs/payments-api.md).
 - [`docs/arquitectura_firma_digital_colombia_resumen.md`](./docs/arquitectura_firma_digital_colombia_resumen.md) — marco conceptual legal/criptográfico que motiva el diseño de `signatures`.
 - [`backend/platform/migrations/README.md`](./backend/platform/migrations/README.md) — reglas duras de migraciones SQL.
 

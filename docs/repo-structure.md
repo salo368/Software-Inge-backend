@@ -140,6 +140,7 @@ dominio** (bounded context). Servicios hoy vigentes:
 | `files` | Archivos de cada proceso en S3, su registro en `files` y la generación de la orden de inversión llena. | [`files-api.md`](./files-api.md) |
 | `forms` | Formulario KYC del usuario y catálogo de ubicaciones. | [`forms-api.md`](./forms-api.md) |
 | `processes` | Orquestador del wizard CDT (`FORM → DOCUMENTS → SIGNATURE → PAYMENT → …`). | [`processes-api.md`](./processes-api.md) |
+| `payments` | Transferencias con que se paga cada proceso y sus comprobantes. | [`payments-api.md`](./payments-api.md) |
 | `signatures` | Servicio genérico de firma digital (agnóstico al dominio). | [`signatures-api.md`](./signatures-api.md) |
 
 - Un servicio nunca importa código de otro servicio, **ni su ORM**: los
