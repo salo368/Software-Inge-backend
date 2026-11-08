@@ -121,10 +121,7 @@ class Processes(Base):
 
         statement = (
             update(Processes)
-            .where(
-                Processes.id == process_id,
-                Processes.stage == ProcessStage.SIGNATURE.value,
-            )
+            .where(Processes.id == process_id)
             .values(
                 stage=ProcessStage.PAYMENT.value,
                 updated_at=text("NOW()"),
