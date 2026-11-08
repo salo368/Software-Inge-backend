@@ -19,7 +19,7 @@ def test_logout_happy_path(load_handler, monkeypatch):
     fake_bearer = MagicMock(id="bearer-1", revoked_at=None)
 
     monkeypatch.setattr(
-        "libs.utils.auth.BearerTokens",
+        "libs.utils.auth.UserBearerTokens",
         MagicMock(get_by_hash=MagicMock(return_value=fake_bearer)),
     )
     monkeypatch.setattr("libs.utils.auth.is_alive", MagicMock(return_value=True))
@@ -56,7 +56,7 @@ def test_logout_invalid_token_returns_401(load_handler, monkeypatch):
     handler = load_handler(__file__)
 
     monkeypatch.setattr(
-        "libs.utils.auth.BearerTokens",
+        "libs.utils.auth.UserBearerTokens",
         MagicMock(get_by_hash=MagicMock(return_value=None)),
     )
     monkeypatch.setattr(handler, "revoke", MagicMock(side_effect=AssertionError))

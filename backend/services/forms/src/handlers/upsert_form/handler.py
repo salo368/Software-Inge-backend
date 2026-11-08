@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.forms import CivilStatusType, DocumentType, EducationLevelType, Forms, GenderType
-from libs.utils.auth import require_auth
+from libs.utils.auth import require_auth, AuthsTypes
 from libs.utils.locations import Countries, IssuanceLocation, Location
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
@@ -93,7 +93,7 @@ def _location(body, prefix, location_cls, required=True):
 
 
 @handle_exceptions
-@require_auth
+@require_auth(AuthsTypes.USER)
 def handler(event, context):
 
     body = json.loads(event.get("body") or "{}")

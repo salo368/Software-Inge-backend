@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.core.s3 import presign_upload
-from libs.utils.auth import require_auth
+from libs.utils.auth import require_auth, AuthsTypes
 from utils.process_lookup import get_payable_process
 from utils.s3_keys import build_payment_key
 
@@ -18,7 +18,7 @@ EXTENSION_BY_CONTENT_TYPE = {
 
 
 @handle_exceptions
-@require_auth
+@require_auth(AuthsTypes.USER)
 def handler(event, context):
 
     body = json.loads(event.get("body") or "{}")
