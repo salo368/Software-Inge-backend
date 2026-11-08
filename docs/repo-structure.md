@@ -136,6 +136,7 @@ dominio** (bounded context). Servicios hoy vigentes:
 | Servicio | Responsabilidad | Referencia |
 |---|---|---|
 | `auth` | Registro, login, logout, `me`. Emite bearer tokens. | [`auth-api.md`](./auth-api.md) |
+| `admin_auth` | Cuentas y sesiones de los administradores internos (login, logout, `me`, register). Solo un admin crea a otro. | [`admin-auth-api.md`](./admin-auth-api.md) |
 | `banks` | Catálogo de bancos, plantilla de orden de inversión por banco y simulación de CDT. | [`banks-api.md`](./banks-api.md) |
 | `files` | Archivos de cada proceso en S3, su registro en `files` y la generación de la orden de inversión llena. | [`files-api.md`](./files-api.md) |
 | `forms` | Formulario KYC del usuario y catálogo de ubicaciones. | [`forms-api.md`](./forms-api.md) |

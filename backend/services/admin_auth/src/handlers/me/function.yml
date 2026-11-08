@@ -1,0 +1,3 @@
+description: Returns the authenticated admin.
+events:
+  - httpApi: { method: GET, path: /admin-auth/me }

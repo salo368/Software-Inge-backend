@@ -1,0 +1,3 @@
+description: Authenticates an admin and issues an INTERNAL bearer token.
+events:
+  - httpApi: { method: POST, path: /admin-auth/login }
