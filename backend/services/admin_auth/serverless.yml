@@ -1,0 +1,54 @@
+service: admin-auth
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-admin-auth
+  memorySize: 512
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-admin-auth-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+    # Colocated tests live next to each handler.py; keep them out of the zip.
+    - '!**/test.py'
+    - '!**/integration.py'
+    - '!**/conftest.py'
+
+functions: ${file(./functions.js):build}

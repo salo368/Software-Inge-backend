@@ -31,7 +31,7 @@ def test_logout_happy_path(load_handler, monkeypatch):
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"]) == {"revoked": True}
 
-    handler.revoke.assert_called_once_with("bearer-1")
+    handler.revoke.assert_called_once_with("bearer-1", handler.AuthsTypes.USER)
 
 
 # No Authorization header -> 401 before require_auth ever resolves a token,

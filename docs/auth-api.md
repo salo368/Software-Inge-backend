@@ -79,8 +79,9 @@ Un token de un tipo no existe en la tabla del otro, así que usarlo en un
 endpoint del otro tipo responde `401 invalid_or_expired_token`. Escribir
 `@require_auth` sin tipo falla al importar el handler (`TypeError`).
 
-Todos los endpoints actuales son `USER`. Todavía no hay endpoints para crear
-admins ni para emitirles token.
+Todos los endpoints de este servicio y de los demás son `USER`. Los tokens
+`INTERNAL` los emite el servicio `admin_auth` (ver
+[`admin-auth-api.md`](./admin-auth-api.md)).
 
 ---
 
