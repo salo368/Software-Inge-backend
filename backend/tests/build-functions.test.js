@@ -48,6 +48,15 @@ test('multi-word folder gets kebab-cased in AWS name', async () => {
   assert.equal(fns.create_signature.handler, 'src/handlers/create_signature/handler.handler');
 });
 
+test('webhooks type is scanned too', async () => {
+  const dir = makeService({
+    'src/webhooks/signed/function.yml': 'timeout: 30\n',
+  });
+  const fns = await buildFactory(dir)(ctx({ service: 'processes', stage: 'dev' }));
+  assert.equal(fns.signed.name, 'cdts-dev-processes-signed');
+  assert.equal(fns.signed.handler, 'src/webhooks/signed/handler.handler');
+});
+
 test('scheduled and workers types are scanned too', async () => {
   const dir = makeService({
     'src/handlers/api_call/function.yml': 'timeout: 5\n',
