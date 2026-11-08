@@ -15,13 +15,12 @@ antes de crear archivos.
  `scripts/ci/`, `README.md`, `CONTRIBUTING.md`, `.gitignore`.
 - **Todo el backend vive en [`backend/`](../../backend/)**: `serverless-compose.yml`,
  `package.json`, `requirements-dev.txt`, `pytest.ini`, `.nvmrc`, `.python-version`,
- `config/`, `utils/`, `data/`, `services/`, `platform/`, `layers/`, `tests/`.
+ `config/`, `utils/`, `data/`, `libs/`, `services/`, `platform/`, `tests/`.
 - **El frontend NO vive aqui**: esta en
  [`salo368/Software-Inge-frontend`](https://github.com/salo368/Software-Inge-frontend),
- con su propio pipeline. No crear un `frontend/` en este repo. El unico
- contacto entre los dos es el parametro SSM `/cdts/<stage>/frontend/url`, que
- el stack del frontend publica y el backend lee en runtime para armar enlaces
- absolutos hacia la SPA.
+ con su propio pipeline. No crear un `frontend/` en este repo. El stack del
+ frontend publica su URL en el parametro SSM `/cdts/<stage>/frontend/url`;
+ hoy ningun servicio del backend lo lee.
 
 ## Reglas duras
 
@@ -49,9 +48,11 @@ antes de crear archivos.
  WAF o endpoints privados. CORS se configura una sola vez a nivel provider
  (`provider.httpApi.cors: true`), no por función.
 4. **Dos tipos de bloque**:
- - **Dominio de negocio** en `backend/services/<service>/`. No importar entre
- servicios; lo cross-domain va en `backend/layers/shared/` (fuente en
- `backend/utils/`).
+ - **Dominio de negocio** en `backend/services/<service>/`. No importar codigo
+ ni ORM de otro servicio (cada servicio usa solo los modelos de sus propias
+ tablas); los datos de otro servicio se piden por invocacion directa o
+ llegan en el payload. Lo cross-domain va en `backend/libs/`. Los archivos
+ cruzan servicios por URL prefirmada, nunca por IAM al bucket ajeno.
  - **Infraestructura runtime** en `backend/platform/<name>/` (ejemplo:
  `platform/migrations/`). No usar un `platform/infrastructure/` catch-all;
  cada responsabilidad tiene su propia carpeta descriptiva. `services/` NO
@@ -65,20 +66,25 @@ antes de crear archivos.
  ├── utils/             # helpers PRIVADOS del bloque
  ├── data/              # modelos, DTOs, schemas, static data
  └── src/
- ├── handlers/          # API Lambdas (API Gateway HTTP)
+ ├── handlers/          # Lambdas HTTP (API Gateway) e internas (invoke directo, sync o async)
  ├── scheduled/         # Cron Lambdas (EventBridge)
- └── workers/           # Worker Lambdas (SQS/SNS/streams/async)
+ ├── workers/           # SOLO Lambdas con evento SQS (excepcion actual: files/on_upload, trigger S3)
+ └── webhooks/          # Lambdas que otro servicio invoca para avisar un evento
  ```
+ Las Lambdas internas siguen el contrato de las HTTP: JSON en
+ `event["body"]`, `@handle_exceptions`, `HandledError` y `generate_response`.
  Los bloques de `platform/` pueden tener carpetas adicionales propias de su
  responsabilidad (p.ej. `platform/migrations/sql/`).
 6. **Directorios cross a nivel de backend** (compartidos por >1 bloque):
  - `backend/config/` — configuración declarativa.
- - `backend/utils/` — utilidades genéricas cross-domain (fuente que alimenta
- `backend/layers/shared/`). Aqui vive tambien `build-functions.js` (helper
- de auto-registro; no se distribuye como layer, se usa en build-time).
+ - `backend/libs/` — codigo Python compartido en runtime (`core/`, `orm/`,
+ `utils/`, `data/`). El `functions.js` de cada bloque lo copia a
+ `<bloque>/libs/` al empaquetar; no hay Lambda Layer.
+ - `backend/utils/` — herramientas de build (`build-functions.js`), no
+ codigo de runtime.
  - `backend/data/` — datos estáticos, semillas, catálogos.
  - Si algo es de UN bloque, va en `backend/{services,platform}/<X>/...`, NO acá.
-7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/` o `workers/`.
+7. **Una Lambda = una carpeta** dentro de `handlers/`, `scheduled/`, `workers/` o `webhooks/`.
  Carpeta obligatoriamente `snake_case`. Contenido **obligatorio** (tres archivos)
  más UN archivo opcional:
  - `handler.py` con `def handler(event, context)`.
@@ -117,7 +123,7 @@ antes de crear archivos.
  ```yaml
  functions: ${file(./functions.js):build}
  ```
- El helper escanea `src/{handlers,scheduled,workers}/*/function.yml`, valida
+ El helper escanea `src/{handlers,scheduled,workers,webhooks}/*/function.yml`, valida
  que las carpetas sean `snake_case`, autoderiva `name` + `handler` desde la
  convencion, y hace merge con lo declarado en cada `function.yml`. Tests en
  `backend/tests/build-functions.test.js` (corren en el job `validate`).
@@ -150,7 +156,7 @@ antes de crear archivos.
 | Solo `backend/services/X/**` | Solo `X` |
 | Solo `backend/platform/X/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
 | Otra cosa en `backend/platform/X/**` (codigo/config del bloque) | Todo el backend |
-| Cualquier archivo "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | Todo el backend |
+| Cualquier archivo "backend global" (`serverless-compose.yml`, `libs/`, `config/`, `utils/`, `data/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | Todo el backend |
 | Solo fuera de `backend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | 0 deploys |
 
 - **Orden**: secuencial (`max-parallel: 1`). (1) `migrations` primero, (2) resto
@@ -188,7 +194,7 @@ antes de crear archivos.
  consistencia. Aplica igual a cambios content-only en
  `platform/migrations/sql/*.sql` o `platform/assets/files/*`, a cambios
  de codigo en `platform/<X>/src/**`, y a overrides manuales
- `MANUAL_BLOCK=<infra>`. Idem para cualquier cambio en `libs/`, `layers/`,
+ `MANUAL_BLOCK=<infra>`. Idem para cualquier cambio en `libs/`,
  `serverless-compose.yml`, `requirements-*.txt`, `tests/`, `config/` o
  `data/`: fuerzan transversal, aunque no corran infra.
 - `validate` (global, una vez) corre `lint-migrations`, `node --test`, y el
@@ -230,7 +236,11 @@ antes de crear archivos.
  `salo368/Software-Inge-frontend`.
 - Carpetas `common/`/`shared/`/`helpers/` dentro de `src/`.
 - Handler HTTP dentro de `workers/` o cron dentro de `handlers/`.
-- Un `handler.py` que importa desde otro servicio hermano.
+- Lambda interna (invoke directo) dentro de `workers/`; va en `handlers/`.
+- Un `handler.py` que importa desde otro servicio hermano, o usa el ORM de una
+ tabla de otro servicio.
+- Extraer datos de una ruta de S3 (`key.split("/")`); van en la metadata del
+ objeto.
 - Un handler de `services/` que importa desde `platform/` (o al revés).
 - Servicio catch-all `platform/infrastructure/` o similar. Cada responsabilidad
  infra tiene su propia carpeta descriptiva.
