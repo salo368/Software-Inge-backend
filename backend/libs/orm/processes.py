@@ -130,3 +130,17 @@ class Processes(Base):
         )
 
         return db_session.query(statement=statement)
+
+    def advance_to_review(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.REVIEW.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)

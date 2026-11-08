@@ -1,0 +1,3 @@
+description: Returns a presigned PUT URL to upload a payment receipt for a process in PAYMENT. Receipts go to the shared files bucket under payments/, which does not trigger files.on_upload.
+events:
+  - httpApi: { method: POST, path: /payments/upload-url }

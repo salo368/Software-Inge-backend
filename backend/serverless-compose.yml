@@ -30,6 +30,11 @@ services:
     dependsOn:
       - migrations
 
+  payments:
+    path: services/payments
+    dependsOn:
+      - migrations
+      - files
   signatures:
     path: services/signatures
     dependsOn:
