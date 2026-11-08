@@ -604,7 +604,7 @@ tiempo:
    verifica el status/shape que el frontend va a recibir.
 2. **Validación de fuentes de reposo** — abre Postgres/S3 directamente y
    verifica que el efecto lateral persistió (fila del usuario existente,
-   objeto en S3, token en `bearer_tokens`, worker async terminó, etc.).
+   objeto en S3, token en `user_bearer_tokens`, worker async terminó, etc.).
 
 Contrato:
 

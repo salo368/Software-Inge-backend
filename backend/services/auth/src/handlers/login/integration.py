@@ -1,6 +1,6 @@
 """Deploy-verification tests for auth/login.
 
-Verifies that logging in with a real user issues a bearer_tokens row and
+Verifies that logging in with a real user issues a user_bearer_tokens row and
 that /auth/me accepts the returned token, all against the deployed dev
 stack. Gated by --integration (see backend/conftest.py).
 """
@@ -32,7 +32,7 @@ def test_login_returns_a_new_bearer_token_row():
     try:
         # Exactly 1 live token right after registration.
         live_tokens = query_scalar(
-            "SELECT COUNT(*) FROM bearer_tokens WHERE user_id = :u AND revoked_at IS NULL",
+            "SELECT COUNT(*) FROM user_bearer_tokens WHERE user_id = :u AND revoked_at IS NULL",
             u=session["user_id"],
         )
         assert live_tokens == 1
@@ -52,7 +52,7 @@ def test_login_returns_a_new_bearer_token_row():
         assert body["token"] and body["token"] != session["token"]
 
         live_tokens = query_scalar(
-            "SELECT COUNT(*) FROM bearer_tokens WHERE user_id = :u AND revoked_at IS NULL",
+            "SELECT COUNT(*) FROM user_bearer_tokens WHERE user_id = :u AND revoked_at IS NULL",
             u=session["user_id"],
         )
         assert live_tokens == 2
@@ -68,14 +68,14 @@ def test_login_returns_a_new_bearer_token_row():
 
 
 def test_login_wrong_password_does_not_issue_a_token():
-    """The endpoint replies 401 and no new row appears in bearer_tokens."""
+    """The endpoint replies 401 and no new row appears in user_bearer_tokens."""
 
     session = signup_and_login()
     base = api_base("auth")
 
     try:
         tokens_before = query_scalar(
-            "SELECT COUNT(*) FROM bearer_tokens WHERE user_id = :u",
+            "SELECT COUNT(*) FROM user_bearer_tokens WHERE user_id = :u",
             u=session["user_id"],
         )
 
@@ -91,7 +91,7 @@ def test_login_wrong_password_does_not_issue_a_token():
         assert resp.json() == {"error": "invalid_credentials"}
 
         tokens_after = query_scalar(
-            "SELECT COUNT(*) FROM bearer_tokens WHERE user_id = :u",
+            "SELECT COUNT(*) FROM user_bearer_tokens WHERE user_id = :u",
             u=session["user_id"],
         )
         assert tokens_before == tokens_after, (

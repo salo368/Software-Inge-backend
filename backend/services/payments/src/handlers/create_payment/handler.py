@@ -4,13 +4,13 @@ from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.payments import Payments
-from libs.utils.auth import require_auth
+from libs.utils.auth import require_auth, AuthsTypes
 from utils.process_lookup import get_payable_process
 from utils.s3_keys import payment_key_prefix
 
 
 @handle_exceptions
-@require_auth
+@require_auth(AuthsTypes.USER)
 def handler(event, context):
 
     body = json.loads(event.get("body") or "{}")
