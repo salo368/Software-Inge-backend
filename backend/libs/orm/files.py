@@ -16,6 +16,7 @@ class FileType(str, Enum):
     RUT = "RUT"
     BANK_CERT = "BANK_CERT"
     INVESTMENT_ORDER = "INVESTMENT_ORDER"
+    RAW_INVESTMENT_ORDER = "RAW_INVESTMENT_ORDER"
 
 
 class Files(Base):

@@ -15,10 +15,13 @@ DEFAULT_UPLOAD_TTL = 900   # 15 min
 DEFAULT_DOWNLOAD_TTL = 900
 
 
-def upload_from_bytes(bucket: str, key: str, data: bytes, content_type: str | None = None) -> None:
+def upload_from_bytes(bucket: str, key: str, data: bytes, content_type: str | None = None,
+                      metadata: dict[str, str] | None = None) -> None:
     kwargs = {"Bucket": bucket, "Key": key, "Body": data}
     if content_type:
         kwargs["ContentType"] = content_type
+    if metadata:
+        kwargs["Metadata"] = metadata
     _client.put_object(**kwargs)
 
 

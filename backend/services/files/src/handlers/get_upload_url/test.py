@@ -51,6 +51,9 @@ def test_get_upload_url_happy_path(load_handler, monkeypatch):
     assert body["key"].endswith(".pdf")
     # Metadata must be percent-encoded so the accented filename survives.
     assert "%20" in body["upload_headers"]["x-amz-meta-original-name"]
+    # on_upload reads these back instead of parsing the key.
+    assert body["upload_headers"]["x-amz-meta-process-id"] == str(process_id)
+    assert body["upload_headers"]["x-amz-meta-file-type"] == "TAX_DECLARATION"
 
 
 def test_get_upload_url_invalid_file_type_returns_400(load_handler, monkeypatch):
