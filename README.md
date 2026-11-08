@@ -23,7 +23,7 @@ Docs adicionales del backend:
 
 - [`docs/repo-structure.md`](./docs/repo-structure.md) — reglas de organización, deploy selectivo, naming.
 - Manuales de API por servicio (endpoints, payloads, errores y lambdas internas):
-  [`auth`](./docs/auth-api.md), [`banks`](./docs/banks-api.md),
+  [`auth`](./docs/auth-api.md), [`admin_auth`](./docs/admin-auth-api.md), [`banks`](./docs/banks-api.md),
   [`forms`](./docs/forms-api.md), [`processes`](./docs/processes-api.md),
   [`files`](./docs/files-api.md), [`signatures`](./docs/signatures-api.md),
   [`payments`](./docs/payments-api.md).

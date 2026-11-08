@@ -1,7 +1,6 @@
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from enum import Enum
 from functools import wraps
 
 from libs.core.logger import Logger
@@ -10,14 +9,9 @@ from libs.orm.admin_bearer_tokens import AdminBearerTokens
 from libs.orm.admins import Admins
 from libs.orm.user_bearer_tokens import UserBearerTokens
 from libs.orm.users import Users
-from libs.utils.bearer_tokens import is_alive
+from libs.utils.bearer_tokens import AuthsTypes, is_alive
 
 TOKEN_DURATION_HOURS = 24
-
-
-class AuthsTypes(str, Enum):
-    USER = "USER"
-    INTERNAL = "INTERNAL"
 
 
 def _hash(token: str) -> str:

@@ -1,0 +1,3 @@
+description: Creates an admin account. Only an authenticated admin can call it; the first admin is created with scripts/create-first-admin.py.
+events:
+  - httpApi: { method: POST, path: /admin-auth/register }

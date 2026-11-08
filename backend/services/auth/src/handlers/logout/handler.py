@@ -9,7 +9,7 @@ def handler(event, context):
 
     token = event.get("token")   
 
-    revoke(token.id)
+    revoke(token.id, AuthsTypes.USER)
 
     response = {
         "revoked": True
