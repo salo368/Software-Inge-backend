@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from libs.orm.bearer_tokens import BearerTokens
+from libs.orm.user_bearer_tokens import UserBearerTokens
 
 
 def is_alive(bearer) -> bool:
@@ -12,6 +12,6 @@ def is_alive(bearer) -> bool:
 
 def revoke(token_id) -> bool:
 
-    updated = BearerTokens.update_by_id(token_id, {"revoked_at": datetime.now(timezone.utc)})
+    updated = UserBearerTokens.update_by_id(token_id, {"revoked_at": datetime.now(timezone.utc)})
 
     return updated is not None

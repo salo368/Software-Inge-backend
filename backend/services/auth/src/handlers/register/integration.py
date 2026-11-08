@@ -62,7 +62,7 @@ def test_register_persists_user_and_token_in_db():
 
         # 3) State at rest #2: the bearer token is registered and active.
         active_tokens = query_scalar(
-            "SELECT COUNT(*) FROM bearer_tokens "
+            "SELECT COUNT(*) FROM user_bearer_tokens "
             "WHERE user_id = :u AND revoked_at IS NULL",
             u=row["id"],
         )

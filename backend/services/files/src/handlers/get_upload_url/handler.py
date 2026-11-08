@@ -7,7 +7,7 @@ from libs.core.responses import HandledError, generate_response, handle_exceptio
 from libs.core.s3 import presign_upload
 from libs.orm.files import FileType
 from libs.orm.processes import Processes
-from libs.utils.auth import require_auth
+from libs.utils.auth import require_auth, AuthsTypes
 from utils.s3_keys import build_file_key, build_file_metadata
 
 BUCKET = os.environ["FILES_BUCKET"]
@@ -21,7 +21,7 @@ ALLOWED_CONTENT_TYPES = {
 
 
 @handle_exceptions
-@require_auth
+@require_auth(AuthsTypes.USER)
 def handler(event, context):
 
     body = json.loads(event.get("body") or "{}")
