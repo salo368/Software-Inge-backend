@@ -1,0 +1,3 @@
+description: Internal worker (invoke-only, no HTTP). Populates the bank's investment order with the process's submitted form and stores it as a RAW_INVESTMENT_ORDER file.
+memorySize: 1024
+timeout: 60

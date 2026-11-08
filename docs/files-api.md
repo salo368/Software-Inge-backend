@@ -75,7 +75,9 @@ Content-Type: application/json
   "content_type": "application/pdf",
   "upload_headers": {
     "Content-Type": "application/pdf",
-    "x-amz-meta-original-name": "curl-test.pdf"
+    "x-amz-meta-original-name": "curl-test.pdf",
+    "x-amz-meta-process-id": "6a45941e-bf27-4537-9415-d9e313c5509a",
+    "x-amz-meta-file-type": "TAX_DECLARATION"
   },
   "expires_in": 900
 }
@@ -85,7 +87,7 @@ Content-Type: application/json
 |---|---|
 | `upload_url` | PUT directo a esta URL con el body del archivo; válida 900s (`expires_in`) |
 | `key` | key real en S3: `processes/{process_id}/{file_type}/{uuid}.{ext}` |
-| `upload_headers` | **hay que mandar estos headers exactos** en el `PUT` — son parte de la firma; si no coinciden, S3 rechaza el PUT |
+| `upload_headers` | **hay que mandar estos headers exactos** en el `PUT` — son parte de la firma; si no coinciden, S3 rechaza el PUT. `x-amz-meta-process-id` y `x-amz-meta-file-type` son los que `on_upload` usa para registrar el archivo (ya no se lee nada de la `key`) |
 
 **Errores**
 
@@ -112,7 +114,7 @@ curl -X POST "{{base_url}}/files/upload-url" \
 ```bash
 curl -X PUT "$UPLOAD_URL" \
   -H "Content-Type: application/pdf" \
-  -H "x-amz-meta-original-name: curl-test.pdf" \
+  -H "x-amz-meta-original-name: curl-test.pdf"   -H "x-amz-meta-process-id: $PROCESS_ID"   -H "x-amz-meta-file-type: TAX_DECLARATION" \
   --data-binary @archivo.pdf
 ```
 
@@ -128,10 +130,11 @@ el prefijo `processes/`. No se invoca por HTTP ni por `invoke_sync` desde
 otro servicio — es puramente un trigger de S3 declarado en
 `serverless.yml` (`NotificationConfiguration`).
 
-Parsea la `key` (`processes/{process_id}/{file_type}/{uuid}.{ext}`), lee
-el `HEAD` del objeto en S3, y hace `Files.create(...)`. El nombre
-original (percent-encoded en la metadata `original-name` que puso
-`get-upload-url`) se decodifica ahí.
+Lee el `HEAD` del objeto en S3 y hace `Files.create(...)` con la metadata:
+`process-id` y `file-type` (obligatorias y validadas; si falta alguna o es
+inválida, el objeto se ignora con un WARNING) y `original-name`
+(percent-encoded, opcional; se decodifica ahí). La `key` ya no se parsea:
+solo se guarda como `s3_key`.
 
 **Idempotencia:** `files.s3_key` es `UNIQUE` en DB. S3 solo garantiza
 *at-least-once*, así que si el mismo evento llega dos veces, el segundo
