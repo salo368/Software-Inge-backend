@@ -60,12 +60,9 @@ def handler(event, context):
 
     status = {file_type: file_type in uploaded_types for file_type in required_types}
 
-    # Guarded on stage==DOCUMENTS so a later poll (process already in
-    # SIGNATURE or beyond) doesn't re-trigger generate_sign and spawn a
-    # second signature ceremony for the same process.
     if all(status.values()) and process.stage == ProcessStage.DOCUMENTS.value:
         try:
-            invoke_async("generate_sign", {"process_id": str(process_id)})
+            invoke_async("generate_sign", {"body": json.dumps({"process_id": str(process_id)})})
         except LambdaInvokeError as e:
             raise HandledError("generate_sign_unavailable", 502) from e
 
