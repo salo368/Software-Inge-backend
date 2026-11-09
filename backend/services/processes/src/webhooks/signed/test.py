@@ -16,7 +16,7 @@ def _event(signature_id, stage="SIGNED"):
 
 def _patch(h, monkeypatch, process):
     processes = MagicMock(
-        get_by_signature_id=MagicMock(return_value=process),
+        get_by_signature_id_for_update=MagicMock(return_value=process),
         advance_to_payment=MagicMock(),
     )
     monkeypatch.setattr(h, "Processes", processes)
@@ -33,7 +33,7 @@ def test_signed_advances_process_to_payment(load_handler, monkeypatch):
 
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"]) == {"process_id": str(process.id), "advanced": True}
-    processes.get_by_signature_id.assert_called_once_with(signature_id)
+    processes.get_by_signature_id_for_update.assert_called_once_with(signature_id)
     processes.advance_to_payment.assert_called_once_with(process.id)
 
 

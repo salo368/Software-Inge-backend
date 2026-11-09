@@ -47,7 +47,7 @@ def _signature_response(signature_id, status_code=200):
 
 def _patch(h, monkeypatch, process, **overrides):
     mocks = dict(
-        Processes=MagicMock(get_by_id=MagicMock(return_value=process), set_signature_id=MagicMock()),
+        Processes=MagicMock(get_by_id_for_update=MagicMock(return_value=process), set_signature_id=MagicMock()),
         invoke_sync=MagicMock(),
         requests=MagicMock(),
         send_email=MagicMock(return_value=True),
@@ -195,6 +195,32 @@ def test_generate_sign_process_not_found(load_handler, monkeypatch):
 
     assert resp["statusCode"] == 404
     mocks["invoke_sync"].assert_not_called()
+
+
+def test_generate_sign_locks_the_process_row(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process = _process()
+    mocks = _patch(h, monkeypatch, process)
+    mocks["requests"].get.return_value = MagicMock(content=b"pdf", raise_for_status=MagicMock())
+    mocks["invoke_sync"].side_effect = [_files_response(), _signature_response(str(uuid4()))]
+
+    h.handler(_event(process.id), None)
+
+    mocks["Processes"].get_by_id_for_update.assert_called_once_with(process.id)
+
+
+def test_generate_sign_second_concurrent_run_is_a_noop(load_handler, monkeypatch):
+    """After the lock releases, the loser reads stage=SIGNATURE: no signature, no email."""
+    h = load_handler(__file__)
+    process = _process(stage="SIGNATURE")
+    mocks = _patch(h, monkeypatch, process)
+
+    resp = h.handler(_event(process.id), None)
+
+    assert resp["statusCode"] == 409
+    mocks["invoke_sync"].assert_not_called()
+    mocks["send_email"].assert_not_called()
+    mocks["Processes"].set_signature_id.assert_not_called()
 
 
 def test_generate_sign_wrong_stage_is_rejected(load_handler, monkeypatch):

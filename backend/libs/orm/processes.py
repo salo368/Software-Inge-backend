@@ -67,12 +67,36 @@ class Processes(Base):
 
         return db_session.query(statement=statement)
 
+    def get_by_id_for_update(process_id):
+  
+        statement = (
+            select(Processes)
+            .where(Processes.id == process_id)
+            .limit(1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+        return db_session.query(statement=statement)
+
     def get_by_signature_id(signature_id):
 
         statement = (
             select(Processes)
             .where(Processes.signature_id == signature_id)
             .limit(1)
+        )
+
+        return db_session.query(statement=statement)
+
+    def get_by_signature_id_for_update(signature_id):
+
+        statement = (
+            select(Processes)
+            .where(Processes.signature_id == signature_id)
+            .limit(1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
         return db_session.query(statement=statement)
