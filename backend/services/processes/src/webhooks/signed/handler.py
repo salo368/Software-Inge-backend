@@ -22,7 +22,7 @@ def handler(event, context):
     if stage not in TERMINAL_STAGES:
         raise HandledError(f"stage must be one of {list(TERMINAL_STAGES)}", 400)
 
-    process = Processes.get_by_signature_id(signature_id)
+    process = Processes.get_by_signature_id_for_update(signature_id)
     if process is None:
         raise HandledError("process_not_found", 404)
 
