@@ -19,6 +19,7 @@ provider:
     STAGE: ${sls:stage}
     SERVICE: processes
     SSM_DB_PATH: /cdts/${sls:stage}/db
+    SSM_SMTP_PATH: /cdts/${sls:stage}/smtp
 
   iam:
     role:
@@ -31,6 +32,9 @@ provider:
           Resource:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/smtp/*
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/frontend/url
         # SecureString param above is KMS-encrypted; SSM decrypts on read
         # but only if we can invoke Decrypt. Same rationale as the other
         # blocks; scoping is enforced by the ssm:GetParameter Resource.

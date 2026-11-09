@@ -5,6 +5,7 @@ import base64
 import json
 from decimal import Decimal
 from unittest.mock import MagicMock
+from urllib.parse import quote
 from uuid import uuid4
 
 import requests
@@ -49,6 +50,8 @@ def _patch(h, monkeypatch, process, **overrides):
         Processes=MagicMock(get_by_id=MagicMock(return_value=process), set_signature_id=MagicMock()),
         invoke_sync=MagicMock(),
         requests=MagicMock(),
+        send_email=MagicMock(return_value=True),
+        _frontend_url=MagicMock(return_value="https://front.test"),
     )
     mocks.update(overrides)
     mocks["requests"].RequestException = requests.RequestException
@@ -59,7 +62,7 @@ def _patch(h, monkeypatch, process, **overrides):
 
 def test_generate_sign_happy_path(load_handler, monkeypatch):
     h = load_handler(__file__)
-    process = _process()
+    process = _process(submitted_form={"name": "Ana", "last_name": "Gomez", "email": "ana@example.com"})
     mocks = _patch(h, monkeypatch, process)
     mocks["requests"].get.return_value = MagicMock(content=b"%PDF-1.4 raw", raise_for_status=MagicMock())
     signature_id = str(uuid4())
@@ -68,7 +71,7 @@ def test_generate_sign_happy_path(load_handler, monkeypatch):
     resp = h.handler(_event(process.id), None)
 
     assert resp["statusCode"] == 200
-    assert json.loads(resp["body"]) == {"process_id": str(process.id), "signature_id": signature_id}
+    assert json.loads(resp["body"]) == {"process_id": str(process.id), "signature_id": signature_id, "email_sent": True}
 
     # 1st invoke: files.generate_raw_investment_order, standard body envelope.
     files_call = mocks["invoke_sync"].call_args_list[0]
@@ -97,6 +100,51 @@ def test_generate_sign_happy_path(load_handler, monkeypatch):
     assert event["queryStringParameters"]["signatory"] == "Ana Gomez"
 
     mocks["Processes"].set_signature_id.assert_called_once_with(process.id, signature_id)
+
+
+def test_generate_sign_emails_sign_link_to_form_email(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process = _process(submitted_form={"name": "Ana", "email": "ana@example.com"})
+    mocks = _patch(h, monkeypatch, process)
+    mocks["requests"].get.return_value = MagicMock(content=b"pdf", raise_for_status=MagicMock())
+    signature_id = str(uuid4())
+    mocks["invoke_sync"].side_effect = [_files_response(), _signature_response(signature_id)]
+
+    resp = h.handler(_event(process.id), None)
+
+    assert resp["statusCode"] == 200
+    to, _subject, body = mocks["send_email"].call_args.args
+    assert to == "ana@example.com"
+    return_url = quote(f"https://front.test/portal/process/{process.id}", safe="")
+    assert f"https://front.test/sign/{signature_id}?return_url={return_url}&amp;email=ana%40example.com" in body
+
+
+def test_generate_sign_without_form_email_skips_mail_but_succeeds(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process = _process()
+    mocks = _patch(h, monkeypatch, process)
+    mocks["requests"].get.return_value = MagicMock(content=b"pdf", raise_for_status=MagicMock())
+    mocks["invoke_sync"].side_effect = [_files_response(), _signature_response(str(uuid4()))]
+
+    resp = h.handler(_event(process.id), None)
+
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["email_sent"] is False
+    mocks["send_email"].assert_not_called()
+
+
+def test_generate_sign_mail_failure_does_not_fail_the_signature(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    process = _process(submitted_form={"name": "Ana", "email": "ana@example.com"})
+    mocks = _patch(h, monkeypatch, process, _frontend_url=MagicMock(side_effect=RuntimeError("ssm down")))
+    mocks["requests"].get.return_value = MagicMock(content=b"pdf", raise_for_status=MagicMock())
+    mocks["invoke_sync"].side_effect = [_files_response(), _signature_response(str(uuid4()))]
+
+    resp = h.handler(_event(process.id), None)
+
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"])["email_sent"] is False
+    mocks["Processes"].set_signature_id.assert_called_once()
 
 
 def test_generate_sign_signatory_falls_back_when_form_has_no_name(load_handler, monkeypatch):
