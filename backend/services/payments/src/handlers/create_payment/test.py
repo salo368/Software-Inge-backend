@@ -27,13 +27,14 @@ def _patch_auth(monkeypatch):
     monkeypatch.setattr("libs.utils.auth.Users", MagicMock(get_by_id=MagicMock(return_value=MagicMock(id="u-1"))))
 
 
-def _patch(h, monkeypatch, processes):
+def _patch(h, monkeypatch, processes, paid=()):
     lookup = sys.modules[h.get_payable_process.__module__]
     monkeypatch.setattr(
         lookup, "invoke_sync",
         MagicMock(return_value={"statusCode": 200, "body": json.dumps({"processes": processes})}),
     )
     payments = MagicMock()
+    payments.list_by_process.return_value = [MagicMock(amount=Decimal(a)) for a in paid]
     payments.create.return_value = MagicMock(
         id="pay-1", process_id=UUID(_PID), amount=Decimal("1500000.00"), s3_file=_KEY,
     )
@@ -44,13 +45,70 @@ def _patch(h, monkeypatch, processes):
 def test_create_payment_happy_path(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT"}])
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
 
     resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "1500000"}), None)
 
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"]) == {"id": "pay-1", "process_id": _PID, "amount": 1500000.0, "s3_file": _KEY}
     payments.create.assert_called_once_with(process_id=UUID(_PID), amount=Decimal("1500000"), s3_file=_KEY)
+
+
+def test_create_payment_locks_process_before_checking_pending(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
+
+    h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "1500000"}), None)
+
+    payments.lock_process.assert_called_once_with(UUID(_PID))
+
+
+def test_create_payment_exact_pending_is_allowed(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}], paid=["1500000.00"])
+
+    resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "500000"}), None)
+
+    assert resp["statusCode"] == 200
+    payments.create.assert_called_once()
+
+
+def test_create_payment_over_process_amount_is_rejected(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
+
+    resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "2000000.01"}), None)
+
+    assert resp["statusCode"] == 422
+    assert json.loads(resp["body"]) == {"error": "amount_exceeds_pending"}
+    payments.create.assert_not_called()
+
+
+def test_create_payment_over_remaining_after_previous_payments_is_rejected(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    payments = _patch(
+        h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}], paid=["1500000.00", "400000.00"],
+    )
+
+    resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "100000.01"}), None)
+
+    assert resp["statusCode"] == 422
+    payments.create.assert_not_called()
+
+
+def test_create_payment_fully_paid_process_rejects_any_amount(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}], paid=["2000000.00"])
+
+    resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "1"}), None)
+
+    assert resp["statusCode"] == 422
+    payments.create.assert_not_called()
 
 
 def test_create_payment_invalid_process_id(load_handler, monkeypatch):
@@ -67,7 +125,7 @@ def test_create_payment_invalid_process_id(load_handler, monkeypatch):
 def test_create_payment_missing_s3_key(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT"}])
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
 
     resp = h.handler(_event({"process_id": _PID, "amount": "1"}), None)
 
@@ -79,7 +137,7 @@ def test_create_payment_missing_s3_key(load_handler, monkeypatch):
 def test_create_payment_s3_key_of_other_process(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT"}])
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
 
     for key in ("payments/00000000-0000-0000-0000-000000000000/x.png", f"processes/{_PID}/BANK_CERT/x.pdf"):
         resp = h.handler(_event({"process_id": _PID, "s3_key": key, "amount": "1"}), None)
@@ -92,7 +150,7 @@ def test_create_payment_s3_key_of_other_process(load_handler, monkeypatch):
 def test_create_payment_invalid_amounts(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT"}])
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "PAYMENT", "amount": 2000000.0}])
 
     for amount in (None, "abc", "0", "-5", "NaN", "Infinity"):
         resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": amount}), None)
@@ -116,7 +174,7 @@ def test_create_payment_process_of_other_user_returns_404(load_handler, monkeypa
 def test_create_payment_process_not_in_payment_returns_409(load_handler, monkeypatch):
     h = load_handler(__file__)
     _patch_auth(monkeypatch)
-    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "REVIEW"}])
+    payments = _patch(h, monkeypatch, [{"id": _PID, "stage": "REVIEW", "amount": 2000000.0}])
 
     resp = h.handler(_event({"process_id": _PID, "s3_key": _KEY, "amount": "1"}), None)
 

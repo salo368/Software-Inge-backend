@@ -161,6 +161,7 @@ proceso.
 | 400 | `s3_key is required` | falta |
 | 400 | `s3_key does not belong to this process` | no empieza por `payments/{process_id}/` |
 | 400 | `invalid_amount` | falta, no es numérico, o es ≤ 0 |
+| 422 | `amount_exceeds_pending` | el monto supera lo que falta por pagar (monto del proceso − pagos ya registrados) |
 
 ---
 
