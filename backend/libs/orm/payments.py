@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import Numeric, Text, insert, select
+from sqlalchemy import Numeric, Text, func, insert, select
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,6 +29,18 @@ class Payments(Base):
             )
             .returning(Payments)
         )
+
+        return db_session.query(statement=statement)
+
+    def lock_process(process_id):
+        """Transaction-scoped advisory lock keyed by process.
+
+        Payments can't row-lock `processes` (owned by another service), so
+        concurrent payments for the same process serialize here instead:
+        the loser waits until the winner commits, then sees its payment.
+        """
+
+        statement = select(func.pg_advisory_xact_lock(func.hashtext(str(process_id))))
 
         return db_session.query(statement=statement)
 
