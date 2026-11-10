@@ -8,18 +8,19 @@ alimenta sus selects. Pensado para pegar directo en Postman o Insomnia, o
 para pegarle con `curl`.
 
 Los ejemplos de response de este doc son **capturas reales** contra el
-stage `dev` (cuenta `658548982073`), no datos inventados.
+stage `dev`, no datos inventados.
 
 ---
 
 ## 1. Base URL
 
-Igual que el resto de servicios: no hay servidor local, todo corre contra
-`dev` desplegado.
+No hay servidor local: todo corre contra un stage desplegado (`dev`,
+`staging` o `pro`). La URL sale del output `HttpApiUrl` del stack
+`cdts-<stage>-forms`:
 
 ```bash
 aws cloudformation describe-stacks \
-  --stack-name cdts-dev-forms \
+  --stack-name cdts-<stage>-forms \
   --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
   --output text
 ```
@@ -31,6 +32,10 @@ aws cloudformation describe-stacks \
 `upsert-form` y `get-form` requieren `Authorization: Bearer <token>`.
 `get-locations` es **público** — es catálogo estático de lectura, sin
 razón de negocio para exigir login.
+
+En los endpoints con auth, un token ausente devuelve `401
+missing_bearer_token` y uno inválido, revocado o expirado devuelve `401
+invalid_or_expired_token` (ver [`auth-api.md`](./auth-api.md) §2).
 
 ---
 
@@ -179,6 +184,13 @@ Authorization: Bearer {{token}}
 
 **Response — 200 OK** (con formulario) — mismo shape que el `form` de
 §3.1.
+
+`processes.set_process_form` también invoca esta Lambda directamente
+(Lambda-a-Lambda, reenviando el header `Authorization` del usuario) y
+guarda el `form` resultante como `submitted_form` del proceso. Por eso el
+`submitted_form` de un proceso tiene exactamente este shape: fechas en
+`dd/mm/yyyy` y claves de catálogo (`COLOMBIA`, `SINGLE`...) en vez de
+etiquetas.
 
 **Errores**
 

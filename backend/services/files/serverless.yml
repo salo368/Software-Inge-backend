@@ -37,6 +37,13 @@ provider:
             - s3:DeleteObject
           Resource:
             - arn:aws:s3:::cdts-${sls:stage}-files/*
+        # `generate_raw_investment_order` fetches the bank's investment-order
+        # template URL by invoking banks.get_bank directly.
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-banks-get-bank
 
 plugins:
   - serverless-python-requirements
@@ -52,6 +59,8 @@ package:
     - '!**'
     - 'src/**'
     - 'libs/**'
+    # Block-local helpers under files/utils/.
+    - 'utils/**'
     - '!**/__pycache__/**'
     - '!**/*.pyc'
     # Colocated tests live next to each handler.py; keep them out of the zip.

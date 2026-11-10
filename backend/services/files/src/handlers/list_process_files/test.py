@@ -25,7 +25,7 @@ def test_list_process_files_returns_registered_files(load_handler, monkeypatch):
     rows = [_fake_file(file_type="BANK_CERT"), _fake_file(file_type="TAX_DECLARATION")]
     monkeypatch.setattr(h, "Files", MagicMock(list_by_process=MagicMock(return_value=rows)))
 
-    resp = h.handler({"process_id": process_id}, None)
+    resp = h.handler({"body": json.dumps({"process_id": process_id})}, None)
 
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
@@ -38,7 +38,18 @@ def test_list_process_files_empty(load_handler, monkeypatch):
 
     monkeypatch.setattr(h, "Files", MagicMock(list_by_process=MagicMock(return_value=[])))
 
-    resp = h.handler({"process_id": str(uuid4())}, None)
+    resp = h.handler({"body": json.dumps({"process_id": str(uuid4())})}, None)
 
     assert resp["statusCode"] == 200
     assert json.loads(resp["body"]) == {"files": []}
+
+
+def test_list_process_files_missing_process_id_returns_400(load_handler, monkeypatch):
+    h = load_handler(__file__)
+
+    monkeypatch.setattr(h, "Files", MagicMock(list_by_process=MagicMock(side_effect=AssertionError)))
+
+    resp = h.handler({"body": "{}"}, None)
+
+    assert resp["statusCode"] == 400
+    assert json.loads(resp["body"]) == {"error": "process_id is required"}

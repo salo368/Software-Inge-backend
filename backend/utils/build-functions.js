@@ -1,6 +1,6 @@
 'use strict';
 
-// Auto-discovers Lambdas under src/{handlers,scheduled,workers}/* and builds
+// Auto-discovers Lambdas under src/{handlers,scheduled,workers,webhooks}/* and builds
 // the Serverless "functions" map. Each subfolder must be snake_case and
 // contain a function.yml with the function-specific config (events, memory,
 // timeout, layers, environment overrides, etc.). name and handler are
@@ -26,7 +26,7 @@ const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
-const TYPES = ['handlers', 'scheduled', 'workers'];
+const TYPES = ['handlers', 'scheduled', 'workers', 'webhooks'];
 const SNAKE_CASE = /^[a-z][a-z0-9_]*$/;
 
 function loadYaml(file) {

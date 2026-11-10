@@ -106,9 +106,9 @@ repo/
 │   ├── requirements-dev.txt, pytest.ini
 │   ├── .nvmrc, .python-version
 │   ├── config/, utils/, data/    (§7)
+│   ├── libs/                     (§7, código Python compartido en runtime)
 │   ├── services/<service>/       (§5.1)
 │   ├── platform/<name>/          (§5.2)
-│   ├── layers/shared/            (Lambda Layer)
 │   └── tests/
 ├── README.md, CONTRIBUTING.md
 └── .gitignore
@@ -135,19 +135,25 @@ dominio** (bounded context). Servicios hoy vigentes:
 
 | Servicio | Responsabilidad | Referencia |
 |---|---|---|
-| `auth` | Registro, login, refresh, `me`. Emite bearer tokens. | — |
-| `banks` | Catálogo de bancos habilitados. | — |
-| `files` | Presigned URLs para documentos genéricos del usuario. | — |
-| `forms` | Snapshot del formulario que llena el usuario al abrir un CDT. | — |
-| `processes` | Orquestador del wizard CDT (form → documents → signature → payment → done). | — |
-| `signatures` | Servicio genérico de firma digital (agnóstico al dominio). | [`signatures-v2.md`](./signatures-v2.md) |
+| `auth` | Registro, login, logout, `me`. Emite bearer tokens. | [`auth-api.md`](./auth-api.md) |
+| `banks` | Catálogo de bancos, plantilla de orden de inversión por banco y simulación de CDT. | [`banks-api.md`](./banks-api.md) |
+| `files` | Archivos de cada proceso en S3, su registro en `files` y la generación de la orden de inversión llena. | [`files-api.md`](./files-api.md) |
+| `forms` | Formulario KYC del usuario y catálogo de ubicaciones. | [`forms-api.md`](./forms-api.md) |
+| `processes` | Orquestador del wizard CDT (`FORM → DOCUMENTS → SIGNATURE → PAYMENT → …`). | [`processes-api.md`](./processes-api.md) |
+| `signatures` | Servicio genérico de firma digital (agnóstico al dominio). | [`signatures-api.md`](./signatures-api.md) |
 
-- Un servicio nunca importa código de otro servicio directamente. `processes`
-  llama `signatures.create` por direct Lambda invoke, no por import.
-- Lo compartido va en `backend/layers/shared/` (Lambda Layer publicada por su propio
-  micro-serverless).
-- Cross-service data va por presigned URL o por el patrón invoke sintético
-  (`processes/utils/signature_bridge.py` es el ejemplo canónico).
+- Un servicio nunca importa código de otro servicio, **ni su ORM**: los
+  modelos de `libs/orm/` se tratan como propios del servicio dueño de la
+  tabla. Si un servicio necesita datos de otro, los pide por invocación o
+  los recibe en el payload.
+- Lo compartido en runtime va en `backend/libs/` (§7).
+- Entre servicios se habla por invocación directa de Lambda
+  (`libs/utils/lambda_invoke.py`), con el mismo contrato que un endpoint
+  HTTP: JSON en `event["body"]` y respuesta con `statusCode` + `body`.
+- Los archivos cruzan servicios por URL prefirmada, nunca con permisos de
+  IAM sobre el bucket de otro servicio. Ejemplo:
+  `processes.generate_sign` invoca `files.generate_raw_investment_order`,
+  que devuelve una URL prefirmada del PDF.
 
 ### 5.2 `backend/platform/<name>/` — INFRAESTRUCTURA RUNTIME
 
@@ -162,7 +168,7 @@ Reglas:
 - **No usar un servicio catch-all** `platform/infrastructure/` o similar. Cada
   responsabilidad tiene su propia carpeta descriptiva.
 - Ningún bloque de `services/` puede importar código de `platform/`. Si hay algo
-  reutilizable, va en `backend/layers/shared/`.
+  reutilizable, va en `backend/libs/`.
 - Los bloques de `platform/` sí pueden ejecutar operaciones cross-dominio (ej.
   `migrations` toca schemas de todos), esa es su razón de existir.
 
@@ -189,7 +195,7 @@ El contrato entre los dos repos es deliberadamente delgado y va enteramente por 
 | Dirección | Mecanismo |
 |---|---|
 | Frontend → backend | Llama los HTTP API de cada servicio. Las URLs están hardcodeadas en los `environment.ts` de la SPA. |
-| Backend → frontend | Lee el parámetro SSM `/cdts/<stage>/frontend/url`, que el stack del frontend publica al desplegarse, para armar enlaces absolutos hacia la SPA (el correo de la ceremonia de firma, por ejemplo). |
+| Backend → frontend | El stack del frontend publica su URL en el parámetro SSM `/cdts/<stage>/frontend/url` al desplegarse. Hoy ningún servicio del backend lo lee (los correos enlazan directo a URLs prefirmadas de S3), pero queda disponible para armar enlaces absolutos hacia la SPA. |
 
 Se usa SSM y no un `Fn::ImportValue` a propósito: un import cruzado haría que
 CloudFormation bloqueara cambios en el stack del frontend mientras el backend
@@ -206,10 +212,10 @@ de `platform/` pueden tener carpetas adicionales propias de su responsabilidad
 ```
 backend/{services,platform}/<name>/
 ├── serverless.yml          ← definición del servicio (provider, plugins, functions)
-├── utils/                  ← helpers PRIVADOS del bloque (no exportar afuera)
+├── utils/                  ← helpers PRIVADOS del bloque (ej. services/files/utils/)
 ├── data/                   ← modelos, DTOs, JSON schemas, seed/static data
 └── src/
-    ├── handlers/           ← API Lambdas (HTTP via API Gateway)
+    ├── handlers/           ← Lambdas HTTP (API Gateway) e internas (invoke directo)
     │   └── <function>/
     │       ├── handler.py
     │       ├── function.yml
@@ -219,41 +225,62 @@ backend/{services,platform}/<name>/
     │       ├── handler.py
     │       ├── function.yml
     │       └── test.py
-    └── workers/            ← Worker Lambdas (SQS / SNS / Streams / async invoke)
+    ├── workers/            ← Lambdas disparadas por cola SQS
+    │   └── <function>/
+    │       ├── handler.py
+    │       ├── function.yml
+    │       └── test.py
+    └── webhooks/           ← Lambdas que reciben notificaciones de otro servicio (invoke directo)
         └── <function>/
             ├── handler.py
             ├── function.yml
             └── test.py
 ```
 
-### Reglas de las tres subcarpetas de `src/`
+### Reglas de las subcarpetas de `src/`
 
 | Carpeta | Trigger | Ejemplo |
 |---|---|---|
-| `handlers/` | API Gateway HTTP API | `POST /signature` → `backend/services/signature/src/handlers/create-signature/handler.py` |
+| `handlers/` | API Gateway HTTP API, o invocación directa desde otra Lambda (síncrona o asíncrona) | `POST /signatures/set-otp`; internas: `processes/generate_sign`, `signatures/sign_doc` |
 | `scheduled/` | EventBridge `schedule` (rate/cron) | Job diario que limpia OTPs expirados |
-| `workers/` | SQS, SNS, DynamoDB Streams, invoke async | Procesa un item de cola de firmas pendientes |
+| `workers/` | Cola SQS | `signatures/check_signature_timeout` |
+| `webhooks/` | Invoke (async) desde otro servicio que avisa de un evento | `processes/webhooks/signed`: `signatures` avisa que una firma terminó |
 
 **Nunca** poner un handler HTTP dentro de `workers/`, ni un cron dentro de `handlers/`.
 El nombre de la subcarpeta identifica su naturaleza y su trigger.
 
-## 7. Directorios `backend/config/`, `backend/utils/`, `backend/data/`
+- `workers/` es **solo** para Lambdas con evento SQS. Una Lambda interna que
+  se invoca directo (aunque sea asíncrona, por `invoke_async`) va en
+  `handlers/`. La excepción actual es `files/workers/on_upload`, disparada
+  por un evento de S3.
+- Las Lambdas internas siguen el mismo contrato que las HTTP: leen el JSON
+  de `event["body"]`, usan `@handle_exceptions` y `HandledError`, y
+  responden con `generate_response`.
+
+## 7. Directorios compartidos: `backend/libs/`, `backend/utils/`, `backend/config/`, `backend/data/`
 
 Contenido **compartido por más de un servicio o por herramientas del backend**.
 
-| Dir | Propósito | Ejemplos |
+| Dir | Propósito | Contenido actual |
 |---|---|---|
-| `backend/config/` | Configuración declarativa cross-servicio | `mime-types.json`, `countries.yml` |
-| `backend/utils/` | Utilidades genéricas cross-domain (fuente que alimenta a `backend/layers/shared/`) | `formatting.py`, `http/responses.py` |
-| `backend/data/` | Datos estáticos, semillas, fixtures globales | `seed/countries.csv`, `fixtures/sample-signature.json` |
+| `backend/libs/` | Código Python compartido en runtime | `core/` (db, logger, mailer, responses, s3, sqs), `orm/` (modelos SQLAlchemy), `utils/` (auth, lambda_invoke, locations, firma...), `data/` (catálogos JSON de ubicaciones) |
+| `backend/utils/` | Herramientas del build (Node), no código de runtime | `build-functions.js` (§8.1) |
+| `backend/config/` | Configuración declarativa cross-servicio | vacío (solo README) |
+| `backend/data/` | Datos estáticos, semillas, fixtures globales | vacío (solo README) |
+
+Cómo llega `libs/` a cada Lambda: el `functions.js` de cada bloque copia
+`backend/libs/` a `<bloque>/libs/` al empaquetar (esa copia está en
+`.gitignore`), y `serverless.yml` la incluye con el patrón `libs/**`. No hay
+Lambda Layer.
 
 Reglas:
 
-- Si algo es **usado por un solo servicio**, va dentro de `backend/services/<service>/`,
-  NO en estas carpetas cross.
-- Si algo es **usado por >1 servicio en runtime**, se publica via
-  `backend/layers/shared/`. La carpeta `backend/utils/` es la fuente; el layer es
-  el vehículo de distribución.
+- Si algo es **usado por un solo servicio**, va dentro de
+  `backend/services/<service>/` (por ejemplo `services/files/utils/`), NO en
+  estas carpetas cross.
+- Si algo es **usado por >1 servicio en runtime**, va en `backend/libs/`.
+- Los modelos de `libs/orm/` son compartidos solo por ubicación: cada
+  servicio usa únicamente los de sus propias tablas (§5.1).
 - Nada de lógica de negocio en `config/` o `data/`. Solo declarativos.
 
 ## 8. Cada Lambda vive en su propia carpeta
@@ -292,7 +319,7 @@ functions: ${file(./functions.js):build}
 
 Al desplegar, el generador:
 
-1. Escanea `src/{handlers,scheduled,workers}/*/function.yml`.
+1. Escanea `src/{handlers,scheduled,workers,webhooks}/*/function.yml`.
 2. Valida que cada carpeta sea `snake_case` (falla el package si detecta un
    guión, mayúsculas u otro carácter).
 3. Autoderiva por convención:
@@ -312,24 +339,26 @@ Tests unitarios del generador en `backend/tests/build-functions.test.js`
 
 ## 9. Composición: `backend/serverless-compose.yml`
 
-Todos los servicios se declaran en `backend/serverless-compose.yml`. El orden de
-`dependsOn` importa (por ejemplo, todos dependen del `shared-layer`):
+Todos los bloques se declaran en `backend/serverless-compose.yml`. El orden de
+`dependsOn` importa: todos los servicios dependen de `migrations`, para que el
+esquema exista antes de desplegar su código. Recorte del archivo real:
 
 ```yaml
 services:
-  shared-layer:
-    path: layers/shared
-
-  access:
-    path: services/access
+  migrations:
+    path: platform/migrations
+  assets:
+    path: platform/assets
+  auth:
+    path: services/auth
     dependsOn:
-      - shared-layer
-
-  signature:
-    path: services/signature
+      - migrations
+  # banks, files, forms y processes, igual que auth
+  signatures:
+    path: services/signatures
     dependsOn:
-      - shared-layer
-      - access
+      - migrations
+      - files
 ```
 
 Las rutas son **relativas a `backend/`**.
@@ -389,7 +418,7 @@ provider:
     cors: true                             # CORS global, no por funcion
 
 # Auto-descubre y registra todas las Lambdas bajo
-# src/{handlers,scheduled,workers}/* (ver §8.1).
+# src/{handlers,scheduled,workers,webhooks}/* (ver §8.1).
 functions: ${file(./functions.js):build}
 ```
 
@@ -451,8 +480,12 @@ def handler(event, context):
 
 - Carpetas `common/`, `shared/` o `helpers/` dentro de `src/`. Si es del dominio,
   va en `backend/services/<service>/utils/`. Si es cross-domain, va en
-  `backend/layers/shared/` (fuente en `backend/utils/`).
-- Una Lambda cuyo `handler.py` importa código de otro servicio hermano.
+  `backend/libs/`.
+- Una Lambda cuyo `handler.py` importa código de otro servicio hermano, o
+  usa el ORM de una tabla de otro servicio.
+- Una Lambda interna (invoke directo) en `workers/`; va en `handlers/`.
+- Extraer datos de una ruta de S3 (`key.split("/")`). Esos datos van en la
+  metadata del objeto.
 - Mezclar tipos: un cron en `handlers/`, un HTTP en `workers/`, etc.
 - Un `function.yml` que defina handler fuera de su propia carpeta.
 - Múltiples Lambdas dentro de una misma carpeta (una carpeta = una Lambda).
@@ -709,7 +742,7 @@ Tabla exhaustiva de que dispara que:
 | Solo `backend/services/<X>/**` (uno o varios) | Solo esos servicios |
 | Solo `backend/platform/<X>/<content-dir>/**` (ej. `platform/migrations/sql/*.sql`) | Solo `X` |
 | Cualquier otra cosa dentro de `backend/platform/<X>/**` (codigo/config del bloque) | **Todos los bloques de backend** |
-| Cualquier "backend global" (`serverless-compose.yml`, `config/`, `utils/`, `data/`, `layers/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | **Todos los bloques de backend** |
+| Cualquier "backend global" (`serverless-compose.yml`, `libs/`, `config/`, `utils/`, `data/`, `package*.json`, `requirements*.txt`, `.nvmrc`, `.python-version`, `pytest.ini`, `tests/`) | **Todos los bloques de backend** |
 | Solo fuera de `backend/` (docs, `.github/`, `scripts/`, `README.md`, `.cursor/rules/`) | **0 deploys** |
 
 Ejemplos concretos:
@@ -745,7 +778,7 @@ Flujo:
      distinción interna `infra-content` / `infra-code` sigue en el log
      para saber qué disparó el fan-out, pero el efecto es el mismo.
    - **Cualquier otro cambio dentro de `backend/`** (`libs/`,
-     `layers/`, `serverless-compose.yml`, `requirements-*.txt`,
+     `serverless-compose.yml`, `requirements-*.txt`,
      `pytest.ini`, `tests/`, `config/`, `data/`, etc.) → `transversal =
      true` → despliega **TODOS** los servicios. Regla: si se movió
      algo compartido, cualquier servicio puede depender de eso y hay
@@ -790,8 +823,8 @@ el input. Util para re-desplegar un bloque tras rollback o rotar credenciales.
 - Registrar un bloque "manualmente" en `plan-deploy.sh`. El descubrimiento es
   automatico por el arbol; si necesitas un bloque nuevo, crea la carpeta.
 - Poner logica cross-bloque en `backend/services/<X>/` para "no tener que tocar
-  `backend/utils/`". Si es cross, va en `backend/utils/` o
-  `backend/layers/shared/` aunque eso implique redeploy total.
+  `backend/libs/`". Si es cross, va en `backend/libs/` aunque eso implique
+  redeploy total.
 - Editar un `.sql` de `backend/platform/migrations/sql/` ya mergeado a `main`.
   Ver reglas duras en `backend/platform/migrations/README.md`.
 

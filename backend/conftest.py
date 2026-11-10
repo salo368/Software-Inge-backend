@@ -96,10 +96,6 @@ if not _INTEGRATION_RUN:
         "SIGNING_TIMEOUT_QUEUE_URL",
         "https://sqs.test/123456789012/cdts-test-signatures-signing-timeout",
     )
-    os.environ.setdefault("SSM_FRONTEND_PATH", "/cdts/test/frontend")
-    os.environ.setdefault(
-        "SSM_SIGNATURES_SERVICE_KEY", "/cdts/test/signatures/service-key"
-    )
     os.environ.setdefault("SSM_SMTP_PATH", "/cdts/test/smtp")
 
 # ---------------------------------------------------------------------------
