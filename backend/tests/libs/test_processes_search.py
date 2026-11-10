@@ -14,6 +14,13 @@ def _sql(*conditions) -> str:
     return sql.replace("%%", "%")
 
 
+def _bind_values(*conditions) -> list:
+    """The values sent to the driver. Unlike the rendered SQL, they do not
+    depend on how the dialect/version escapes literals."""
+    statement = select(Processes.id).where(*conditions)
+    return list(statement.compile(dialect=postgresql.dialect()).params.values())
+
+
 def test_no_filters_adds_no_conditions():
     assert Processes._list_conditions(None, [], "") == []
 
@@ -40,9 +47,11 @@ def test_each_word_must_match_some_field():
 
 
 def test_search_wildcards_are_literal():
-    sql = _sql(*Processes._list_conditions(None, [], "100%"))
+    values = _bind_values(*Processes._list_conditions(None, [], "100%"))
+    patterns = [v for v in values if "100" in str(v)]  # the rest are the JSON key names
 
-    assert "'100\\%%'" in sql
+    # one pattern per searchable field, each with the percent escaped
+    assert patterns == [r"100\%%"] * len(Processes.SEARCH_FIELDS)
 
 
 def test_search_word_count_is_capped():
