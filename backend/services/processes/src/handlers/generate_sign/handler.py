@@ -1,14 +1,31 @@
 import base64
+import html
 import json
+import os
+from urllib.parse import urlencode
 from uuid import UUID
 
+import boto3
 import requests
 
+from libs.core.logger import Logger
+from libs.core.mailer import send_email
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.processes import ProcessStage, Processes
 from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
 
 _DOWNLOAD_TIMEOUT_S = 10
+_FRONTEND_URL_PARAM = f"/cdts/{os.environ.get('STAGE', 'dev')}/frontend/url"
+_SIGN_EMAIL_SUBJECT = "Firma tu orden de inversión"
+_SIGN_EMAIL_HTML = """\
+<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:auto;padding:24px;color:#222;">
+  <p>Hola {name},</p>
+  <p>Tu orden de inversión está lista para firmar. Puedes hacerlo desde tu computador
+  o desde tu celular con el siguiente enlace:</p>
+  <p><a href="{url}" style="display:inline-block;padding:12px 20px;background:#111;color:#fff;
+  border-radius:8px;text-decoration:none;">Firmar orden de inversión</a></p>
+  <p style="color:#555;font-size:13px;">Si el botón no funciona, copia este enlace en tu navegador:<br>{url}</p>
+</div>"""
 
 
 def _signatory_name(form: dict) -> str:
@@ -84,6 +101,29 @@ def _create_signature(pdf_bytes: bytes, signatory: str, sign_location: list) -> 
     return json.loads(response["body"])["id"]
 
 
+def _frontend_url() -> str:
+    return boto3.client("ssm").get_parameter(Name=_FRONTEND_URL_PARAM)["Parameter"]["Value"].rstrip("/")
+
+
+def _email_sign_link(form: dict, signature_id: str, process_id: UUID) -> bool:
+
+    email = (form.get("email") or "").strip()
+    if not email:
+        Logger.log("WARNING", f"generate_sign: no email in form, sign link not sent for signature_id={signature_id[:8]}")
+        return False
+
+    try:
+        base = _frontend_url()
+        # return_url must be same-origin with the signing app (it validates that).
+        query = urlencode({"return_url": f"{base}/portal/process/{process_id}", "email": email})
+        url = f"{base}/sign/{signature_id}?{query}"
+        body = _SIGN_EMAIL_HTML.format(name=html.escape(_signatory_name(form)), url=html.escape(url))
+        return send_email(email, _SIGN_EMAIL_SUBJECT, body)
+    except Exception as e:
+        Logger.log("ERROR", f"generate_sign: could not email sign link for signature_id={signature_id[:8]}: {e}")
+        return False
+
+
 @handle_exceptions
 def handler(event, context):
   
@@ -94,7 +134,7 @@ def handler(event, context):
     except (TypeError, ValueError):
         raise HandledError("invalid process id", 400)
 
-    process = Processes.get_by_id(process_id)
+    process = Processes.get_by_id_for_update(process_id)
     if process is None:
         raise HandledError("process_not_found", 404)
 
@@ -114,9 +154,12 @@ def handler(event, context):
 
     Processes.set_signature_id(process_id, signature_id)
 
+    email_sent = _email_sign_link(form, signature_id, process_id)
+
     response = {
         "process_id": str(process_id),
         "signature_id": signature_id,
+        "email_sent": email_sent,
     }
 
     return generate_response(response, 200)

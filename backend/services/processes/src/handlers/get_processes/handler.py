@@ -1,15 +1,20 @@
 from libs.core.responses import generate_response, handle_exceptions
 from libs.orm.processes import Processes
-from libs.utils.auth import require_auth, AuthsTypes
+from libs.utils.auth import require_any_auth
+from libs.utils.params import request_params, uuid_param
 
 
 @handle_exceptions
-@require_auth(AuthsTypes.USER)
+@require_any_auth
 def handler(event, context):
 
-    user = event["user"]
+    user = event.get("user")
+    if user is not None:
+        user_id = user.id
+    else:
+        user_id = uuid_param(request_params(event), "user_id", "invalid user id")
 
-    rows = Processes.list_by_user(user.id)
+    rows = Processes.list_by_user(user_id)
 
     processes = []
     for row in rows:
