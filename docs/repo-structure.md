@@ -376,7 +376,7 @@ frameworkVersion: '3'
 
 provider:
   name: aws
-  runtime: python3.11
+  runtime: python3.12
   region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   stackName: cdts-${sls:stage}-signature   # CFN stack
