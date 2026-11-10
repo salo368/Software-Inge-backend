@@ -58,6 +58,9 @@ provider:
             # `generate_sign` gets the populated investment order by
             # invoking files.generate_raw_investment_order (sync).
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-files-generate-raw-investment-order
+            # `get_pending_pay` sums the process's payments by invoking
+            # payments.list_process_payments (sync).
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-payments-list-process-payments
             # `generate_sign` opens the signature ceremony for that
             # document by invoking signatures.create_signature.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-create-signature

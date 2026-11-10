@@ -3,7 +3,7 @@ import json
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.user_credentials import UserCredentials
 from libs.orm.users import Users
-from libs.utils.auth import issue_token
+from libs.utils.auth import issue_token, AuthsTypes
 from libs.utils.passwords import verify_password
 
 
@@ -29,7 +29,7 @@ def handler(event, context):
     if not is_valid:
         raise HandledError("invalid_credentials", 401)
 
-    token, expires_at = issue_token(user.id)
+    token, expires_at = issue_token(user.id, AuthsTypes.USER)
 
     response = {
         "user": {

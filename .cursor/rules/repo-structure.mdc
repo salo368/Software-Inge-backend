@@ -347,7 +347,7 @@ def test_refresh_token_rotates_the_bearer_row_in_db():
  assert resp.status_code == 200
  new_token = resp.json()["token"]
  # State at rest: old token must be revoked, new one active.
- old = query_one("SELECT revoked_at FROM bearer_tokens WHERE user_id = :u ORDER BY created_at ASC LIMIT 1", u=session["user_id"])
+ old = query_one("SELECT revoked_at FROM user_bearer_tokens WHERE user_id = :u ORDER BY created_at ASC LIMIT 1", u=session["user_id"])
  assert old and old["revoked_at"] is not None
  assert new_token and new_token != session["token"]
  finally:

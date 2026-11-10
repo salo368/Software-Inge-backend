@@ -1,0 +1,3 @@
+description: Returns how much of a process in PAYMENT is still unpaid, and advances it to REVIEW once its payments cover the amount of the signed investment order.
+events:
+  - httpApi: { method: GET, path: /processes/get-pending-pay }

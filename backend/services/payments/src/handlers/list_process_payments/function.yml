@@ -1,0 +1,1 @@
+description: Internal (invoke-only, no HTTP). Returns every payment registered for a process. Invoked by processes.get_pending_pay.
