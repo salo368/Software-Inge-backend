@@ -123,3 +123,63 @@ def test_issue_token_stores_each_type_in_its_own_table(monkeypatch):
     assert admin_args[:2] == ("a-1", auth._hash(admin_token))
     assert tables["UserBearerTokens"].create.call_count == 1
     assert tables["AdminBearerTokens"].create.call_count == 1
+
+
+# --- require_any_auth: endpoints that serve both users and admins ---
+
+
+def _any_protected():
+    @auth.require_any_auth
+    def handler(event, context):
+        return event
+    return handler
+
+
+def test_any_auth_accepts_user_token(monkeypatch):
+    user = MagicMock(id="u-1")
+    tables = _patch_tables(monkeypatch, user_bearer=MagicMock(revoked_at=None, user_id="u-1"), user=user)
+
+    event = _any_protected()(_event(), None)
+
+    assert event["user"] is user
+    assert "admin" not in event
+    tables["AdminBearerTokens"].get_by_hash.assert_not_called()
+
+
+def test_any_auth_accepts_admin_token(monkeypatch):
+    admin = MagicMock(id="a-1")
+    _patch_tables(monkeypatch, admin_bearer=MagicMock(revoked_at=None, admin_id="a-1"), admin=admin)
+
+    event = _any_protected()(_event(), None)
+
+    assert event["admin"] is admin
+    assert "user" not in event
+
+
+def test_any_auth_rejects_unknown_token(monkeypatch):
+    _patch_tables(monkeypatch)
+
+    with pytest.raises(HandledError) as e:
+        _any_protected()(_event(), None)
+
+    assert (e.value.message, e.value.status_code) == ("invalid_or_expired_token", 401)
+
+
+def test_any_auth_rejects_revoked_admin_token(monkeypatch):
+    _patch_tables(monkeypatch, admin_bearer=MagicMock(revoked_at="then", admin_id="a-1"), admin=MagicMock())
+
+    with pytest.raises(HandledError) as e:
+        _any_protected()(_event(), None)
+
+    assert e.value.status_code == 401
+
+
+def test_any_auth_missing_header_is_rejected_before_any_lookup(monkeypatch):
+    tables = _patch_tables(monkeypatch)
+
+    with pytest.raises(HandledError) as e:
+        _any_protected()({"headers": {}}, None)
+
+    assert e.value.message == "missing_bearer_token"
+    tables["UserBearerTokens"].get_by_hash.assert_not_called()
+    tables["AdminBearerTokens"].get_by_hash.assert_not_called()

@@ -21,7 +21,7 @@ def handler(event, context):
     except (TypeError, ValueError):
         raise HandledError("invalid process id", 400)
 
-    process = Processes.get_by_id(process_id)
+    process = Processes.get_by_id_for_update(process_id)
     if process is None or process.user_id != user.id:
         raise HandledError("process_not_found", 404)
 

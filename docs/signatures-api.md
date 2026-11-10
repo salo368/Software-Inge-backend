@@ -453,6 +453,64 @@ Content-Type: application/json
 
 ---
 
+### 4.10 `GET /signatures/get-signature-review`
+
+Backoffice: el expediente completo de una firma para revisar el proceso que la
+usa. A diferencia de `get-signature` (público, pensado para continuar la
+ceremonia), incluye datos privados: correo, intentos de OTP, la telemetría de
+la firma y las evidencias de identidad.
+
+**Auth requerida:** sí, **solo token de admin** (`INTERNAL`).
+
+**Request**
+
+```http
+GET {{base_url}}/signatures/get-signature-review?signature_id=312e7c0b-ace6-44f0-bf09-7ae729a41f30
+Authorization: Bearer <token de admin>
+```
+
+**Response — 200 OK**
+
+```json
+{
+  "id": "312e7c0b-ace6-44f0-bf09-7ae729a41f30",
+  "stage": "SIGNED",
+  "signatory": "Ana Gómez",
+  "email": "ana@example.com",
+  "created_at": "2026-11-09 02:00:00+00:00",
+  "expires_at": "2026-11-09 02:15:00+00:00",
+  "signed_at": "2026-11-09 02:06:12+00:00",
+  "otp_tries": 1,
+  "doc_hash": "a400881d...",
+  "signed_hash": "36538a35...",
+  "telemetry": {
+    "ip": "181.50.1.2",
+    "user_agent": "Mozilla/5.0 ...",
+    "accept_language": "es-CO,es;q=0.9",
+    "resolved_at": "2026-11-09T02:05:58+00:00"
+  },
+  "doc_url": "https://...",
+  "raw_signed_url": "https://...",
+  "signed_url": "https://...",
+  "draw_url": "https://...",
+  "evidences": { "ID_FRONT": "https://...", "ID_BACK": "https://...", "FACE": "https://..." }
+}
+```
+
+Todas las URLs son prefirmadas (15 min) y valen `null` mientras el archivo no
+exista. `telemetry` sale de `signing_data` (la guarda `resolve-otp`); sus
+campos son `null` antes de esa etapa.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid signature id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+| 404 | `signature_not_found` | no existe |
+
+---
+
 ## 5. Lambdas internas
 
 | Lambda | Disparo | Qué hace |

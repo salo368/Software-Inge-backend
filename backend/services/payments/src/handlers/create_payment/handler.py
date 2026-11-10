@@ -33,7 +33,15 @@ def handler(event, context):
     if not amount.is_finite() or amount <= 0:
         raise HandledError("invalid_amount", 400)
 
-    get_payable_process(event, process_id)
+    process = get_payable_process(event, process_id)
+
+    # Serialize concurrent payments of this process, then check against what
+    # is still owed so a transfer can never overshoot the process amount.
+    Payments.lock_process(process_id)
+    paid = sum((p.amount for p in Payments.list_by_process(process_id)), Decimal("0"))
+    pending = Decimal(str(process["amount"])) - paid
+    if amount > pending:
+        raise HandledError("amount_exceeds_pending", 422)
 
     payment = Payments.create(process_id=process_id, amount=amount, s3_file=s3_key)
 

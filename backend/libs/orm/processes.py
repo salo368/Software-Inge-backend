@@ -4,12 +4,13 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, Numeric, String, insert, select, text, update
+from sqlalchemy import DateTime, Integer, Numeric, String, and_, cast, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
+from libs.orm.like import LIKE_ESCAPE, prefix_pattern
 
 TABLE_NAME = "processes"
 
@@ -67,12 +68,36 @@ class Processes(Base):
 
         return db_session.query(statement=statement)
 
+    def get_by_id_for_update(process_id):
+  
+        statement = (
+            select(Processes)
+            .where(Processes.id == process_id)
+            .limit(1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+
+        return db_session.query(statement=statement)
+
     def get_by_signature_id(signature_id):
 
         statement = (
             select(Processes)
             .where(Processes.signature_id == signature_id)
             .limit(1)
+        )
+
+        return db_session.query(statement=statement)
+
+    def get_by_signature_id_for_update(signature_id):
+
+        statement = (
+            select(Processes)
+            .where(Processes.signature_id == signature_id)
+            .limit(1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
         )
 
         return db_session.query(statement=statement)
@@ -141,6 +166,86 @@ class Processes(Base):
                 updated_at=text("NOW()"),
             )
             .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
+    def advance_to_sent_to_bank(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.SENT_TO_BANK.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
+    def advance_to_completed(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.COMPLETED.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
+    def _list_conditions(bank_id, stages, search):
+
+        conditions = []
+
+        if bank_id is not None:
+            conditions.append(Processes.bank_id == bank_id)
+
+        if stages:
+            conditions.append(cast(Processes.stage, String).in_(stages))
+
+        if search:
+            conditions.append(Processes._search_filter(search))
+
+        return conditions
+
+    SEARCH_FIELDS = ("name", "second_name", "last_name", "second_last_name", "email", "document_number")
+    MAX_SEARCH_WORDS = 6
+
+    def _search_filter(search):
+
+        words = search.split()[:Processes.MAX_SEARCH_WORDS]
+
+        return and_(*(
+            or_(*(
+                Processes.submitted_form[key].astext.ilike(prefix_pattern(word), escape=LIKE_ESCAPE)
+                for key in Processes.SEARCH_FIELDS
+            ))
+            for word in words
+        ))
+
+    def search(bank_id, stages, search, limit, offset):
+
+        statement = (
+            select(Processes)
+            .where(*Processes._list_conditions(bank_id, stages, search))
+            .order_by(Processes.created_at.desc(), Processes.id)
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return db_session.query(statement=statement, many=True)
+
+    def count_search(bank_id, stages, search):
+
+        statement = (
+            select(func.count())
+            .select_from(Processes)
+            .where(*Processes._list_conditions(bank_id, stages, search))
         )
 
         return db_session.query(statement=statement)

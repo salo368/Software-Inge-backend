@@ -161,6 +161,50 @@ proceso.
 | 400 | `s3_key is required` | falta |
 | 400 | `s3_key does not belong to this process` | no empieza por `payments/{process_id}/` |
 | 400 | `invalid_amount` | falta, no es numérico, o es ≤ 0 |
+| 422 | `amount_exceeds_pending` | el monto supera lo que falta por pagar (monto del proceso − pagos ya registrados) |
+
+---
+
+### 4.3 `GET /payments/get-process-payments`
+
+Backoffice: los pagos de un proceso, el total pagado y una URL prefirmada de
+descarga (15 min) para cada comprobante. Lo usa la revisión de un proceso
+antes de `send-to-bank`.
+
+**Auth requerida:** sí, **solo token de admin** (`INTERNAL`).
+
+**Request**
+
+```http
+GET {{base_url}}/payments/get-process-payments?process_id=7077c70e-d8bf-4c8e-97ef-a7e0909949df
+Authorization: Bearer <token de admin>
+```
+
+**Response — 200 OK**
+
+```json
+{
+  "payments": [
+    {
+      "id": "1d6f3b6a-...",
+      "amount": 1500000.0,
+      "s3_file": "payments/7077c70e-.../0f11b02e-....png",
+      "receipt_url": "https://cdts-staging-files.s3.amazonaws.com/payments/...?X-Amz-..."
+    }
+  ],
+  "total_paid": 1500000.0
+}
+```
+
+`total_paid` se suma en `Decimal` antes de salir como número. `receipt_url` es
+`null` si el pago no tiene comprobante. La tabla no guarda fecha de pago.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
 
 ---
 

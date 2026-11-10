@@ -39,7 +39,7 @@ def _payments_response(*amounts):
 
 
 def _patch(h, monkeypatch, process, invoke):
-    processes = MagicMock(get_by_id=MagicMock(return_value=process), advance_to_review=MagicMock())
+    processes = MagicMock(get_by_id_for_update=MagicMock(return_value=process), advance_to_review=MagicMock())
     monkeypatch.setattr(h, "Processes", processes)
     monkeypatch.setattr(h, "invoke_sync", invoke)
     return processes

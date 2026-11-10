@@ -1,0 +1,3 @@
+description: Backoffice (admin token only). Paginated list of users; `search` matches the start of full_name or email. POST because the filters travel in the body.
+events:
+  - httpApi: { method: POST, path: /auth/get-user-list }
