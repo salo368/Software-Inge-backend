@@ -1,0 +1,3 @@
+description: Backoffice (admin token only). Every payment of a process with its amount, the total paid and a presigned download URL (15 min) for each receipt.
+events:
+  - httpApi: { method: GET, path: /payments/get-process-payments }

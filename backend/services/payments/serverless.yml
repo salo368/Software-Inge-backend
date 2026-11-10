@@ -33,9 +33,11 @@ provider:
             - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
         # Payment receipts share the files bucket, under payments/ only
         # (outside the processes/ prefix that triggers files.on_upload).
+        # GetObject: get-process-payments presigns receipt downloads for backoffice.
         - Effect: Allow
           Action:
             - s3:PutObject
+            - s3:GetObject
           Resource:
             - arn:aws:s3:::cdts-${sls:stage}-files/payments/*
         # upload-url and create-payment check that the process belongs to
