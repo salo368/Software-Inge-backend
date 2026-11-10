@@ -1,0 +1,3 @@
+description: Backoffice (admin token only). Approves the creation of the CDT once the bank confirmed it (SENT_TO_BANK -> COMPLETED).
+events:
+  - httpApi: { method: POST, path: /processes/approve-cdt }
