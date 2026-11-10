@@ -1,0 +1,3 @@
+description: Internal (invoke-only, no HTTP). Gets the populated investment order from files, opens a signature ceremony for it and stores the resulting signature_id on the process.
+memorySize: 512
+timeout: 60

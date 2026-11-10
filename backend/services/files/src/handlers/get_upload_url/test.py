@@ -51,6 +51,9 @@ def test_get_upload_url_happy_path(load_handler, monkeypatch):
     assert body["key"].endswith(".pdf")
     # Metadata must be percent-encoded so the accented filename survives.
     assert "%20" in body["upload_headers"]["x-amz-meta-original-name"]
+    # on_upload reads these back instead of parsing the key.
+    assert body["upload_headers"]["x-amz-meta-process-id"] == str(process_id)
+    assert body["upload_headers"]["x-amz-meta-file-type"] == "TAX_DECLARATION"
 
 
 def test_get_upload_url_invalid_file_type_returns_400(load_handler, monkeypatch):
@@ -92,3 +95,23 @@ def test_get_upload_url_process_of_other_user_returns_404(load_handler, monkeypa
 
     assert resp["statusCode"] == 404
     assert json.loads(resp["body"]) == {"error": "process_not_found"}
+
+
+def test_get_upload_url_rejects_server_generated_file_type(load_handler, monkeypatch):
+    h = load_handler(__file__)
+    _patch_auth(monkeypatch)
+    monkeypatch.setattr(h, "Processes", MagicMock(get_by_id=MagicMock(side_effect=AssertionError)))
+
+    resp = h.handler(
+        _authed_event({
+            "process_id": str(uuid4()),
+            "file_type": "RAW_INVESTMENT_ORDER",
+            "content_type": "application/pdf",
+        }),
+        None,
+    )
+
+    assert resp["statusCode"] == 400
+    assert json.loads(resp["body"])["error"] == (
+        "file_type must be one of ['BANK_CERT', 'INVESTMENT_ORDER', 'RUT', 'TAX_DECLARATION']"
+    )

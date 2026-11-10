@@ -2,7 +2,7 @@ import json
 from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
-from libs.orm.processes import Processes
+from libs.orm.processes import ProcessStage, Processes
 from libs.utils.auth import require_auth
 from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
 
@@ -24,6 +24,9 @@ def handler(event, context):
     process = Processes.get_by_id(process_id)
     if process is None or process.user_id != user.id:
         raise HandledError("process_not_found", 404)
+
+    if process.stage not in (ProcessStage.FORM.value, ProcessStage.DOCUMENTS.value):
+        raise HandledError("process_form_locked", 409)
 
     try:
         form_response = invoke_sync(

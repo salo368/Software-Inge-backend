@@ -1,50 +1,83 @@
 # Servicio `processes` — Manual de API (estilo Postman)
 
 Este documento es la referencia de consumo del servicio `processes`
-(`backend/services/processes/`): apertura del flujo de CDT, listado de
-procesos del usuario, y el paso que engancha el formulario (`forms`) a un
-proceso. Pensado para pegar directo en Postman o Insomnia, o para pegarle
+(`backend/services/processes/`): el orquestador del wizard de apertura de
+un CDT. Crea el proceso, guarda el formulario, controla los documentos
+requeridos, genera la orden de inversión a firmar y avanza cuando la firma
+termina. Pensado para pegar directo en Postman o Insomnia, o para pegarle
 con `curl`.
 
-Los ejemplos de response de este doc son **capturas reales** contra el
-stage `dev` (cuenta `658548982073`), no datos inventados.
+Los ejemplos de response son **capturas reales** contra `dev` y `staging`,
+recortadas donde se indica.
 
 ---
 
 ## 1. Base URL
 
-Igual que `auth`/`banks`: no hay servidor local, todo corre contra `dev`
-desplegado.
+No hay servidor local: todo corre contra un stage desplegado (`dev`,
+`staging` o `pro`). La URL sale del output `HttpApiUrl` del stack
+`cdts-<stage>-processes`:
 
 ```bash
 aws cloudformation describe-stacks \
-  --stack-name cdts-dev-processes \
+  --stack-name cdts-<stage>-processes \
   --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
   --output text
 ```
-
-Esa URL puede cambiar si el stack se recrea — siempre resolver con el
-comando de arriba, no hardcodear.
 
 ---
 
 ## 2. Autenticación
 
-**Los 3 endpoints requieren `Authorization: Bearer <token>`** (token de
-`auth/login` o `auth/register`). No hay endpoints públicos en este
-servicio.
+Todos los endpoints HTTP requieren `Authorization: Bearer <token>` y solo
+operan sobre procesos del usuario autenticado. Token ausente → `401
+missing_bearer_token`; inválido, revocado o expirado → `401
+invalid_or_expired_token` (ver [`auth-api.md`](./auth-api.md) §2).
+
+Las lambdas internas de §5 no tienen ruta HTTP: solo se invocan
+Lambda-a-Lambda, con permiso de IAM.
 
 ---
 
-## 3. Endpoints
+## 3. Ciclo de vida de un proceso
 
-### 3.1 `POST /processes/create-process`
+`processes.stage` (enum `ProcessStage`) avanza así:
 
-Crea un proceso de apertura de CDT. Corrobora `(amount, term, bank_id)`
-contra las bandas de tasa vigentes invocando `banks.simulate` directamente
-(Lambda-a-Lambda), en vez de confiar en una tasa que mande el cliente — si
-el banco no tiene una banda que cubra ese `(amount, term)`, no se crea el
-proceso. Queda en stage `FORM`.
+| Stage | Lo pone | Cuándo |
+|---|---|---|
+| `FORM` | `create-process` | al crear el proceso |
+| `DOCUMENTS` | `set-process-form` | al guardar el formulario como `submitted_form` |
+| `SIGNATURE` | `generate_sign` (interna) | al abrir la firma de la orden de inversión; también guarda `signature_id` |
+| `PAYMENT` | `webhooks/signed` (interna) | cuando `signatures` avisa que esa firma quedó `SIGNED` |
+| `REVIEW`, `SENT_TO_BANK`, `COMPLETED` | — | definidos en el enum, todavía sin transición implementada |
+
+Flujo completo, visto desde el frontend:
+
+1. `POST /processes/create-process` → `FORM`.
+2. `PUT /forms/upsert-form` (servicio `forms`) y luego
+   `POST /processes/set-process-form` → `DOCUMENTS`.
+3. Subir cada documento requerido con `POST /files/upload-url` + `PUT` a S3
+   (ver [`files-api.md`](./files-api.md)).
+4. Consultar `GET /processes/get-required-files` hasta que todos estén en
+   `true`. En esa misma llamada se dispara `generate_sign` en segundo plano.
+5. Consultar `GET /processes/get-processes` hasta que el proceso tenga
+   `signature_id` (stage `SIGNATURE`; toma unos segundos).
+6. Hacer la ceremonia de firma con ese `signature_id` (ver
+   [`signatures-api.md`](./signatures-api.md)).
+7. Al quedar la firma `SIGNED`, `signatures` invoca `webhooks/signed` y el
+   proceso pasa a `PAYMENT`.
+
+---
+
+## 4. Endpoints
+
+### 4.1 `POST /processes/create-process`
+
+Crea un proceso de apertura de CDT en stage `FORM`. Corrobora
+`(bank_id, amount, term)` invocando `banks.simulate` directamente
+(Lambda-a-Lambda) en vez de confiar en una tasa que mande el cliente: si el
+banco no está activo o no tiene una banda que cubra ese `(amount, term)`,
+no se crea el proceso. La tasa guardada es la que devuelve `simulate`.
 
 **Auth requerida:** sí.
 
@@ -64,11 +97,11 @@ Content-Type: application/json
 
 | Campo | Tipo | Reglas |
 |---|---|---|
-| `bank_id` | int | requerido; debe tener una banda de tasa vigente para `(amount, term)` |
+| `bank_id` | int | requerido; banco activo con banda de tasa para `(amount, term)` |
 | `amount` | string/número | requerido |
 | `term` | int (días) | requerido |
 
-**Response — 200 OK** (captura real)
+**Response — 200 OK**
 
 ```json
 {
@@ -85,19 +118,18 @@ Content-Type: application/json
 | Campo | Tipo | Notas |
 |---|---|---|
 | `id` | UUID | PK del proceso |
-| `stage` | string | siempre `FORM` al crear (enum `process_stage` en DB) |
+| `stage` | string | siempre `FORM` al crear |
 | `rate` | float | tasa resuelta en el momento, vía `banks.simulate` |
-| `created_at` | string | lo pone la DB (`DEFAULT NOW()`), no el handler |
+| `created_at` | string | lo pone la DB (`DEFAULT NOW()`) |
 
 **Errores**
 
 | status | `error` | Cuándo |
 |---|---|---|
 | 400 | `Missing required fields` | falta `bank_id`, `amount` o `term` |
-| 400 | `invalid_amount` / `invalid_term` / etc. | el que devuelva `banks.simulate` tal cual, propagado |
-| 400 | `Bank not available for the given amount and term` | `bank_id` no tiene banda para ese `(amount, term)` |
+| 400 | `invalid_amount` / `invalid_term` | propagado tal cual desde `banks.simulate` |
+| 400 | `Bank not available for the given amount and term` | el banco no está en el resultado de `simulate` |
 | 502 | `simulation_unavailable` | falló la invocación a `banks.simulate` (timeout, etc.) |
-| 401 | `missing_bearer_token` | sin `Authorization` |
 
 **curl**
 
@@ -110,7 +142,7 @@ curl -X POST "{{base_url}}/processes/create-process" \
 
 ---
 
-### 3.2 `GET /processes/get-processes`
+### 4.2 `GET /processes/get-processes`
 
 Lista los procesos del usuario autenticado, más reciente primero.
 
@@ -123,40 +155,41 @@ GET {{base_url}}/processes/get-processes
 Authorization: Bearer {{token}}
 ```
 
-**Response — 200 OK** (captura real, 2 procesos)
+**Response — 200 OK** (captura de `staging`, 2 procesos)
 
 ```json
 {
   "processes": [
     {
-      "id": "99583614-166f-488b-93cd-18777e3c9346",
-      "bank_id": 2,
-      "amount": 2000000.0,
-      "term": 180,
-      "rate": 9.9,
-      "stage": "FORM",
-      "created_at": "2026-11-02 01:25:57.757895+00:00"
+      "id": "5798138d-395e-407d-9f92-58858e31a10d",
+      "bank_id": 1,
+      "amount": 3000000.0,
+      "term": 365,
+      "rate": 11.4,
+      "stage": "SIGNATURE",
+      "signature_id": "312e7c0b-ace6-44f0-bf09-7ae729a41f30",
+      "created_at": "2026-11-08 06:50:56.242646+00:00"
     },
     {
-      "id": "45e6d154-3af2-4b0d-bb32-b6961063ebb3",
+      "id": "d34edeb1-d0ec-42ef-8a54-8d99b368ea84",
       "bank_id": 1,
-      "amount": 1000000.0,
-      "term": 180,
-      "rate": 10.1,
-      "stage": "FORM",
-      "created_at": "2026-11-02 01:25:54.796015+00:00"
+      "amount": 2500000.0,
+      "term": 365,
+      "rate": 11.4,
+      "stage": "DOCUMENTS",
+      "signature_id": null,
+      "created_at": "2026-11-08 04:48:03.820035+00:00"
     }
   ]
 }
 ```
 
-Usuario sin procesos → `{"processes": []}`, no 404.
-
-**Errores**
-
-| status | `error` | Cuándo |
+| Campo | Tipo | Notas |
 |---|---|---|
-| 401 | `missing_bearer_token` | sin `Authorization` |
+| `stage` | string | ver §3 |
+| `signature_id` | UUID \| null | firma de la orden de inversión; `null` hasta que `generate_sign` la crea |
+
+Usuario sin procesos → `{"processes": []}`, no 404.
 
 **curl**
 
@@ -166,13 +199,18 @@ curl "{{base_url}}/processes/get-processes" -H "Authorization: Bearer $TOKEN"
 
 ---
 
-### 3.3 `POST /processes/set-process-form`
+### 4.3 `POST /processes/set-process-form`
 
-Toma el proceso indicado, pide al servicio `forms` el formulario del
-usuario autenticado (invoca `forms.get_form` Lambda-a-Lambda, reenviando
-el mismo header `Authorization` recibido), y si existe lo guarda como
-snapshot en `processes.submitted_form` y avanza `stage` a `DOCUMENTS`. Si
-el usuario no ha llenado el formulario todavía, no avanza nada.
+Pide al servicio `forms` el formulario del usuario autenticado (invoca
+`forms.get_form` Lambda-a-Lambda, reenviando el mismo header
+`Authorization`), lo guarda como snapshot en `processes.submitted_form` y
+pone el `stage` en `DOCUMENTS`. Si el usuario no ha llenado el formulario,
+no cambia nada.
+
+> Solo funciona con el proceso en `FORM` o `DOCUMENTS` (en `DOCUMENTS`
+> sirve para reenviar el formulario corregido). Desde `SIGNATURE` en
+> adelante responde `409 process_form_locked`: el formulario ya está en una
+> firma y no se puede cambiar.
 
 **Auth requerida:** sí.
 
@@ -192,7 +230,7 @@ Content-Type: application/json
 |---|---|---|
 | `process_id` | UUID string | requerido; debe ser un proceso del usuario autenticado |
 
-**Response — 200 OK** (captura real)
+**Response — 200 OK**
 
 ```json
 {
@@ -217,8 +255,9 @@ Content-Type: application/json
 ```
 
 `submitted_form` es exactamente el `form` que devuelve `GET
-/forms/get-form` en ese momento — ver [`forms-api.md`](./forms-api.md)
-§3.2 para el detalle de cada campo.
+/forms/get-form` en ese momento (ver [`forms-api.md`](./forms-api.md)
+§3.2). De él salen los documentos requeridos (§4.4) y los datos de la orden
+de inversión.
 
 **Errores**
 
@@ -227,9 +266,9 @@ Content-Type: application/json
 | 400 | `invalid process id` | `process_id` falta o no es un UUID válido |
 | 404 | `process_not_found` | el proceso no existe o no es del usuario autenticado |
 | 400 | `form_required` | el usuario todavía no llenó su formulario (`get_form` devolvió `null`) |
-| 502 | `form_lookup_unavailable` | falló la invocación a `forms.get_form` (timeout, etc.) |
-| * | (propagado de `get_form`) | si `get_form` devuelve algo distinto de 200, ese mismo status/error se reenvía tal cual |
-| 401 | `missing_bearer_token` | sin `Authorization` |
+| 409 | `process_form_locked` | el proceso ya pasó de `DOCUMENTS` |
+| 502 | `form_lookup_unavailable` | falló la invocación a `forms.get_form` |
+| * | (propagado de `get_form`) | si `get_form` responde algo distinto de 200, se reenvía ese status y error |
 
 **curl**
 
@@ -242,11 +281,159 @@ curl -X POST "{{base_url}}/processes/set-process-form" \
 
 ---
 
-## 4. Sobre `integration.py`
+### 4.4 `GET /processes/get-required-files`
 
-Ninguno de los 3 handlers tiene `integration.py` todavía. Por convención
-del repo (`docs/repo-structure.md` §13.3) ese test es opcional y se
-reserva para flujos con efectos laterales persistentes relevantes o
-cross-service — `set-process-form` es el candidato más claro (escribe en
-`processes` después de invocar `forms` de verdad), por si se agrega más
-adelante.
+Devuelve qué documentos exige el proceso y cuáles ya están subidos. Lee los
+archivos registrados invocando `files.list_process_files`
+(Lambda-a-Lambda).
+
+Los documentos requeridos salen del `submitted_form`:
+
+| Documento | Requerido si |
+|---|---|
+| `BANK_CERT` | siempre |
+| `TAX_DECLARATION` | `is_tax_declarant` es `true` |
+| `RUT` | `is_pep` es `true` |
+
+> **Efecto lateral:** si todos están subidos y el proceso sigue en
+> `DOCUMENTS`, esta misma llamada dispara `generate_sign` en segundo plano
+> (§5.1) y responde sin esperarlo. Mientras el proceso siga en `DOCUMENTS`,
+> cada llamada vuelve a dispararlo; así un fallo de `generate_sign` se
+> reintenta en el siguiente poll. Una vez en `SIGNATURE` ya no se dispara.
+
+**Auth requerida:** sí.
+
+**Request**
+
+```http
+GET {{base_url}}/processes/get-required-files?process_id=5798138d-395e-407d-9f92-58858e31a10d
+Authorization: Bearer {{token}}
+```
+
+| Query param | Tipo | Reglas |
+|---|---|---|
+| `process_id` | UUID string | requerido; debe ser un proceso del usuario autenticado |
+
+**Response — 200 OK** (declarante de renta y PEP, todo subido)
+
+```json
+{"RUT": true, "TAX_DECLARATION": true, "BANK_CERT": true}
+```
+
+Solo trae las claves de los documentos requeridos; el orden de las claves
+no está garantizado. Con todos en `false`, el proceso todavía espera
+documentos.
+
+**Errores**
+
+| status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | `process_id` falta o no es un UUID válido |
+| 404 | `process_not_found` | el proceso no existe o no es del usuario autenticado |
+| 502 | `files_lookup_unavailable` | falló la invocación a `files.list_process_files` |
+| * | (propagado de `list_process_files`) | si responde algo distinto de 200, se reenvía ese status y error |
+| 502 | `generate_sign_unavailable` | AWS rechazó la invocación asíncrona de `generate_sign` |
+
+**curl**
+
+```bash
+curl "{{base_url}}/processes/get-required-files?process_id=$PROCESS_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+## 5. Lambdas internas (sin HTTP)
+
+Siguen el mismo contrato que los endpoints: reciben el JSON en
+`event["body"]` y responden con `statusCode` + `body` (`handle_exceptions`).
+Como se invocan de forma asíncrona, nadie lee esa respuesta; sirve para los
+logs y los tests.
+
+### 5.1 `generate_sign` (`src/handlers/generate_sign/`)
+
+Genera la orden de inversión llena, abre la firma sobre ese PDF y guarda el
+`signature_id` en el proceso.
+
+**Invocada por:** `get-required-files` (asíncrona), con
+`{"body": "{\"process_id\": \"<uuid>\"}"}`.
+
+**Pasos:**
+
+1. Valida que el proceso exista y esté en `DOCUMENTS`.
+2. Invoca de forma síncrona `files.generate_raw_investment_order` con
+   `process_id`, `bank_id`, `submitted_form`, `amount`, `term` y `rate`,
+   todos tomados del proceso. Files devuelve una URL prefirmada del PDF y
+   el `sign_location` de la plantilla (ver
+   [`files-api.md`](./files-api.md) §4.3).
+3. Descarga el PDF por esa URL. No lee el bucket de `files` directamente.
+4. Invoca `signatures.create_signature` con el PDF, el `sign_location` y el
+   nombre del firmante (nombres y apellidos del `submitted_form`, o
+   `Titular` si no hay).
+5. Guarda el `signature_id` y pone el proceso en `SIGNATURE`.
+
+**Response — 200 OK**
+
+```json
+{"process_id": "5798138d-...", "signature_id": "312e7c0b-..."}
+```
+
+**Errores** (el proceso queda en `DOCUMENTS` y el siguiente poll de
+`get-required-files` reintenta)
+
+| status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | `process_id` falta o no es un UUID |
+| 404 | `process_not_found` | el proceso no existe |
+| 409 | `process_not_in_documents_stage` | el proceso ya no está en `DOCUMENTS` |
+| 502 | `files_unavailable` | falló la invocación a `files` |
+| * | (propagado de `files`) | p. ej. `422 bank_without_investment_order`, `502 bank_lookup_failed` |
+| 502 | `investment_order_download_failed` | no se pudo bajar el PDF por la URL prefirmada |
+| 502 | `signatures_unavailable` | falló la invocación a `signatures` |
+| * | (propagado de `create_signature`) | si responde algo distinto de 200 |
+
+> Cada reintento que falle después del paso 2 deja un
+> `RAW_INVESTMENT_ORDER` adicional registrado en `files`.
+
+### 5.2 `signed` (`src/webhooks/signed/`)
+
+Recibe el aviso de `signatures` cuando una firma llega a un estado final.
+
+**Invocada por:** `signatures` (`libs/utils/signature_notifications.py`,
+asíncrona), con `{"body": "{\"signature_id\": \"<uuid>\", \"stage\": \"SIGNED\"}"}`.
+`stage` es `SIGNED` o `FAILED`.
+
+**Comportamiento:**
+
+- Busca el proceso por `signature_id`.
+- `SIGNED`: si el proceso está en `SIGNATURE`, lo pasa a `PAYMENT`. Si ya
+  avanzó, no hace nada (idempotente).
+- `FAILED`: solo registra un WARNING; el proceso se queda en `SIGNATURE`.
+
+**Response — 200 OK**
+
+```json
+{"process_id": "5798138d-...", "advanced": true}
+```
+
+`advanced` es `false` cuando no hubo transición (firma `FAILED` o proceso
+ya avanzado).
+
+**Errores**
+
+| status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid signature_id` | `signature_id` falta o no es un UUID |
+| 400 | `stage must be one of ['SIGNED', 'FAILED']` | `stage` inválido |
+| 404 | `process_not_found` | ningún proceso tiene esa firma (p. ej. una firma creada a mano, fuera del flujo) |
+
+---
+
+## 6. Sobre `integration.py`
+
+Ningún handler de `processes` tiene `integration.py` todavía. Por
+convención del repo (`docs/repo-structure.md` §13.3) ese test es opcional
+y se reserva para flujos con efectos laterales persistentes o
+cross-service. Los candidatos más claros son `set-process-form` y la cadena
+`get-required-files` → `generate_sign`, que cruzan `forms`, `files` y
+`signatures`.
