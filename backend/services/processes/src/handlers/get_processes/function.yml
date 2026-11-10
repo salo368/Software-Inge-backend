@@ -1,3 +1,3 @@
-description: Lists the current user's processes, most recent first.
+description: Lists the current user's processes, most recent first. An admin (backoffice) passes user_id to list that user's processes.
 events:
   - httpApi: { method: GET, path: /processes/get-processes }
