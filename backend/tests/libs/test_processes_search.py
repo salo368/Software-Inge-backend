@@ -29,7 +29,7 @@ def test_bank_and_stage_filters():
     sql = _sql(*Processes._list_conditions(3, ["PAYMENT", "REVIEW"], ""))
 
     assert "processes.bank_id = 3" in sql
-    assert "processes.stage IN ('PAYMENT', 'REVIEW')" in sql
+    assert "CAST(processes.stage AS VARCHAR) IN ('PAYMENT', 'REVIEW')" in sql
     assert "ILIKE" not in sql
 
 
