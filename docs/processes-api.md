@@ -52,7 +52,8 @@ Lambda-a-Lambda, con permiso de IAM.
 | `SIGNATURE` | `generate_sign` (interna) | al abrir la firma de la orden de inversión; también guarda `signature_id` |
 | `PAYMENT` | `webhooks/signed` (interna) | cuando `signatures` avisa que esa firma quedó `SIGNED` |
 | `REVIEW` | `get-pending-pay` | cuando la suma de los pagos cubre el monto del proceso |
-| `SENT_TO_BANK`, `COMPLETED` | — | definidos en el enum, todavía sin transición implementada |
+| `SENT_TO_BANK` | `send-to-bank` (admin) | cuando backoffice aprueba los pagos de un proceso en `REVIEW` y lo entrega al banco |
+| `COMPLETED` | `approve-cdt` (admin) | cuando backoffice aprueba la creación del CDT de un proceso en `SENT_TO_BANK` |
 
 Flujo completo, visto desde el frontend:
 
@@ -540,6 +541,100 @@ cumple los filtros. Para el detalle de uno, `get-process` (§4.6).
 |---|---|---|
 | 400 | `invalid_bank_id` / `invalid_stages` / `invalid_search` / `invalid_page` / `invalid_page_size` | valor fuera de rango, de tipo incorrecto, o etapa inexistente |
 | 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+
+---
+
+### 4.8 `POST /processes/send-to-bank`
+
+Backoffice: aprueba los pagos de un proceso en `REVIEW` (la suma de los pagos ya cubre el monto) y lo
+entrega al banco: `REVIEW` → `SENT_TO_BANK`. Los procesos por aprobar salen de
+`get-processes-list` con `stages: ["REVIEW"]`.
+
+**Auth requerida:** sí, **solo token de admin**. Un token de usuario responde
+`401 invalid_or_expired_token`.
+
+**Request**
+
+```http
+POST {{base_url}}/processes/send-to-bank
+Authorization: Bearer <token de admin>
+Content-Type: application/json
+
+{ "process_id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df" }
+```
+
+**Response — 200 OK**
+
+```json
+{ "process_id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df", "stage": "SENT_TO_BANK" }
+```
+
+Toma un lock sobre la fila del proceso hasta el commit: si dos admins aprueban
+el mismo a la vez, el segundo recibe `409`. Quién aprobó queda en el log de la
+lambda (`admin <id> moved process <id> REVIEW -> SENT_TO_BANK`); la tabla `processes` no
+guarda auditoría.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+| 404 | `process_not_found` | no existe |
+| 409 | `process_not_in_review_stage` | el proceso no está en `REVIEW` (incluye el caso de ya haber sido aprobado) |
+
+**curl**
+
+```bash
+curl -X POST "{{base_url}}/processes/send-to-bank"   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json"   -d '{"process_id": "'$PROCESS_ID'"}'
+```
+
+---
+
+### 4.9 `POST /processes/approve-cdt`
+
+Backoffice: aprueba la creación del CDT cuando el banco ya la confirmó: `SENT_TO_BANK` →
+`COMPLETED`. Debe haber pasado antes por `send-to-bank`. Los procesos pendientes salen de
+`get-processes-list` con `stages: ["SENT_TO_BANK"]`.
+
+**Auth requerida:** sí, **solo token de admin**. Un token de usuario responde
+`401 invalid_or_expired_token`.
+
+**Request**
+
+```http
+POST {{base_url}}/processes/approve-cdt
+Authorization: Bearer <token de admin>
+Content-Type: application/json
+
+{ "process_id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df" }
+```
+
+**Response — 200 OK**
+
+```json
+{ "process_id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df", "stage": "COMPLETED" }
+```
+
+Toma un lock sobre la fila del proceso hasta el commit: si dos admins aprueban
+el mismo a la vez, el segundo recibe `409`. Quién aprobó queda en el log de la
+lambda (`admin <id> moved process <id> SENT_TO_BANK -> COMPLETED`); la tabla `processes` no
+guarda auditoría.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+| 404 | `process_not_found` | no existe |
+| 409 | `process_not_in_sent_to_bank_stage` | el proceso no está en `SENT_TO_BANK` (incluye el caso de ya haber sido aprobado) |
+
+**curl**
+
+```bash
+curl -X POST "{{base_url}}/processes/approve-cdt"   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json"   -d '{"process_id": "'$PROCESS_ID'"}'
+```
 
 ---
 
