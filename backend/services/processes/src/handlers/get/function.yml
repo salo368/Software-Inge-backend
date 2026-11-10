@@ -1,5 +1,0 @@
-description: Returns a single process with its uploaded files.
-events:
-  - httpApi:
-      method: GET
-      path: /processes/{id}

@@ -1,76 +1,96 @@
-from datetime import date, datetime, timezone
-from decimal import Decimal
+from datetime import datetime
+from typing import Optional
 from uuid import UUID
+from enum import Enum
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Numeric, String
+from sqlalchemy import DateTime, String, select, text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Mapped, mapped_column
 
 from libs.core.db import db_session
 from libs.orm.base import Base
 
+class DocumentType(str, Enum):
+    CC = "CC"
+    CE = "CE"
+    TI = "TI"
+    PA = "PA"
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+class GenderType(str, Enum):
+    MALE = "M"
+    FEMALE = "F"
+    OTHER = "O"
+
+class CivilStatusType(str, Enum):
+    SINGLE = "SINGLE"
+    MARRIED = "MARRIED"
+    DIVORCED = "DIVORCED"
+    WIDOWED = "WIDOWED"
+
+class EducationLevelType(str, Enum):
+    NONE = "NONE"
+    PRIMARY = "PRIMARY"
+    SECONDARY = "SECONDARY"
+    TECHNICAL = "TECHNICAL"
+    TECHNOLOGICAL = "TECHNOLOGICAL"
+    PROFESSIONAL = "PROFESSIONAL"
+    POSTGRADUATE = "POSTGRADUATE"
 
 
 class Forms(Base):
     __tablename__ = "forms"
 
-    user_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
-    )
-    full_name: Mapped[str] = mapped_column(String(200))
-    birth_date: Mapped[date] = mapped_column(Date)
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("NOW()"))
+    name: Mapped[Optional[str]] = mapped_column(String(100))
+    second_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    last_name: Mapped[Optional[str]] = mapped_column(String(100))
+    second_last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    gender: Mapped[Optional[str]] = mapped_column(String(20))
+    birth_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    birth_country: Mapped[Optional[str]] = mapped_column(String(100))
+    birth_department: Mapped[Optional[str]] = mapped_column(String(100))
+    birth_city: Mapped[Optional[str]] = mapped_column(String(100))
+    nationality: Mapped[Optional[str]] = mapped_column(String(100))
+    email: Mapped[Optional[str]] = mapped_column(String(200))
     document_type: Mapped[str] = mapped_column(String(20))
     document_number: Mapped[str] = mapped_column(String(30))
-    phone: Mapped[str] = mapped_column(String(30))
-    address: Mapped[str] = mapped_column(String(300))
-    city: Mapped[str] = mapped_column(String(120))
-    occupation: Mapped[str] = mapped_column(String(120))
-    economic_activity: Mapped[str] = mapped_column(String(120))
-    monthly_income: Mapped[Decimal] = mapped_column(Numeric(15, 2))
-    monthly_expenses: Mapped[Decimal] = mapped_column(Numeric(15, 2))
-    total_assets: Mapped[Decimal] = mapped_column(Numeric(15, 2))
-    total_liabilities: Mapped[Decimal] = mapped_column(Numeric(15, 2))
-    source_of_funds: Mapped[str] = mapped_column(String(200))
-    is_peps: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    document_issuance_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    document_issuance_country: Mapped[Optional[str]] = mapped_column(String(100))
+    document_issuance_department: Mapped[Optional[str]] = mapped_column(String(100))
+    document_issuance_city: Mapped[Optional[str]] = mapped_column(String(100))
+    phone_ext: Mapped[Optional[str]] = mapped_column(String(10))
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20))
+    civil_status: Mapped[Optional[str]] = mapped_column(String(20))
+    education_level: Mapped[Optional[str]] = mapped_column(String(100))
+    is_pep: Mapped[Optional[bool]] = mapped_column(nullable=True)
 
-    def public_dict(self) -> dict:
-        return {
-            "full_name": self.full_name,
-            "birth_date": self.birth_date.isoformat(),
-            "document_type": self.document_type,
-            "document_number": self.document_number,
-            "phone": self.phone,
-            "address": self.address,
-            "city": self.city,
-            "occupation": self.occupation,
-            "economic_activity": self.economic_activity,
-            "monthly_income": float(self.monthly_income),
-            "monthly_expenses": float(self.monthly_expenses),
-            "total_assets": float(self.total_assets),
-            "total_liabilities": float(self.total_liabilities),
-            "source_of_funds": self.source_of_funds,
-            "is_peps": self.is_peps,
-            "updated_at": self.updated_at.isoformat(),
-        }
-
-    @classmethod
-    def get_by_user(cls, user_id: UUID):
-        return db_session.session.get(cls, user_id)
+    monthly_income: Mapped[Optional[float]] = mapped_column(nullable=True)
+    monthly_expenses: Mapped[Optional[float]] = mapped_column(nullable=True)
+    total_assets: Mapped[Optional[float]] = mapped_column(nullable=True)
+    total_liabilities: Mapped[Optional[float]] = mapped_column(nullable=True)
+    is_tax_declarant: Mapped[Optional[bool]] = mapped_column(nullable=True)
 
     @classmethod
     def upsert(cls, user_id: UUID, **fields):
-        existing = cls.get_by_user(user_id)
-        if existing is None:
-            row = cls(user_id=user_id, **fields)
-            db_session.session.add(row)
-            db_session.session.flush()
-            return row
-        for k, v in fields.items():
-            setattr(existing, k, v)
-        db_session.session.flush()
-        return existing
+        statement = (
+            pg_insert(cls)
+            .values(user_id=user_id, **fields)
+            .on_conflict_do_update(
+                index_elements=["user_id"],
+                set_={**fields, "updated_at": text("NOW()")},
+            )
+            .returning(cls)
+        )
+        return db_session.query(statement=statement)
+
+    @classmethod
+    def get_by_user_id(cls, user_id: UUID):
+        statement = (
+            select(cls)
+            .where(cls.user_id == user_id)
+            .limit(1)
+        )
+        return db_session.query(statement=statement)

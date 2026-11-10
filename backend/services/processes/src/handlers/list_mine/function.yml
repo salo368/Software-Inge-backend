@@ -1,3 +1,0 @@
-description: Lists the current user's processes ordered by most recent first.
-events:
-  - httpApi: { method: GET, path: /processes }

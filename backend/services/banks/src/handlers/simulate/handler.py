@@ -14,7 +14,6 @@ def _get_banks_data():
     banks_data = {}
     for bank in banks:
         data = {
-            "id": bank.id,
             "code": bank.code,
             "name": bank.name,
             "logo_url": f"{ASSETS_BASE_URL.rstrip('/')}/{bank.logo_key}" if ASSETS_BASE_URL else bank.logo_key,
@@ -33,7 +32,7 @@ def handler(event, context):
 
     params = event.get("queryStringParameters") or {}
     amount = params.get("amount")
-    term_days = params.get("term_days")
+    term = params.get("term")
 
     try:
         amount = Decimal(str(amount))
@@ -43,29 +42,29 @@ def handler(event, context):
         raise HandledError("invalid_amount", 400)
 
     try:
-        term_days = int(term_days)
+        term = int(term)
     except (ValueError, TypeError):
-        raise HandledError("invalid_term_days", 400)
-    if term_days <= 0:
-        raise HandledError("invalid_term_days", 400)
+        raise HandledError("invalid_term", 400)
+    if term <= 0:
+        raise HandledError("invalid_term", 400)
 
-    ranked = get_ranked_rates(amount, term_days)
+    ranked = get_ranked_rates(amount, term)
 
     banks_data = _get_banks_data()
 
-    banks_data_ranked = []
+    banks_data_ranked = {}
 
     for bank_id, rate in ranked:
         if bank_id in banks_data:
-            interest, final = yield_cop(amount, rate, term_days)
+            interest, final = yield_cop(amount, rate, term)
             banks_data[bank_id]["rate"] = float(rate)
             banks_data[bank_id]["interest"] = float(interest)
             banks_data[bank_id]["final"] = float(final)
-            banks_data_ranked.append(banks_data[bank_id])
+            banks_data_ranked[bank_id] = banks_data[bank_id]
 
     response = {
         "amount": float(amount),
-        "term_days": term_days,
+        "term": term,
         "banks": banks_data_ranked,
     }
 
