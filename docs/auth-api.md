@@ -53,8 +53,35 @@ Authorization: Bearer <token>
 - Cada `login` emite un token **nuevo**; los anteriores no se invalidan
   automáticamente (quedan vivos hasta que expiren o se revoquen uno por uno).
 - El servidor nunca guarda el token en texto plano, solo su hash SHA-256
-  (`bearer_tokens.token_hash`). Si lo perdés, no hay forma de recuperarlo:
+  (`user_bearer_tokens.token_hash`). Si lo perdés, no hay forma de recuperarlo:
   hay que loguear de nuevo.
+
+### Tipos de token
+
+Hay dos tipos (`libs/utils/auth.py::AuthsTypes`), cada uno con su propia
+tabla de tokens y de sujetos:
+
+| Tipo | Para | Tokens | Sujeto | El handler lo recibe en |
+|---|---|---|---|---|
+| `USER` | usuarios de la plataforma | `user_bearer_tokens` | `users` | `event["user"]` |
+| `INTERNAL` | administradores internos | `admin_bearer_tokens` | `admins` (credenciales en `admin_credentials`) | `event["admin"]` |
+
+Cada handler protegido declara explícitamente qué tipo acepta:
+
+```python
+from libs.utils.auth import require_auth, AuthsTypes
+
+@require_auth(AuthsTypes.USER)       # o AuthsTypes.INTERNAL
+def handler(event, context): ...
+```
+
+Un token de un tipo no existe en la tabla del otro, así que usarlo en un
+endpoint del otro tipo responde `401 invalid_or_expired_token`. Escribir
+`@require_auth` sin tipo falla al importar el handler (`TypeError`).
+
+Todos los endpoints de este servicio y de los demás son `USER`. Los tokens
+`INTERNAL` los emite el servicio `admin_auth` (ver
+[`admin-auth-api.md`](./admin-auth-api.md)).
 
 ---
 

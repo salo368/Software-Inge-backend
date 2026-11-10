@@ -7,29 +7,29 @@ from sqlalchemy.orm import Mapped, mapped_column
 from libs.core.db import db_session
 from libs.orm.base import Base
 
-TABLE_NAME = "bearer_tokens"
+TABLE_NAME = "admin_bearer_tokens"
 
-class BearerTokens(Base):
+class AdminBearerTokens(Base):
 
     __tablename__ = TABLE_NAME
 
     id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
-    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True))
+    admin_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True))
     token_hash: Mapped[str] = mapped_column(String())
     expires_at = mapped_column(DateTime())
     revoked_at = mapped_column(DateTime())
     created_at = mapped_column(DateTime())
 
-    def create(user_id, token_hash, expires_at):
+    def create(admin_id, token_hash, expires_at):
 
         statement = (
-            insert(BearerTokens)
+            insert(AdminBearerTokens)
             .values(
-                user_id=user_id,
+                admin_id=admin_id,
                 token_hash=token_hash,
                 expires_at=expires_at,
             )
-            .returning(BearerTokens)
+            .returning(AdminBearerTokens)
         )
 
         return db_session.query(statement=statement)
@@ -37,8 +37,8 @@ class BearerTokens(Base):
     def get_by_hash(token_hash):
 
         statement = (
-            select(BearerTokens)
-            .where(BearerTokens.token_hash == token_hash)
+            select(AdminBearerTokens)
+            .where(AdminBearerTokens.token_hash == token_hash)
             .limit(1)
         )
 
@@ -47,10 +47,10 @@ class BearerTokens(Base):
     def update_by_id(id, values):
 
         statement = (
-            update(BearerTokens)
-            .where(BearerTokens.id == id)
+            update(AdminBearerTokens)
+            .where(AdminBearerTokens.id == id)
             .values(**values)
-            .returning(BearerTokens)
+            .returning(AdminBearerTokens)
         )
 
         return db_session.query(statement=statement)

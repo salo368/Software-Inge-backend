@@ -344,7 +344,7 @@ def create_test_user_directly(*, full_name: str = "Integration Bot") -> dict:
             uid=user_id, ph=pw_hash, now=now,
         )
         c.run(
-            "INSERT INTO bearer_tokens (id, user_id, token_hash, expires_at, created_at) "
+            "INSERT INTO user_bearer_tokens (id, user_id, token_hash, expires_at, created_at) "
             "VALUES (:tid, :uid, :th, :exp, :now)",
             tid=token_id, uid=user_id, th=token_hash, exp=expires_at, now=now,
         )
@@ -369,7 +369,7 @@ def cleanup_user(email: str) -> None:
             return
         uid = rows[0][0]
         # Order matters: children first. Everything with a FK to users.id.
-        for table in ("bearer_tokens", "forms", "processes"):
+        for table in ("user_bearer_tokens", "forms", "processes"):
             try:
                 c.run(f"DELETE FROM {table} WHERE user_id = :u", u=uid)
             except Exception:

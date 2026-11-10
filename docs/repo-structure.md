@@ -136,10 +136,12 @@ dominio** (bounded context). Servicios hoy vigentes:
 | Servicio | Responsabilidad | Referencia |
 |---|---|---|
 | `auth` | Registro, login, logout, `me`. Emite bearer tokens. | [`auth-api.md`](./auth-api.md) |
+| `admin_auth` | Cuentas y sesiones de los administradores internos (login, logout, `me`, register). Solo un admin crea a otro. | [`admin-auth-api.md`](./admin-auth-api.md) |
 | `banks` | Catálogo de bancos, plantilla de orden de inversión por banco y simulación de CDT. | [`banks-api.md`](./banks-api.md) |
 | `files` | Archivos de cada proceso en S3, su registro en `files` y la generación de la orden de inversión llena. | [`files-api.md`](./files-api.md) |
 | `forms` | Formulario KYC del usuario y catálogo de ubicaciones. | [`forms-api.md`](./forms-api.md) |
 | `processes` | Orquestador del wizard CDT (`FORM → DOCUMENTS → SIGNATURE → PAYMENT → …`). | [`processes-api.md`](./processes-api.md) |
+| `payments` | Transferencias con que se paga cada proceso y sus comprobantes. | [`payments-api.md`](./payments-api.md) |
 | `signatures` | Servicio genérico de firma digital (agnóstico al dominio). | [`signatures-api.md`](./signatures-api.md) |
 
 - Un servicio nunca importa código de otro servicio, **ni su ORM**: los
@@ -603,7 +605,7 @@ tiempo:
    verifica el status/shape que el frontend va a recibir.
 2. **Validación de fuentes de reposo** — abre Postgres/S3 directamente y
    verifica que el efecto lateral persistió (fila del usuario existente,
-   objeto en S3, token en `bearer_tokens`, worker async terminó, etc.).
+   objeto en S3, token en `user_bearer_tokens`, worker async terminó, etc.).
 
 Contrato:
 

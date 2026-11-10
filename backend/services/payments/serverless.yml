@@ -1,0 +1,72 @@
+service: payments
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.12
+  region: ${opt:region, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  stackName: cdts-${sls:stage}-payments
+  memorySize: 512
+  timeout: 15
+  logRetentionInDays: 14
+
+  httpApi:
+    cors: true
+
+  environment:
+    STAGE: ${sls:stage}
+    SERVICE: payments
+    SSM_DB_PATH: /cdts/${sls:stage}/db
+    FILES_BUCKET: cdts-${sls:stage}-files
+
+  iam:
+    role:
+      name: cdts-${sls:stage}-payments-lambda
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParametersByPath
+          Resource:
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db
+            - arn:aws:ssm:${aws:region}:*:parameter/cdts/${sls:stage}/db/*
+        # Payment receipts share the files bucket, under payments/ only
+        # (outside the processes/ prefix that triggers files.on_upload).
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+          Resource:
+            - arn:aws:s3:::cdts-${sls:stage}-files/payments/*
+        # upload-url and create-payment check that the process belongs to
+        # the caller and is in PAYMENT by invoking processes.get_processes.
+        - Effect: Allow
+          Action:
+            - lambda:InvokeFunction
+          Resource:
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-processes-get-processes
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+    slim: false
+    fileName: requirements.txt
+
+package:
+  patterns:
+    - '!**'
+    - 'src/**'
+    - 'libs/**'
+    # Block-local helpers under payments/utils/.
+    - 'utils/**'
+    - '!**/__pycache__/**'
+    - '!**/*.pyc'
+    # Colocated tests live next to each handler.py; keep them out of the zip.
+    - '!**/test.py'
+    - '!**/integration.py'
+    - '!**/conftest.py'
+
+functions: ${file(./functions.js):build}

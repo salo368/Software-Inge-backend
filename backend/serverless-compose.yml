@@ -9,6 +9,10 @@ services:
     path: services/auth
     dependsOn:
       - migrations
+  admin_auth:
+    path: services/admin_auth
+    dependsOn:
+      - migrations
 
   banks:
     path: services/banks
@@ -30,6 +34,11 @@ services:
     dependsOn:
       - migrations
 
+  payments:
+    path: services/payments
+    dependsOn:
+      - migrations
+      - files
   signatures:
     path: services/signatures
     dependsOn:

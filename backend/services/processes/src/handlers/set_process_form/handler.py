@@ -3,12 +3,12 @@ from uuid import UUID
 
 from libs.core.responses import HandledError, generate_response, handle_exceptions
 from libs.orm.processes import ProcessStage, Processes
-from libs.utils.auth import require_auth
+from libs.utils.auth import require_auth, AuthsTypes
 from libs.utils.lambda_invoke import LambdaInvokeError, invoke_sync
 
 
 @handle_exceptions
-@require_auth
+@require_auth(AuthsTypes.USER)
 def handler(event, context):
 
     user = event["user"]
