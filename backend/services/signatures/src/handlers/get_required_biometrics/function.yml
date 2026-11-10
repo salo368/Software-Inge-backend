@@ -1,0 +1,3 @@
+description: Public endpoint returning which of the three biometric evidence slots (ID_FRONT, ID_BACK, FACE) are still missing; advances the signature to SIGNATURE once all three are present.
+events:
+  - httpApi: { method: GET, path: /signatures/get-required-biometrics }

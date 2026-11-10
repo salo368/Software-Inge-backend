@@ -17,6 +17,7 @@ provider:
 
   environment:
     STAGE: ${sls:stage}
+    SERVICE: processes
     SSM_DB_PATH: /cdts/${sls:stage}/db
 
   iam:
@@ -51,6 +52,15 @@ provider:
             # `get_required_files` fetches the process's uploaded files by
             # invoking the internal files.list_process_files Lambda.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-files-list-process-files
+            # `get_required_files` triggers this block's own internal
+            # generate_sign worker (async) once all files are in.
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-processes-generate-sign
+            # `generate_sign` fetches the bank's investment-order template
+            # URL by invoking banks.get_bank directly.
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-banks-get-bank
+            # `generate_sign` opens the signature ceremony for the
+            # populated document by invoking signatures.create_signature.
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-signatures-create-signature
 
 plugins:
   - serverless-python-requirements

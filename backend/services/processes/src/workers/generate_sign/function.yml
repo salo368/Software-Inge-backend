@@ -1,0 +1,3 @@
+description: Internal worker (invoke-only, no HTTP). Populates the bank's investment order and opens a signature ceremony for it, storing the resulting signature_id on the process.
+memorySize: 1024
+timeout: 60
