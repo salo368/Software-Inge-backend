@@ -170,6 +170,34 @@ class Processes(Base):
 
         return db_session.query(statement=statement)
 
+    def advance_to_sent_to_bank(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.SENT_TO_BANK.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
+    def advance_to_completed(process_id):
+
+        statement = (
+            update(Processes)
+            .where(Processes.id == process_id)
+            .values(
+                stage=ProcessStage.COMPLETED.value,
+                updated_at=text("NOW()"),
+            )
+            .returning(Processes)
+        )
+
+        return db_session.query(statement=statement)
+
     def _list_conditions(bank_id, stages, search):
 
         conditions = []
