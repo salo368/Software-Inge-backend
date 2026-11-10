@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Integer, Numeric, String, and_, func, insert, or_, select, text, update
+from sqlalchemy import DateTime, Integer, Numeric, String, and_, cast, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -178,7 +178,7 @@ class Processes(Base):
             conditions.append(Processes.bank_id == bank_id)
 
         if stages:
-            conditions.append(Processes.stage.in_(stages))
+            conditions.append(cast(Processes.stage, String).in_(stages))
 
         if search:
             conditions.append(Processes._search_filter(search))
@@ -189,9 +189,6 @@ class Processes(Base):
     MAX_SEARCH_WORDS = 6
 
     def _search_filter(search):
-        """Every word typed must be the start (case-insensitive) of some main
-        field of `submitted_form` (names, surnames, email, document number),
-        so "ana gomez" finds "Ana Maria Gomez Ruiz"."""
 
         words = search.split()[:Processes.MAX_SEARCH_WORDS]
 
