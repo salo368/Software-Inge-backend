@@ -1,3 +1,0 @@
-description: Creates a CDT opening process in stage 'form'.
-events:
-  - httpApi: { method: POST, path: /processes }

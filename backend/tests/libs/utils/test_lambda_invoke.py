@@ -43,12 +43,26 @@ class TestResolveFunctionName:
         with pytest.raises(RuntimeError, match="STAGE env var"):
             li.resolve_function_name("signatures", "sign")
 
-    def test_rejects_empty_arguments(self, monkeypatch):
+    def test_rejects_empty_function_key(self, monkeypatch):
         monkeypatch.setenv("STAGE", "dev")
         with pytest.raises(ValueError):
-            li.resolve_function_name("", "sign")
-        with pytest.raises(ValueError):
             li.resolve_function_name("signatures", "")
+
+    def test_no_service_falls_back_to_service_env(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        monkeypatch.setenv("SERVICE", "signatures")
+        assert li.resolve_function_name(None, "sign") == "cdts-dev-signatures-sign"
+
+    def test_explicit_service_wins_over_env(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        monkeypatch.setenv("SERVICE", "signatures")
+        assert li.resolve_function_name("banks", "simulate") == "cdts-dev-banks-simulate"
+
+    def test_raises_when_no_service_available(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        monkeypatch.delenv("SERVICE", raising=False)
+        with pytest.raises(RuntimeError, match="SERVICE env var"):
+            li.resolve_function_name(None, "sign")
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +78,7 @@ class TestInvokeSync:
         li._reset_client_for_tests()
 
     def test_happy_path_returns_parsed_payload(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -71,16 +86,19 @@ class TestInvokeSync:
         }
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
-        result = li.invoke_sync("cdts-dev-signatures-sign", {"sign_id": "abc"})
+        result = li.invoke_sync("sign", {"sign_id": "abc"}, service="signatures")
 
         assert result == {"ok": True, "sign_id": "abc"}
-        # Payload sent to boto3 is JSON-encoded bytes.
+        # Function key + service were resolved to the conventional name,
+        # and the payload sent to boto3 is JSON-encoded bytes.
         _, kwargs = fake_client.invoke.call_args
         assert kwargs["FunctionName"] == "cdts-dev-signatures-sign"
         assert kwargs["InvocationType"] == "RequestResponse"
         assert json.loads(kwargs["Payload"]) == {"sign_id": "abc"}
 
-    def test_none_payload_becomes_empty_object(self, monkeypatch):
+    def test_service_defaults_to_caller_own_via_env(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        monkeypatch.setenv("SERVICE", "signatures")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -88,12 +106,27 @@ class TestInvokeSync:
         }
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
-        li.invoke_sync("cdts-dev-x-y")
+        li.invoke_sync("sign", {"sign_id": "abc"})
+
+        _, kwargs = fake_client.invoke.call_args
+        assert kwargs["FunctionName"] == "cdts-dev-signatures-sign"
+
+    def test_none_payload_becomes_empty_object(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        fake_client = MagicMock()
+        fake_client.invoke.return_value = {
+            "StatusCode": 200,
+            "Payload": _payload_stream({}),
+        }
+        monkeypatch.setattr(li, "_get_client", lambda: fake_client)
+
+        li.invoke_sync("y", service="x")
 
         _, kwargs = fake_client.invoke.call_args
         assert json.loads(kwargs["Payload"]) == {}
 
     def test_function_error_raises(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -105,12 +138,13 @@ class TestInvokeSync:
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_sync("cdts-dev-signatures-sign", {})
+            li.invoke_sync("sign", {}, service="signatures")
 
         assert exc.value.error_type == "function_error"
         assert "boom" in exc.value.detail
 
     def test_non_200_status_raises(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 429,
@@ -119,12 +153,13 @@ class TestInvokeSync:
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_sync("cdts-dev-signatures-sign", {})
+            li.invoke_sync("sign", {}, service="signatures")
 
         assert exc.value.error_type == "bad_status"
         assert "429" in exc.value.detail
 
     def test_non_json_payload_raises(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -133,11 +168,12 @@ class TestInvokeSync:
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_sync("cdts-dev-signatures-sign", {})
+            li.invoke_sync("sign", {}, service="signatures")
 
         assert exc.value.error_type == "bad_payload"
 
     def test_empty_payload_returns_empty_dict(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -145,12 +181,13 @@ class TestInvokeSync:
         }
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
-        assert li.invoke_sync("cdts-dev-x-y") == {}
+        assert li.invoke_sync("y", service="x") == {}
 
     def test_non_dict_payload_wrapped(self, monkeypatch):
         """A callee that returns a JSON array is unusual but shouldn't crash
         the caller silently; wrap it under `result` so the return type
         matches the annotation."""
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {
             "StatusCode": 200,
@@ -158,11 +195,12 @@ class TestInvokeSync:
         }
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
-        assert li.invoke_sync("cdts-dev-x-y") == {"result": [1, 2, 3]}
+        assert li.invoke_sync("y", service="x") == {"result": [1, 2, 3]}
 
     def test_boto_client_error_translated(self, monkeypatch):
         from botocore.exceptions import ClientError
 
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.side_effect = ClientError(
             {"Error": {"Code": "ResourceNotFoundException", "Message": "nope"}},
@@ -171,7 +209,7 @@ class TestInvokeSync:
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_sync("cdts-dev-signatures-sign", {})
+            li.invoke_sync("sign", {}, service="signatures")
 
         assert exc.value.error_type == "boto_error"
         assert exc.value.function_name == "cdts-dev-signatures-sign"
@@ -185,34 +223,52 @@ class TestInvokeAsync:
         li._reset_client_for_tests()
 
     def test_happy_path_returns_none(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {"StatusCode": 202}
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
-        assert li.invoke_async("cdts-dev-signatures-sign", {"sign_id": "x"}) is None
+        assert (
+            li.invoke_async("sign", {"sign_id": "x"}, service="signatures") is None
+        )
 
         _, kwargs = fake_client.invoke.call_args
+        assert kwargs["FunctionName"] == "cdts-dev-signatures-sign"
         assert kwargs["InvocationType"] == "Event"
         assert json.loads(kwargs["Payload"]) == {"sign_id": "x"}
 
+    def test_service_defaults_to_caller_own_via_env(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
+        monkeypatch.setenv("SERVICE", "signatures")
+        fake_client = MagicMock()
+        fake_client.invoke.return_value = {"StatusCode": 202}
+        monkeypatch.setattr(li, "_get_client", lambda: fake_client)
+
+        li.invoke_async("sign", {"sign_id": "x"})
+
+        _, kwargs = fake_client.invoke.call_args
+        assert kwargs["FunctionName"] == "cdts-dev-signatures-sign"
+
     def test_non_202_raises_submission_failed(self, monkeypatch):
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.return_value = {"StatusCode": 500}
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_async("cdts-dev-signatures-sign", {})
+            li.invoke_async("sign", {}, service="signatures")
 
         assert exc.value.error_type == "submission_failed"
 
     def test_boto_error_translated(self, monkeypatch):
         from botocore.exceptions import BotoCoreError
 
+        monkeypatch.setenv("STAGE", "dev")
         fake_client = MagicMock()
         fake_client.invoke.side_effect = BotoCoreError()
         monkeypatch.setattr(li, "_get_client", lambda: fake_client)
 
         with pytest.raises(li.LambdaInvokeError) as exc:
-            li.invoke_async("cdts-dev-signatures-sign", {})
+            li.invoke_async("sign", {}, service="signatures")
 
         assert exc.value.error_type == "boto_error"

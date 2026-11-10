@@ -1,0 +1,3 @@
+description: Validates and upserts the current user's form.
+events:
+  - httpApi: { method: PUT, path: /forms/upsert-form }
