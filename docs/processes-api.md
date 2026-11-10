@@ -30,7 +30,9 @@ aws cloudformation describe-stacks \
 ## 2. Autenticación
 
 Todos los endpoints HTTP requieren `Authorization: Bearer <token>` y solo
-operan sobre procesos del usuario autenticado. Token ausente → `401
+operan sobre procesos del usuario autenticado. Excepción: `get-processes` y
+`get-process` también aceptan un token de **admin** (backoffice), que no tiene
+procesos propios y por eso indica a quién consultar (ver §4.2 y §4.6). Token ausente → `401
 missing_bearer_token`; inválido, revocado o expirado → `401
 invalid_or_expired_token` (ver [`auth-api.md`](./auth-api.md) §2).
 
@@ -152,7 +154,10 @@ curl -X POST "{{base_url}}/processes/create-process" \
 
 Lista los procesos del usuario autenticado, más reciente primero.
 
-**Auth requerida:** sí.
+**Auth requerida:** sí. Acepta token de usuario **o de admin**. Con token de
+usuario devuelve siempre los suyos (un `user_id` en la petición se ignora).
+Con token de admin hay que indicar `user_id` (query string o body JSON) y
+devuelve los de ese usuario; sin él, `400 invalid user id`.
 
 **Request**
 
@@ -402,6 +407,139 @@ Authorization: Bearer {{token}}
 curl "{{base_url}}/processes/get-pending-pay?process_id=$PROCESS_ID" \
   -H "Authorization: Bearer $TOKEN"
 ```
+
+---
+
+### 4.6 `GET /processes/get-process`
+
+Detalle de un proceso.
+
+**Auth requerida:** sí. Acepta token de usuario **o de admin**.
+
+- **Usuario:** solo si el proceso es suyo. Uno ajeno responde igual que uno
+  inexistente (`404 process_not_found`), para que no se puedan sondear ids.
+- **Admin (backoffice):** cualquier proceso, sin pasar `user_id`.
+
+**Request**
+
+```http
+GET {{base_url}}/processes/get-process?process_id=7077c70e-d8bf-4c8e-97ef-a7e0909949df
+Authorization: Bearer k3f9s...opaco...
+```
+
+`process_id` puede ir en el query string o en un body JSON (el body gana).
+
+**Response — 200 OK**
+
+```json
+{
+  "process": {
+    "id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df",
+    "user_id": "c3b1...",
+    "bank_id": 1,
+    "amount": 1000000.0,
+    "term": 180,
+    "rate": 12.5,
+    "stage": "PAYMENT",
+    "signature_id": "312e7c0b-ace6-44f0-bf09-7ae729a41f30",
+    "submitted_form": { "name": "Ana", "email": "ana@example.com" },
+    "created_at": "2026-11-09 02:34:21+00:00",
+    "updated_at": "2026-11-09 22:40:13+00:00"
+  }
+}
+```
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente o inválido |
+| 404 | `process_not_found` | no existe, o es de otro usuario (token de usuario) |
+
+**curl**
+
+```bash
+curl "{{base_url}}/processes/get-process?process_id=$PROCESS_ID"   -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 4.7 `POST /processes/get-processes-list`
+
+Backoffice: lista paginada de **todos** los procesos, con filtros y búsqueda.
+Es POST porque los filtros viajan en el body. (`get-processes` sigue siendo la
+lista de un solo usuario; esta es la del panel.)
+
+**Auth requerida:** sí, **solo token de admin**. Un token de usuario responde
+`401 invalid_or_expired_token`.
+
+**Request**
+
+```http
+POST {{base_url}}/processes/get-processes-list
+Authorization: Bearer <token de admin>
+Content-Type: application/json
+
+{
+  "search": "ana gomez",
+  "bank_id": 1,
+  "stages": ["PAYMENT", "REVIEW"],
+  "page": 1,
+  "page_size": 20
+}
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `search` | string | opcional. Cada palabra debe coincidir con el **inicio** de algún dato principal del `submitted_form`: `name`, `second_name`, `last_name`, `second_last_name`, `email` o `document_number`, sin distinguir mayúsculas. Por eso `"ana gomez"` encuentra a "Ana María Gómez Ruiz", y el orden no importa. Máx. 6 palabras. Los procesos sin formulario (etapa `FORM`) no aparecen cuando hay `search` |
+| `bank_id` | int | opcional, ≥ 1 |
+| `stages` | string[] | opcional; valores de §3. Por query string va separado por comas (`stages=PAYMENT,REVIEW`) |
+| `page` | int | opcional, ≥ 1, default 1 |
+| `page_size` | int | opcional, 1–100, default 20 |
+
+Los filtros se combinan con AND. Los más recientes primero. Todos los campos
+también se aceptan por query string.
+
+**Response — 200 OK**
+
+```json
+{
+  "results": [
+    {
+      "id": "7077c70e-d8bf-4c8e-97ef-a7e0909949df",
+      "user_id": "c3b1...",
+      "bank_id": 1,
+      "amount": 1000000.0,
+      "term": 180,
+      "rate": 12.5,
+      "stage": "PAYMENT",
+      "signature_id": "312e7c0b-ace6-44f0-bf09-7ae729a41f30",
+      "applicant": {
+        "full_name": "Ana María Gómez Ruiz",
+        "email": "ana@example.com",
+        "document_type": "CC",
+        "document_number": "123456789"
+      },
+      "created_at": "2026-11-09 02:34:21+00:00",
+      "updated_at": "2026-11-09 22:40:13+00:00"
+    }
+  ],
+  "count": 1,
+  "pagination": { "offset": 0, "limit": 20, "total": 1 }
+}
+```
+
+`applicant` sale del `submitted_form`; todos sus campos son `null` mientras el
+proceso no tenga formulario. `count` es lo de esta página; `total`, lo que
+cumple los filtros. Para el detalle de uno, `get-process` (§4.6).
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid_bank_id` / `invalid_stages` / `invalid_search` / `invalid_page` / `invalid_page_size` | valor fuera de rango, de tipo incorrecto, o etapa inexistente |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
 
 ---
 

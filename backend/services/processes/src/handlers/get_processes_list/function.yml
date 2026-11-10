@@ -1,0 +1,3 @@
+description: Backoffice (admin token only). Paginated list of every process, filterable by bank_id and stages, searchable by the applicant's name, email or document in submitted_form. POST because the filters travel in the body.
+events:
+  - httpApi: { method: POST, path: /processes/get-processes-list }

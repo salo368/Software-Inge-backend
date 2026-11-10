@@ -1,0 +1,3 @@
+description: Returns one process. A user gets it only if it is theirs; an admin (backoffice) gets any process by process_id.
+events:
+  - httpApi: { method: GET, path: /processes/get-process }

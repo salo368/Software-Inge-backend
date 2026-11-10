@@ -286,3 +286,87 @@ Los mismos 401 de `me` (`missing_bearer_token` / `invalid_or_expired_token`)
 curl -X POST "{{base_url}}/auth/logout" \
   -H "Authorization: Bearer k3f9s...opaco..."
 ```
+
+---
+
+### 3.5 `POST /auth/get-user-list`
+
+Backoffice: lista paginada de usuarios. Es POST porque los filtros viajan en
+el body.
+
+**Auth requerida:** sí, **solo token de admin** (`INTERNAL`). Un token de
+usuario responde `401 invalid_or_expired_token`.
+
+**Request**
+
+```http
+POST {{base_url}}/auth/get-user-list
+Authorization: Bearer <token de admin>
+Content-Type: application/json
+
+{ "search": "ana", "page": 1, "page_size": 20 }
+```
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `search` | string | opcional; coincide con el **inicio** de `full_name` o de `email`, sin distinguir mayúsculas. Vacío o ausente = todos |
+| `page` | int | opcional, ≥ 1, default 1 |
+| `page_size` | int | opcional, 1–100, default 20 |
+
+Los más recientes primero. Los campos también se aceptan por query string.
+
+**Response — 200 OK**
+
+```json
+{
+  "results": [
+    {
+      "id": "c3b1...",
+      "email": "ana@example.com",
+      "full_name": "Ana Gómez",
+      "created_at": "2026-11-01T10:00:00",
+      "updated_at": "2026-11-01T10:00:00"
+    }
+  ],
+  "count": 1,
+  "pagination": { "offset": 0, "limit": 20, "total": 1 }
+}
+```
+
+`count` es lo que trae esta página; `total` es el total que cumple el filtro.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid_page` / `invalid_page_size` / `invalid_search` | valor fuera de rango o de tipo incorrecto |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+
+---
+
+### 3.6 `GET /auth/get-user`
+
+Backoffice: un usuario por id.
+
+**Auth requerida:** sí, **solo token de admin**.
+
+**Request**
+
+```http
+GET {{base_url}}/auth/get-user?user_id=c3b1...
+Authorization: Bearer <token de admin>
+```
+
+`user_id` puede ir en el query string o en un body JSON.
+
+**Response — 200 OK**
+
+Mismo objeto `user` que [`/auth/me`](#33-get-authme).
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid user id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+| 404 | `user_not_found` | no existe |
