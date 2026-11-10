@@ -13,12 +13,15 @@ tradicionales.
 
 ## 2. Stages
 
-Solo existen dos stages en todo el proyecto:
+Existen tres stages en todo el proyecto:
 
 - `dev` — sandbox, deploy automático al mergear PR a `develop`.
+- `staging` — copia de `develop` con recursos propios (stacks
+  `cdts-staging-*`, schema `staging`, SSM `/cdts/staging/*`, environment
+  `staging` de GitHub). Deploy automático al mergear PR `develop → staging`.
 - `pro` — producción, deploy automático al mergear PR a `main`.
 
-**No usar** `prod`, `staging`, `qa`, `test`, ni ningún otro. Solo `dev` y `pro`.
+**No usar** `prod`, `qa`, `test`, ni ningún otro. Solo `dev`, `staging` y `pro`.
 
 ## 3. Naming de recursos AWS
 
@@ -30,7 +33,7 @@ cdts-<stage>-<service>-<function>
 
 Reglas:
 
-- `<stage>`: `dev` o `pro`. Una sola palabra.
+- `<stage>`: `dev`, `staging` o `pro`. Una sola palabra.
 - `<service>`: nombre del dominio. **Idealmente una sola palabra** (`access`, `signature`,
   `payments`). Si no se puede, usar `kebab-case` pero justificarlo.
 - `<function>`: nombre de la Lambda. **Este es el único que puede tener múltiples
@@ -424,9 +427,11 @@ def handler(event, context):
 ## 11. Base de datos (PostgreSQL)
 
 - Instancia única compartida entre stages: `cdts-dev` (nombre histórico).
-- Dos schemas: `dev` y `pro`. **No usar `public`** (queda dropeado a propósito).
-- `search_path` por default de la base: `pro, dev`. En prod las Lambdas ven `pro` sin
-  calificar; en dev el código explícita `SET search_path TO dev` al abrir la conexión.
+- Tres schemas: `dev`, `staging` y `pro`. **No usar `public`** (queda dropeado a
+  propósito). Se crean a mano, una sola vez (`CREATE SCHEMA <stage> AUTHORIZATION
+  cdts_admin`), nunca desde una migración.
+- `search_path` por default de la base: `pro, dev`. No se depende de él: al abrir la
+  conexión `libs/core/db.py` hace `SET search_path TO <stage>, pg_catalog`.
 - Credenciales viven en SSM Parameter Store bajo `/cdts/<stage>/db/`:
   - `/cdts/<stage>/db/host`, `port`, `name`, `user`, `password`, `schema`.
 - Nada de credenciales en el código ni en variables de entorno de Lambda; siempre
@@ -435,9 +440,9 @@ def handler(event, context):
   `backend/platform/migrations/sql/` escribe `CREATE TABLE users`, no
   `CREATE TABLE dev.users`. La Lambda de migrations hace `SET LOCAL
   search_path TO <stage>` al inicio de cada transaccion y el mismo archivo se
-  aplica en `dev` y `pro` sin cambios. El linter
+  aplica en `dev`, `staging` y `pro` sin cambios. El linter
   [`scripts/ci/lint-migrations.py`](../scripts/ci/lint-migrations.py) falla el
-  CI si detecta un `dev.`, `pro.` o `public.` calificado, un `SET search_path`
+  CI si detecta un `dev.`, `staging.`, `pro.` o `public.` calificado, un `SET search_path`
   explicito, o `CREATE SCHEMA`/`DROP SCHEMA`. Ver
   [`backend/platform/migrations/README.md`](../backend/platform/migrations/README.md)
   para la convencion completa.
@@ -554,11 +559,11 @@ Cada test es del tipo pytest (`test_*.py`, funciones `test_*`) o Node
 > `test_*.py`); es el módulo con los helpers compartidos que consumen los
 > `integration.py` colocalizados. Ver §13.3.
 
-### 13.3 Colocalizados en vivo: `integration.py` (opcional, solo dev)
+### 13.3 Colocalizados en vivo: `integration.py` (opcional, dev + staging)
 
 Además del `test.py` "en seco" (unit, mockeado, bloquea deploy), cada
 Lambda **PUEDE** tener un `integration.py` hermano que corre contra la
-infra REAL de `dev` DESPUÉS del deploy. Sirve para dos cosas al mismo
+infra REAL de `dev` (y de `staging`) DESPUÉS del deploy. Sirve para dos cosas al mismo
 tiempo:
 
 1. **Contrato en vivo** — hace el request HTTP real contra API Gateway y
@@ -623,7 +628,7 @@ def test_register_persists_user_in_db():
 ```
 
 Estos `integration.py` corren **dentro del "package" de su bloque** en
-el pipeline (§15), **solo en Deploy DEV**. Un package es una llamada al
+el pipeline (§15), **solo en Deploy DEV y Deploy STAGING**. Un package es una llamada al
 reusable workflow `.github/workflows/block-package.yml` que ejecuta en
 orden `test → deploy → integration`. Es decir:
 
@@ -670,8 +675,8 @@ Lambda.
 Para evitar re-desplegar todo el proyecto cada vez que se toca un archivo, el
 pipeline agrupa el codigo en **bloques** independientes y solo despliega los
 bloques afectados por el diff. Un PR abierto NO dispara CI/CD (§15). El deploy
-ocurre solo al hacer push a `develop` (→ Deploy DEV) o merge/push a `main` (→
-Deploy PRO).
+ocurre solo al hacer push a `develop` (→ Deploy DEV), a `staging` (→ Deploy
+STAGING) o merge/push a `main` (→ Deploy PRO).
 
 ### 14.1 Que es un bloque
 
@@ -770,7 +775,7 @@ servicio.
 
 ### 14.4 Override manual
 
-Los workflows `deploy-dev.yml` y `deploy-pro.yml` aceptan un input
+Los workflows `deploy-dev.yml`, `deploy-staging.yml` y `deploy-pro.yml` aceptan un input
 `workflow_dispatch`:
 
 - `block` vacio -> auto-detectar del diff.
@@ -796,9 +801,10 @@ El pipeline esta optimizado para gastar **minimos minutos** de Actions. Reglas:
 
 | Trigger | Actions que corren |
 |---|---|
-| `git push feat/*` (o cualquier rama que no sea `main`/`develop`) | **0 workflows** |
+| `git push feat/*` (o cualquier rama que no sea `main`/`staging`/`develop`) | **0 workflows** |
 | Abrir un PR (a cualquier base) | **0 workflows** |
 | Push a `develop` (directo o via merge de PR) | `Deploy DEV` completo |
+| Push a `staging` (via merge de PR `develop → staging`; directo bloqueado) | `Deploy STAGING` completo |
 | Push a `main` (via merge de PR; directo bloqueado) | `Deploy PRO` completo |
 
 Consecuencias practicas:
@@ -814,6 +820,8 @@ Consecuencias practicas:
   y AWS queda intacto.
 - **Forma canónica del pipeline (servicios vs infraestructura)**:
   - **Deploy DEV**: `plan → validate → infrastructure? → services[matrix] → summary`.
+  - **Deploy STAGING**: idéntico a Deploy DEV (incluye `integration`), con
+    `stage: staging`.
   - **Deploy PRO**: mismo shape, pero cada service package saltea el
     step de `integration` (`stage: pro`; no queremos usuarios de prueba
     en producción).
@@ -850,10 +858,10 @@ Consecuencias practicas:
     `test` needs `validate`; `deploy` needs `test`; `integration` needs
     `deploy`. Si algo se corta, todo lo posterior se marca `skipped`.
   - **El job `integration`** (§13.3) tiene `continue-on-error: true` y
-    solo corre cuando `stage == 'dev'`. Un fallo NO revierte AWS ni
+    corre en todo stage salvo `pro` (`stage != 'pro'`). Un fallo NO revierte AWS ni
     marca el workflow en rojo — el resultado por servicio queda en el
     `summary` (tabla con las 4 etapas + columna "stopped at") y en el
-    artifact `pytest-integration-dev-<service>`.
+    artifact `pytest-integration-<stage>-<service>`.
 - **Iteracion sin gastar Actions**: para probar cambios en dev, en vez de mergear
   a `develop`, hacer `sls deploy --stage dev` directamente desde local con
   credenciales AWS locales. Cuando este todo validado, un unico PR/merge a `main`

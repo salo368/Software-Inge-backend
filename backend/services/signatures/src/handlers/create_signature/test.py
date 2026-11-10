@@ -40,6 +40,8 @@ def test_create_signature_happy_path_base64(load_handler, monkeypatch):
 
     upload_mock = MagicMock()
     monkeypatch.setattr(h, "upload_from_bytes", upload_mock)
+    send_message_mock = MagicMock()
+    monkeypatch.setattr(h, "send_message", send_message_mock)
 
     created = MagicMock(
         id="row-1", stage="FORM", doc_s3_key=None,
@@ -63,14 +65,20 @@ def test_create_signature_happy_path_base64(load_handler, monkeypatch):
 
     create_mock.assert_called_once_with(key, _SIGN_LOCATION, _SIGNATORY)
 
+    queue_url, body = send_message_mock.call_args.args
+    assert queue_url == h.TIMEOUT_QUEUE_URL
+    assert json.loads(body) == {"signature_id": "row-1"}
+    assert send_message_mock.call_args.kwargs["delay_seconds"] == int(h.SIGNING_WINDOW.total_seconds())
+
 
 def test_create_signature_happy_path_raw_body(load_handler, monkeypatch):
     h = load_handler(__file__)
 
     upload_mock = MagicMock()
     monkeypatch.setattr(h, "upload_from_bytes", upload_mock)
+    monkeypatch.setattr(h, "send_message", MagicMock())
     monkeypatch.setattr(
-        h, "Signatures", MagicMock(create=MagicMock(return_value=MagicMock()))
+        h, "Signatures", MagicMock(create=MagicMock(return_value=MagicMock(id="row-2")))
     )
 
     h.handler(_event(_PDF_BYTES, base64_encoded=False), None)
@@ -83,6 +91,7 @@ def test_create_signature_multi_page_sign_location(load_handler, monkeypatch):
     h = load_handler(__file__)
 
     monkeypatch.setattr(h, "upload_from_bytes", MagicMock())
+    monkeypatch.setattr(h, "send_message", MagicMock())
     create_mock = MagicMock(return_value=MagicMock())
     monkeypatch.setattr(h, "Signatures", MagicMock(create=create_mock))
 
@@ -100,6 +109,7 @@ def test_create_signature_uuid7_keys_are_time_ordered(load_handler, monkeypatch)
 
     keys = []
     monkeypatch.setattr(h, "upload_from_bytes", MagicMock(side_effect=lambda b, k, d, **kw: keys.append(k)))
+    monkeypatch.setattr(h, "send_message", MagicMock())
     monkeypatch.setattr(h, "Signatures", MagicMock(create=MagicMock(return_value=MagicMock())))
 
     for _ in range(5):
