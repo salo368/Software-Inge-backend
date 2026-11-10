@@ -48,6 +48,9 @@ provider:
             # `set_process_form` fetches the user's form by invoking
             # forms.get_form directly instead of duplicating that lookup.
             - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-forms-get-form
+            # `get_required_files` fetches the process's uploaded files by
+            # invoking the internal files.list_process_files Lambda.
+            - arn:aws:lambda:${aws:region}:*:function:cdts-${sls:stage}-files-list-process-files
 
 plugins:
   - serverless-python-requirements
