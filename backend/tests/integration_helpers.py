@@ -381,30 +381,16 @@ def cleanup_user(email: str) -> None:
 
 
 def cleanup_process(process_id: str) -> None:
-    """Deletes a process and its dependent files/signatures rows.
+    """Deletes a process and its dependent `files` rows.
 
-    Notes on the v2 signatures schema:
-      * The `signatures` table (post Fase 2 destructive migration) is
-        decoupled from `processes` and does NOT have a `process_id`
-        column. The link is `processes.sign_id -> signatures.sign_id`.
-      * Cleanup order therefore: read sign_id off the process row,
-        delete files (FK -> process), delete the process, THEN delete
-        the ceremony (nothing FKs to it, but we do it last so a
-        transient failure leaves the ceremony reachable via the
-        process row for diagnostics rather than orphaning it).
+    `processes` no longer links to `signatures` (that bridge -- the old
+    `sign_id` column -- was dropped ahead of the signatures refactor);
+    callers that opened a ceremony track their own `sign_id` and clean it
+    up separately via `cleanup_signature`.
     """
     if not process_id:
         return
     with db_conn() as c:
-        sign_id: str | None = None
-        try:
-            rows = c.run(
-                "SELECT sign_id FROM processes WHERE id = :p", p=process_id
-            )
-            if rows and rows[0][0]:
-                sign_id = rows[0][0]
-        except Exception:
-            pass
         try:
             c.run("DELETE FROM files WHERE process_id = :p", p=process_id)
         except Exception:
@@ -413,13 +399,6 @@ def cleanup_process(process_id: str) -> None:
             c.run("DELETE FROM processes WHERE id = :p", p=process_id)
         except Exception:
             pass
-        if sign_id:
-            try:
-                c.run(
-                    "DELETE FROM signatures WHERE sign_id = :s", s=sign_id
-                )
-            except Exception:
-                pass
 
 
 def cleanup_signature(sign_id: str) -> None:

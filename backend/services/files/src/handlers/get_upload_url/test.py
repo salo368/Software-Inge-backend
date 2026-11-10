@@ -36,7 +36,7 @@ def test_get_upload_url_happy_path(load_handler, monkeypatch):
     resp = h.handler(
         _authed_event({
             "process_id": str(process_id),
-            "file_type": "declaracion_renta",
+            "file_type": "TAX_DECLARATION",
             "content_type": "application/pdf",
             "original_name": "declaración renta 2025.pdf",
         }),
@@ -47,7 +47,7 @@ def test_get_upload_url_happy_path(load_handler, monkeypatch):
     body = json.loads(resp["body"])
     assert body["upload_url"] == "https://s3.test/upload"
     assert body["content_type"] == "application/pdf"
-    assert body["key"].startswith(f"processes/{process_id}/declaracion_renta/")
+    assert body["key"].startswith(f"processes/{process_id}/TAX_DECLARATION/")
     assert body["key"].endswith(".pdf")
     # Metadata must be percent-encoded so the accented filename survives.
     assert "%20" in body["upload_headers"]["x-amz-meta-original-name"]
@@ -84,7 +84,7 @@ def test_get_upload_url_process_of_other_user_returns_404(load_handler, monkeypa
     resp = h.handler(
         _authed_event({
             "process_id": str(uuid4()),
-            "file_type": "declaracion_renta",
+            "file_type": "TAX_DECLARATION",
             "content_type": "application/pdf",
         }),
         None,
