@@ -291,6 +291,53 @@ responde `400 process_id is required`.
 
 ---
 
+### 4.5 `GET /files/get-process-files`
+
+Backoffice: todos los archivos registrados de un proceso (certificación
+bancaria, declaración de renta, RUT, orden de inversión) con una URL
+prefirmada de descarga (15 min) para cada uno. Lo usa la revisión de un
+proceso antes de aprobarlo.
+
+**Auth requerida:** sí, **solo token de admin** (`INTERNAL`). Un token de
+usuario responde `401 invalid_or_expired_token`.
+
+**Request**
+
+```http
+GET {{base_url}}/files/get-process-files?process_id=7077c70e-d8bf-4c8e-97ef-a7e0909949df
+Authorization: Bearer <token de admin>
+```
+
+**Response — 200 OK**
+
+```json
+{
+  "files": [
+    {
+      "id": "0f11b02e-...",
+      "file_type": "BANK_CERT",
+      "original_name": "certificacion.pdf",
+      "content_type": "application/pdf",
+      "size_bytes": 182311,
+      "uploaded_at": "2026-11-09 02:40:11+00:00",
+      "url": "https://cdts-staging-files.s3.amazonaws.com/processes/...?X-Amz-..."
+    }
+  ]
+}
+```
+
+Los más recientes primero. Si el usuario reemplazó un documento, aparecen las
+dos versiones. Proceso sin archivos → `{"files": []}`.
+
+**Errores**
+
+| Status | `error` | Cuándo |
+|---|---|---|
+| 400 | `invalid process id` | falta o no es UUID |
+| 401 | `missing_bearer_token` / `invalid_or_expired_token` | token ausente, inválido, o de usuario |
+
+---
+
 ## 5. Sobre `integration.py`
 
 `get_upload_url/integration.py` existe y ejercita el flujo completo S3 →
